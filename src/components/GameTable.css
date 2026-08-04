@@ -1,0 +1,98 @@
+.game-table {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: calc(100vh - 100px);
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.grid-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.grid-row.bottom {
+  height: 120px;
+}
+
+.grid-cell {
+  width: 33.33%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.table {
+  width: 80%;
+  aspect-ratio: 1 / 1;
+  background-color: #d2b48c;
+  border: 10px solid #8b4513;
+  border-radius: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.player-dummy-hand,
+.player-hand-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.opponent-hand,
+.opponent-dummy-hand {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.card.back {
+  width: 40px;
+  height: 60px;
+  margin: 2px;
+  background-color: #6c757d;
+  border: 1px solid #495057;
+  border-radius: 3px;
+  cursor: default;
+}
+
+.opponent-hand .card.back,
+.opponent-dummy-hand .card.back {
+  transform: rotate(90deg);
+  margin-bottom: -50px;
+}
+
+/* Remove all hover effects for face-down cards */
+.card.back:hover {
+  transform: none;
+  z-index: auto;
+}
+
+.opponent-hand .card.back:hover,
+.opponent-dummy-hand .card.back:hover {
+  transform: rotate(90deg);
+  z-index: auto;
+}
+
+.played-cards {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.played-cards .card {
+  margin: 0 5px;
+}
+
+.played-cards .card.dummy {
+  border: 2px solid #007bff;
+}
+
+.played-cards .card.opponent {
+  transform: rotate(180deg);
+}

@@ -1,0 +1,112 @@
+.bidding-interface {
+  margin-bottom: 20px;
+}
+
+.bidding-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bid-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+
+.bidding-options button {
+  width: 80px;
+  height: 60px;
+  margin: 0 5px;
+  padding: 5px;
+  font-size: 14px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  color: black;
+}
+
+.bidding-options button:not(:disabled):hover {
+  background-color: #e0e0e0;
+}
+
+.bidding-options button:disabled {
+  background-color: #d3d3d3;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.red-suit {
+  color: red;
+}
+
+.special-bids {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.pass-button,
+.misere-button,
+.open-misere-button {
+  width: 120px !important;
+  height: 70px !important;
+  margin: 0 5px;
+  font-size: 12px;
+}
+
+.pass-button {
+  background-color: #ffcccb;
+}
+
+.misere-button {
+  background-color: #add8e6;
+}
+
+.open-misere-button {
+  background-color: #90ee90;
+}
+
+.pass-button:not(:disabled):hover {
+  background-color: #ffb3b3;
+}
+
+.misere-button:not(:disabled):hover {
+  background-color: #9ac0cd;
+}
+
+.open-misere-button:not(:disabled):hover {
+  background-color: #7ccd7c;
+}
+
+.pass-button:disabled,
+.misere-button:disabled,
+.open-misere-button:disabled {
+  opacity: 0.6;
+}
+
+.bidding-options button:disabled .red-suit {
+  color: #ff8080; /* A lighter red for disabled buttons */
+}
+
+.bidding-history {
+  list-style-type: none;
+  padding: 0;
+  margin: 10px 0;
+  text-align: left;
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.bidding-history li {
+  margin-bottom: 5px;
+}
+
+.bidding-history .red-suit {
+  color: red;
+}

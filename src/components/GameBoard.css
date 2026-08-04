@@ -1,0 +1,65 @@
+.game-board {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.trump {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.trump.red {
+  color: red;
+}
+
+.trump.black {
+  color: black;
+}
+
+.current-trick {
+  margin-top: 20px;
+}
+
+.played-cards {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 60px;
+  height: 90px;
+  margin: 5px;
+  padding: 5px;
+  font-size: 16px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card.red {
+  color: red;
+}
+
+.card.black {
+  color: black;
+}
+
+.card-value {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.card-suit {
+  font-size: 24px;
+}
+
+.player-id {
+  font-size: 12px;
+  text-align: center;
+}

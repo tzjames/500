@@ -1,0 +1,95 @@
+.player-hand {
+  position: relative;
+  height: 120px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.cards {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+}
+
+.suit-group {
+  display: flex;
+  margin-right: 20px;
+}
+
+.suit-group:last-child {
+  margin-right: 0;
+}
+
+.card {
+  width: 60px;
+  height: 90px;
+  margin: 0 2px;
+  padding: 5px;
+  font-size: 16px;
+  background-color: white;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.1s;
+  overflow: hidden;
+}
+
+.card:not(:disabled) {
+  cursor: pointer;
+}
+
+.card:disabled {
+  cursor: not-allowed;
+}
+
+.card:not(:disabled):hover {
+  transform: translateY(-10px);
+  z-index: 10;
+}
+
+.card.red {
+  color: red;
+}
+
+.card.black {
+  color: black;
+}
+
+.card-value {
+  font-size: 18px;
+  font-weight: bold;
+  text-align: left;
+  padding-left: 5px;
+}
+
+.card-suit {
+  font-size: 24px;
+  text-align: center;
+}
+
+.card.joker .card-value {
+  font-size: 14px;
+  text-align: center;
+  padding-left: 0;
+}
+
+.joker-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.left-bower-indicator {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: bold;
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 1px 3px;
+  border-radius: 3px;
+}

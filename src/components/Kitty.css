@@ -1,0 +1,61 @@
+.kitty {
+  margin-bottom: 20px;
+}
+
+.done-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.done-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.done-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.kitty-cards,
+.player-hand {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 60px;
+  height: 90px;
+  margin: 5px;
+  padding: 5px;
+  font-size: 14px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #45a049;
+}

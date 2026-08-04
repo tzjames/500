@@ -1,0 +1,56 @@
+.dummy-hand {
+  margin-bottom: 20px;
+}
+
+.dummy-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dummy-card {
+  width: 60px;
+  height: 90px;
+  margin: 0 2px;
+  padding: 5px;
+  font-size: 14px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.1s;
+}
+
+.dummy-card:not(:disabled) {
+  cursor: pointer;
+}
+
+.dummy-card:disabled {
+  cursor: not-allowed;
+}
+
+.dummy-card:not(:disabled):hover {
+  transform: translateY(-5px);
+}
+
+.dummy-card.red {
+  color: red;
+}
+
+.dummy-card.black {
+  color: black;
+}
+
+.dummy-card-value {
+  font-size: 18px;
+  font-weight: bold;
+  text-align: left;
+  padding-left: 5px;
+}
+
+.dummy-card-suit {
+  font-size: 24px;
+  text-align: center;
+}

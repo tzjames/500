@@ -1,5 +1,44 @@
 .App {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.game-info {
+  padding: 20px;
+}
+
+.game-table-container {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.waiting-message {
   text-align: center;
+  padding: 10px;
+  background-color: #f0f0f0;
+}
+
+.hands-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dummy-hand,
+.player-hand {
+  width: 45%;
+}
+
+.game-table {
+  flex-grow: 1;
 }
 
 .App-logo {
@@ -35,4 +74,38 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.game-board,
+.bidding-interface {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.cards button {
+  margin: 5px;
+  padding: 10px;
+  font-size: 16px;
+}
+
+.waiting-room {
+  text-align: center;
+  padding: 20px;
+}
+
+.waiting-room button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 18px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.waiting-room button:hover {
+  background-color: #45a049;
 }
