@@ -180,7 +180,9 @@ class Room {
   }
 
   logEvent(type, payload) {
-    this.log.push({ seq: this.log.length, round: this.roundNumber, type, ts: Date.now(), ...payload });
+    const entry = { seq: this.log.length, round: this.roundNumber, type, ts: Date.now(), ...payload };
+    this.log.push(entry);
+    return entry;
   }
 
   broadcastPlayersUpdate() {
@@ -603,15 +605,21 @@ class Room {
     }
 
     const justPlayed = activeGame.currentTrick[activeGame.currentTrick.length - 1];
+    // seq lets the client notice a dropped "cardPlayed" broadcast (e.g. a brief
+    // connectivity blip that doesn't trigger a full reconnect) — a gap in the
+    // sequence means its local hand/dummy counts have silently drifted from
+    // the server's, with no other signal to catch it short of a page refresh.
+    const seq =
+      mode !== "replay"
+        ? this.logEvent("play", { userId: socket.userId, card, isDummy, nominatedSuit: justPlayed.nominatedSuit }).seq
+        : undefined;
     this.io.to(this.id).emit(mode === "replay" ? "replayCardPlayed" : "cardPlayed", {
       playerId: socket.userId,
       card,
       isDummy,
       nominatedSuit: justPlayed.nominatedSuit,
+      seq,
     });
-    if (mode !== "replay") {
-      this.logEvent("play", { userId: socket.userId, card, isDummy, nominatedSuit: justPlayed.nominatedSuit });
-    }
 
     if (activeGame.currentTrick.length === activeGame.seats.length) {
       const trickWinner = activeGame.resolveTrick();

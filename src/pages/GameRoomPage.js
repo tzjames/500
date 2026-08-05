@@ -80,6 +80,11 @@ function GameRoomPage() {
   const replayTrickTokenCounterRef = useRef(0);
   const replayPendingClearTokenRef = useRef(null);
   const [flyingWinner, setFlyingWinner] = useState(null);
+  // Tracks the server's log seq of the last "cardPlayed" we actually saw, so
+  // a dropped broadcast (a connectivity blip that doesn't fully disconnect)
+  // shows up as a gap instead of silently leaving stale face-down cards in
+  // the opponent's hand/dummy until someone happens to refresh the page.
+  const lastPlaySeqRef = useRef(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -139,6 +144,7 @@ function GameRoomPage() {
       setSelectedCards([]);
       setPlayedCards([]);
       pendingClearTokenRef.current = null;
+      lastPlaySeqRef.current = null;
       setFlyingWinner(null);
       setCurrentPlayer(null);
       setCurrentTurnIsDummy(false);
@@ -208,7 +214,13 @@ function GameRoomPage() {
       }));
     });
 
-    socket.on("cardPlayed", ({ playerId: cardPlayerId, card, isDummy }) => {
+    socket.on("cardPlayed", ({ playerId: cardPlayerId, card, isDummy, seq }) => {
+      if (seq !== undefined) {
+        if (lastPlaySeqRef.current !== null && seq !== lastPlaySeqRef.current + 1) {
+          socket.emit("joinRoom", { gameId });
+        }
+        lastPlaySeqRef.current = seq;
+      }
       const isFreshTrick = pendingClearTokenRef.current !== null;
       pendingClearTokenRef.current = null;
       setPlayedCards((prev) => {
@@ -247,6 +259,7 @@ function GameRoomPage() {
       setCurrentTurnIsDummy(state.currentIsDummy || false);
       setPlayedCards(state.playedCards || []);
       pendingClearTokenRef.current = null;
+      lastPlaySeqRef.current = null;
       setFlyingWinner(null);
       setIsKittyPhase(state.gamePhase === "kitty");
       setRoundNumber(state.roundNumber || 1);

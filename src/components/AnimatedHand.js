@@ -80,6 +80,14 @@ function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit }) {
     })
     .filter((group) => group.length > 0);
 
+  // Before a trump suit is chosen, no suit group above ever matches
+  // suit === trumpSuit, so the Joker falls through both branches and
+  // vanishes from the hand entirely. Give it its own group in that case.
+  if (!trumpSuit) {
+    const jokerGroup = sortedHand.filter((card) => card.suit === "Joker");
+    if (jokerGroup.length > 0) groupedHand.unshift(jokerGroup);
+  }
+
   return (
     <div className="animated-hand">
       {groupedHand.map((suitGroup, groupIndex) => (
