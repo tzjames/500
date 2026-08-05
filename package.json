@@ -24,7 +24,8 @@
     "eject": "react-scripts eject",
     "server": "nodemon server/server.js",
     "client": "PORT=3002 react-scripts start",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start:prod": "node server/server.js"
   },
   "eslintConfig": {
     "extends": [

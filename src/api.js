@@ -1,10 +1,18 @@
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+// On Render the server serves this same build, so API calls can just stay
+// relative to whatever origin the page was loaded from. The localhost
+// fallback only matters for local dev, where the API runs on a separate port.
+const API_URL =
+  process.env.REACT_APP_API_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:5001");
 
 async function request(path, { method = "GET", body, token } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
+      // Bypasses ngrok's free-tier browser-warning interstitial, which
+      // otherwise intercepts plain fetch() calls (not just page loads) when
+      // API_URL points at an ngrok tunnel and bounces them back as HTML.
+      "ngrok-skip-browser-warning": "true",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
