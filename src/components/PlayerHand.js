@@ -1,6 +1,6 @@
 import React from "react";
 import "./PlayerHand.css"; // We'll create this CSS file next
-import jokerImage from "../assets/joker.png"; // Add this image to your assets folder
+import CardFace from "./CardFace";
 
 function PlayerHand({ hand, onPlayCard, trumpSuit, isCurrentPlayer }) {
   const getCardColor = (suit) => {
@@ -39,10 +39,10 @@ function PlayerHand({ hand, onPlayCard, trumpSuit, isCurrentPlayer }) {
   };
 
   const getTrumpValue = (card) => {
-    if (card.suit === "Joker") return 18; // Increase Joker value to be highest
-    if (card.suit === trumpSuit && card.value === "J") return 17; // Right bower
-    if (isLeftBower(card, trumpSuit)) return 16; // Left bower
-    if (card.suit === trumpSuit) return valueOrder.indexOf(card.value) + 5;
+    if (card.suit === "Joker") return 22; // Highest
+    if (card.suit === trumpSuit && card.value === "J") return 21; // Right bower
+    if (isLeftBower(card, trumpSuit)) return 20; // Left bower
+    // Plain trump cards top out at "A" (index 12), well below the bowers.
     return valueOrder.indexOf(card.value);
   };
 
@@ -92,12 +92,7 @@ function PlayerHand({ hand, onPlayCard, trumpSuit, isCurrentPlayer }) {
                 }`}
                 disabled={!isCurrentPlayer}
               >
-                <div className="card-value">{card.value}</div>
-                {card.suit === "Joker" ? (
-                  <img src={jokerImage} alt="Joker" className="joker-image" />
-                ) : (
-                  <div className="card-suit">{card.suit}</div>
-                )}
+                <CardFace card={card} />
                 {isLeftBower(card, trumpSuit) && (
                   <div className="left-bower-indicator">LB</div>
                 )}

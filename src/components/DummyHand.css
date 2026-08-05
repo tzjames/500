@@ -4,8 +4,17 @@
 
 .dummy-cards {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
+}
+
+.suit-group {
+  display: flex;
+  margin-right: 20px;
+}
+
+.suit-group:last-child {
+  margin-right: 0;
 }
 
 .dummy-card {

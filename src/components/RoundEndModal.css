@@ -1,0 +1,83 @@
+.round-result-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+}
+
+.round-result-modal {
+  background: white;
+  padding: 24px 32px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  min-width: 280px;
+  max-width: 360px;
+}
+
+.round-result-scores {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.round-result-scores li {
+  margin-bottom: 4px;
+}
+
+.round-result-scores .positive {
+  color: #2e7d32;
+}
+
+.round-result-scores .negative {
+  color: #c62828;
+}
+
+.round-end-buttons,
+.round-end-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.round-end-buttons button,
+.round-end-proposal-buttons button {
+  padding: 10px 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  background: #f5f5f5;
+}
+
+.round-end-buttons button:last-of-type {
+  background: #4caf50;
+  color: white;
+  border: none;
+}
+
+.round-end-helper-text {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+  margin: 0;
+}
+
+.round-end-waiting {
+  color: #666;
+  margin-top: 12px;
+}
+
+.round-end-proposal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}

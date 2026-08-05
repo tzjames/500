@@ -3,7 +3,8 @@
   flex-direction: column;
   justify-content: space-between;
   width: 100%;
-  height: calc(100vh - 100px);
+  height: 100%;
+  max-width: 900px;
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
@@ -26,7 +27,9 @@
 }
 
 .table {
+  position: relative;
   width: 80%;
+  max-height: 42vh;
   aspect-ratio: 1 / 1;
   background-color: #d2b48c;
   border: 10px solid #8b4513;
@@ -49,6 +52,41 @@
   display: flex;
   flex-direction: column;
   overflow: visible;
+}
+
+/* Open Misère: the bidder's hand is exposed after their first lost trick.
+   Widen this side (and shrink/shift the table) so a single suit's worth of
+   cards — up to 13 — still fits in one row. */
+.grid-row.middle .revealed-hand-cell {
+  width: 46%;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.table.table-shifted {
+  width: 45%;
+}
+
+.revealed-hand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.revealed-hand-row {
+  display: flex;
+  gap: 2px;
+}
+
+.revealed-card {
+  width: 40px;
+  height: 60px;
+  font-size: 11px;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .card.back {
@@ -79,20 +117,64 @@
   z-index: auto;
 }
 
-.played-cards {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* Each played card sits at the edge of the table nearest the hand it came
+   from: your own hand at the bottom, your dummy at the top, the opponent's
+   hand/dummy on whichever side their face-down pile is shown.
+   Scoped under ".table" so this reliably beats the plain, unscoped ".card"
+   rule (from AnimatedHand.css et al.) that sets position:relative — same
+   specificity as an unscoped ".played-card" would have, so it could win the
+   cascade depending on stylesheet load order. */
+/* All four resting spots (and the "flying to the winner" destination, below)
+   share one top/left coordinate system so transitioning between any two of
+   them — e.g. a card resting on the left flying out to the bottom — is a
+   plain, guaranteed-smooth interpolation instead of juggling mismatched
+   top/bottom/left/right anchors. */
+.table .played-card {
+  position: absolute;
+  margin: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: top 0.6s ease-in, left 0.6s ease-in, transform 0.6s ease-in, opacity 0.6s ease-in;
 }
 
-.played-cards .card {
-  margin: 0 5px;
-}
-
-.played-cards .card.dummy {
+.table .played-card.dummy {
   border: 2px solid #007bff;
 }
 
-.played-cards .card.opponent {
-  transform: rotate(180deg);
+/* Each anchors by the single edge that faces the table's edge — e.g. the
+   bottom card's *bottom* edge sits 5% up from the table's bottom edge, via
+   top:95% + a full translateY(-100%) — with the perpendicular axis centered
+   (translate 50%) same as before. That keeps the padding to the table edge
+   identical on all four sides regardless of card size, and (unlike a plain
+   `bottom`/`right` property) still animates smoothly via top/left/transform
+   when a trick flies from one anchor to another. */
+.table .played-card-bottom {
+  top: 95%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+}
+
+.table .played-card-top {
+  top: 5%;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+.table .played-card-left {
+  top: 50%;
+  left: 5%;
+  transform: translate(0%, -50%);
+}
+
+.table .played-card-right {
+  top: 50%;
+  left: 95%;
+  transform: translate(-100%, -50%);
+}
+
+/* Once a trick is decided, all four played cards fly to the winner's edge
+   (same anchor points as above) and fade out together. */
+.table .played-card.flying {
+  opacity: 0;
 }

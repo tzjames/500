@@ -1,12 +1,69 @@
 const express = require("express");
 const http = require("http");
+const crypto = require("crypto");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const path = require("path");
-const Game500 = require("./gameLogic");
+const db = require("./db");
+const auth = require("./auth");
+const { RoomManager } = require("./room");
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+
+app.post("/api/register", async (req, res) => {
+  const { name, password } = req.body || {};
+  if (!name?.trim() || !password) return res.status(400).json({ error: "Name and password are required." });
+  if (await db.findUserByName(name.trim())) {
+    return res.status(409).json({ error: "That name is already taken." });
+  }
+  const user = await db.createUser({
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    passwordHash: await auth.hashPassword(password),
+  });
+  res.json({ token: auth.signToken(user), user: { id: user._id, name: user.name } });
+});
+
+app.post("/api/login", async (req, res) => {
+  const { name, password } = req.body || {};
+  const user = name && (await db.findUserByName(name.trim()));
+  if (!user || !(await auth.comparePassword(password || "", user.passwordHash))) {
+    return res.status(401).json({ error: "Invalid name or password." });
+  }
+  res.json({ token: auth.signToken(user), user: { id: user._id, name: user.name } });
+});
+
+app.get("/api/games", auth.requireAuth, async (req, res) => {
+  const games = await db.listGamesForUser(req.user.userId);
+  res.json(
+    games.map((g) => ({
+      id: g._id,
+      status: g.status,
+      playerSlots: g.playerSlots,
+      roundNumber: g.roundNumber,
+      winner: g.winner,
+      updatedAt: g.updatedAt,
+    }))
+  );
+});
+
+app.post("/api/games", auth.requireAuth, async (req, res) => {
+  const game = await db.createGame({
+    _id: crypto.randomUUID(),
+    status: "waiting",
+    playerSlots: [{ userId: req.user.userId, name: req.user.name }, null],
+    roundNumber: 1,
+    scoreHistory: [],
+    winner: null,
+    log: [],
+    snapshot: {},
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  res.json({ id: game._id });
+});
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, "../build")));
@@ -25,183 +82,55 @@ const io = socketIo(server, {
     credentials: true,
   },
 });
+io.use(auth.socketAuth);
+
+const roomManager = new RoomManager(io);
 
 const PORT = process.env.PORT || 5001;
 
-let game = null;
-let players = new Map(); // Change Set to Map to store player names
-let currentBidder = null;
-let biddingHistory = [];
-
 io.on("connection", (socket) => {
-  console.log("New client connected", socket.id);
+  let room = null;
 
-  if (players.size < 2) {
-    players.set(socket.id, { name: null }); // Store player with null name initially
-    console.log("Player added. Total players:", players.size);
-
-    io.emit("playerCount", players.size);
-
-    if (players.size === 2) {
-      io.emit("readyForNames"); // Emit event to prompt for names
+  socket.on("joinRoom", async ({ gameId }) => {
+    try {
+      room = await roomManager.getOrCreate(gameId);
+    } catch (err) {
+      socket.emit("joinRejected", { message: "That game doesn't exist." });
+      return;
     }
-  } else {
-    console.log("Room is full. Rejecting connection.");
-    socket.emit("roomFull");
-    socket.disconnect(true);
-    return;
-  }
-
-  socket.on("setPlayerName", (name, callback) => {
-    if (players.has(socket.id)) {
-      players.get(socket.id).name = name;
-      console.log(`Player ${socket.id} set name to ${name}`);
-
-      // Check if both players have joined and set their names
-      if (players.size === 2 && [...players.values()].every((player) => player.name)) {
-        startGame();
-      } else {
-        // Notify all clients about the updated player count and names
-        io.emit("playersUpdate", {
-          count: players.size,
-          players: Array.from(players.values()).map((p) => ({
-            id: p.id,
-            name: p.name,
-          })),
-        });
-      }
-    }
-    if (callback) callback();
+    room.handleJoin(socket);
   });
 
-  socket.on("ping", (callback) => {
-    console.log("Received ping from", socket.id);
-    callback({
-      status: "ok",
-      playerCount: players.size,
-    });
+  // Navigating away from a room (without disconnecting the socket, e.g. back
+  // to the home page) shouldn't leave this player looking "connected" there.
+  socket.on("leaveRoom", () => {
+    if (!room) return;
+    socket.leave(room.id);
+    room.handleDisconnect(socket);
+    room = null;
   });
 
-  socket.on("playCard", ({ playerId, card, isDummy }) => {
-    if (game && playerId === game.currentPlayer) {
-      game.playCard(playerId, card, isDummy);
-      io.emit("cardPlayed", { playerId, card, isDummy });
+  socket.on("placeBid", (payload) => room?.placeBid(socket, payload));
+  socket.on("setGameSettings", (settings) => room?.setGameSettings(socket, settings));
+  socket.on("offerPass", () => room?.offerPass(socket));
+  socket.on("offerRetroactivePass", () => room?.offerRetroactivePass(socket));
+  socket.on("respondToOffer", ({ accept }) => room?.respondToOffer(socket, accept));
+  socket.on("kittyDone", (payload) => room?.kittyDone(socket, payload));
+  socket.on("playCard", (payload) => room?.playCard(socket, payload));
+  socket.on("roundEndReady", () => room?.roundEndReady(socket));
+  socket.on("roundEndPropose", ({ type }) => room?.roundEndPropose(socket, type));
+  socket.on("roundEndRespond", ({ accept }) => room?.roundEndRespond(socket, accept));
+  socket.on("reviewStep", ({ index }) => room?.reviewStep(socket, index));
+  socket.on("reviewDone", () => room?.reviewDone(socket));
+  socket.on("rematchOffer", () => room?.rematchOffer(socket));
+  socket.on("rematchRespond", ({ accept }) => room?.rematchRespond(socket, accept));
 
-      if (game.currentTrick.length === 4) {
-        const trickWinner = game.resolveTrick();
-        io.emit("trickResolved", {
-          winner: trickWinner,
-          newScores: game.players.map((p) => ({ id: p.id, score: p.score })),
-        });
-      }
-
-      game.currentPlayer = game.players.find((p) => p.id !== playerId).id;
-      io.emit("updateCurrentPlayer", game.currentPlayer);
-    }
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected", socket.id);
-    players.delete(socket.id);
-    console.log("Player removed. Total players:", players.size);
-    io.emit("playerCount", players.size);
-    if (players.size === 0) {
-      game = null;
-    }
-  });
-
-  socket.on("placeBid", ({ playerId, bid, points }) => {
-    console.log("Received bid:", { playerId, bid, points });
-    if (game && playerId === currentBidder) {
-      const newBid = { player: playerId, bid, points };
-
-      biddingHistory.push(newBid);
-
-      if (bid === "Pass") {
-        const winningBid = biddingHistory.filter((b) => b.bid !== "Pass").pop();
-        if (winningBid) {
-          game.currentBid = winningBid;
-          const kitty = game.dealKitty();
-          io.emit("biddingComplete", winningBid, biddingHistory);
-          io.to(winningBid.player).emit("showKitty", kitty);
-        } else {
-          io.emit("allPlayersPassed");
-        }
-      } else {
-        game.currentBid = newBid;
-        // Switch to the other player for bidding
-        currentBidder = game.players.find((p) => p.id !== playerId).id;
-        io.emit("updateGame", {
-          currentBid: game.currentBid,
-          currentBidder,
-          biddingHistory,
-        });
-      }
-    } else {
-      console.log(
-        "Invalid bid:",
-        game ? "Not current bidder" : "Game not initialized"
-      );
-    }
-  });
-
-  // Remove or comment out this event listener as it's now handled in placeBid
-  // socket.on("biddingComplete", (finalBid) => {
-  //   console.log("Bidding complete:", finalBid);
-  //   game.currentBid = finalBid;
-  //   const kitty = game.dealKitty();
-  //   io.to(finalBid.player).emit("showKitty", kitty);
-  // });
-
-  socket.on("swapCard", ({ playerId, handCardIndex, kittyCardIndex }) => {
-    game.swapCard(playerId, handCardIndex, kittyCardIndex);
-    const updatedHand = game.players.find((p) => p.id === playerId).hand;
-    io.to(playerId).emit("updateHand", updatedHand);
-  });
-
-  socket.on("kittyDone", (playerId, newHand) => {
-    const winningPlayer = game.players.find((p) => p.id === playerId);
-    winningPlayer.hand = newHand;
-    game.dealDummyHands();
-    game.currentPlayer = playerId;
-
-    io.emit("kittyPhaseComplete", {
-      winningBidder: playerId,
-      currentPlayer: playerId,
-    });
-  });
+  socket.on("disconnect", () => room?.handleDisconnect(socket));
 });
 
-function startGame() {
-  console.log("Starting game...");
-  game = new Game500();
-  console.log("Game instance created");
-
-  const playerIds = Array.from(players.keys());
-  const playerNames = Array.from(players.values()).map((p) => p.name);
-
-  // Assign the correct player IDs
-  game.players[0].id = playerIds[0];
-  game.players[1].id = playerIds[1];
-
-  const gameStartData = game.startGame();
-
-  gameStartData.players = gameStartData.players.map((player, index) => ({
-    ...player,
-    name: playerNames[index],
-  }));
-
-  // Set the initial bidder (non-dealer)
-  currentBidder = playerIds.find((id) => id !== gameStartData.dealerId);
-
-  console.log("Game start data:", JSON.stringify(gameStartData, null, 2));
-  io.emit("gameStart", { ...gameStartData, currentBidder });
-  console.log("gameStart event emitted");
-
-  biddingHistory = []; // Reset bidding history for new game
-
-  // Set the initial game phase
-  io.emit("updateGamePhase", "bidding");
+async function init() {
+  await db.connect();
+  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+init();

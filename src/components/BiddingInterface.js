@@ -38,6 +38,12 @@ function BiddingInterface({
   onPlaceBid,
   biddingComplete,
   biddingHistory,
+  gameSettings,
+  offerPassDeclined,
+  offerRetroactivePassDeclined,
+  waitingForOfferResponse,
+  onOfferPass,
+  onOfferRetroactivePass,
 }) {
   const isCurrentBidder = playerId === currentBidder;
 
@@ -147,7 +153,7 @@ function BiddingInterface({
       return (
         <div className="bidding-interface">
           <h2>Bidding Complete</h2>
-          <p>All players passed. The game will be restarted.</p>
+          <p>All players passed. Redealing...</p>
           <h3>Bidding History</h3>
           <ul className="bidding-history">
             {biddingHistory.map((bid, index) => (
@@ -187,6 +193,25 @@ function BiddingInterface({
       {isCurrentBidder ? (
         <div>
           <p>It's your turn to bid or pass</p>
+          {biddingHistory.length === 0 && gameSettings?.showOfferPassButton && (
+            <button
+              className="offer-pass-button"
+              onClick={onOfferPass}
+              disabled={offerPassDeclined || waitingForOfferResponse}
+            >
+              Offer a pass
+            </button>
+          )}
+          {biddingHistory.length > 0 && gameSettings?.showOfferRetroactivePassButton && (
+            <button
+              className="offer-pass-button"
+              onClick={onOfferRetroactivePass}
+              disabled={offerRetroactivePassDeclined || waitingForOfferResponse}
+            >
+              Offer a retroactive pass
+            </button>
+          )}
+          {waitingForOfferResponse && <p>Waiting for a response to your offer...</p>}
           {renderBidButtons()}
         </div>
       ) : (

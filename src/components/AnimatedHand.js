@@ -1,5 +1,6 @@
 import React from "react";
 import "./AnimatedHand.css";
+import CardFace from "./CardFace";
 
 function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit }) {
   const getCardColor = (suit) => {
@@ -38,10 +39,10 @@ function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit }) {
   };
 
   const getTrumpValue = (card) => {
-    if (card.suit === "Joker") return 18;
-    if (card.suit === trumpSuit && card.value === "J") return 17; // Right bower
-    if (isLeftBower(card, trumpSuit)) return 16; // Left bower
-    if (card.suit === trumpSuit) return valueOrder.indexOf(card.value) + 5;
+    if (card.suit === "Joker") return 22; // Highest
+    if (card.suit === trumpSuit && card.value === "J") return 21; // Right bower
+    if (isLeftBower(card, trumpSuit)) return 20; // Left bower
+    // Plain trump cards top out at "A" (index 12), well below the bowers.
     return valueOrder.indexOf(card.value);
   };
 
@@ -95,8 +96,7 @@ function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit }) {
                 } ${card.isKitty ? "kitty" : ""}`}
                 onClick={() => onCardClick(cardIndex)}
               >
-                <div className="card-value">{card.value}</div>
-                <div className="card-suit">{card.suit}</div>
+                <CardFace card={card} />
                 {card.isKitty && <div className="kitty-indicator">Kitty</div>}
                 {isLeftBower(card, trumpSuit) && (
                   <div className="left-bower-indicator">LB</div>

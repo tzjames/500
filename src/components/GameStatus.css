@@ -1,13 +1,13 @@
 .game-status {
-  margin-bottom: 20px;
-  padding: 15px;
+  margin-bottom: 12px;
+  padding: 12px;
   border: 1px solid #ccc;
   border-radius: 5px;
   background-color: #f9f9f9;
 }
 
 .status-item {
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .status-item h3 {
@@ -24,4 +24,19 @@
 
 .red-suit {
   color: red;
+}
+
+.round-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-icon-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.1em;
+  line-height: 1;
+  padding: 0;
 }
