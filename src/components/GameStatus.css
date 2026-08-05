@@ -40,3 +40,12 @@
   line-height: 1;
   padding: 0;
 }
+
+.redeal-message {
+  font-size: 0.8em;
+  color: #a35b00;
+  background-color: #fff3cd;
+  border: 1px solid #ffe08a;
+  border-radius: 4px;
+  padding: 1px 6px;
+}

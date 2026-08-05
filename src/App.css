@@ -98,6 +98,27 @@
   background-color: #f0f0f0;
 }
 
+.claim-rest-button {
+  display: block;
+  margin: 8px 0 0;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.claim-rest-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.claim-rest-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
 .hands-container {
   display: flex;
   justify-content: space-between;

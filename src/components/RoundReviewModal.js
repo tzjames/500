@@ -110,74 +110,76 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
   return (
     <div className="round-review-overlay">
       <div className="round-review-modal">
-        <h2>Reviewing Round {round}</h2>
-        <p className="review-bid-line">
-          {nameOf(bidWonEntry.userId)} bid {bidWonEntry.bid} ({bidWonEntry.points} pts) — Trump:{" "}
-          {bidWonEntry.trumpSuit || "None"}
-        </p>
+        <div className="review-scroll-area">
+          <h2>Reviewing Round {round}</h2>
+          <p className="review-bid-line">
+            {nameOf(bidWonEntry.userId)} bid {bidWonEntry.bid} ({bidWonEntry.points} pts) — Trump:{" "}
+            {bidWonEntry.trumpSuit || "None"}
+          </p>
 
-        <div className="review-players">
-          {Object.keys(dealEntry.hands).map((userId) => (
-            <div key={userId} className="review-player-column">
-              <h3>
-                {nameOf(userId)}
-                {frame.tricksWon[userId] !== undefined && ` — ${frame.tricksWon[userId]} tricks`}
-              </h3>
-              <p className="review-hand-label">Hand</p>
-              {renderHand(frame.hands[userId])}
-              {frame.dummyHands[userId] && (
-                <>
-                  <p className="review-hand-label">Dummy</p>
-                  {renderHand(frame.dummyHands[userId])}
-                </>
+          <div className="review-players">
+            {Object.keys(dealEntry.hands).map((userId) => (
+              <div key={userId} className="review-player-column">
+                <h3>
+                  {nameOf(userId)}
+                  {frame.tricksWon[userId] !== undefined && ` — ${frame.tricksWon[userId]} tricks`}
+                </h3>
+                <p className="review-hand-label">Hand</p>
+                {renderHand(frame.hands[userId])}
+                {frame.dummyHands[userId] && (
+                  <>
+                    <p className="review-hand-label">Dummy</p>
+                    {renderHand(frame.dummyHands[userId])}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {frame.kitty.length > 0 && (
+            <div className="review-kitty">
+              <p className="review-hand-label">Kitty</p>
+              {renderHand(frame.kitty)}
+            </div>
+          )}
+          {frame.discarded && (
+            <div className="review-kitty">
+              <p className="review-hand-label">{nameOf(bidWonEntry.userId)} discarded</p>
+              {renderHand(frame.discarded)}
+            </div>
+          )}
+
+          {Object.keys(frame.dummyHands).length > 0 && (
+            // Rendered (and height-reserved, via CSS) for the whole rest of the
+            // round once play has started — not just while a trick happens to
+            // have cards on it — so the modal doesn't resize every time a trick
+            // resolves and this briefly goes empty between tricks.
+            <div className="review-trick">
+              <p className="review-hand-label">Current trick</p>
+              {frame.trick.length > 0 ? (
+                frame.trick.map((play, i) => (
+                  <div key={i} className="review-trick-card">
+                    <div className={`card ${play.card.suit === "♥" || play.card.suit === "♦" ? "red" : "black"}`}>
+                      <CardFace card={play.card} />
+                    </div>
+                    <span>
+                      {nameOf(play.userId)}
+                      {play.isDummy ? " (dummy)" : ""}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="review-trick-empty">—</p>
               )}
             </div>
-          ))}
+          )}
+
+          {frame.result && (
+            <p className="review-result">
+              {nameOf(frame.result.bidderId)} {frame.result.bidderMadeBid ? "made" : "missed"} the bid.
+            </p>
+          )}
         </div>
-
-        {frame.kitty.length > 0 && (
-          <div className="review-kitty">
-            <p className="review-hand-label">Kitty</p>
-            {renderHand(frame.kitty)}
-          </div>
-        )}
-        {frame.discarded && (
-          <div className="review-kitty">
-            <p className="review-hand-label">{nameOf(bidWonEntry.userId)} discarded</p>
-            {renderHand(frame.discarded)}
-          </div>
-        )}
-
-        {Object.keys(frame.dummyHands).length > 0 && (
-          // Rendered (and height-reserved, via CSS) for the whole rest of the
-          // round once play has started — not just while a trick happens to
-          // have cards on it — so the modal doesn't resize every time a trick
-          // resolves and this briefly goes empty between tricks.
-          <div className="review-trick">
-            <p className="review-hand-label">Current trick</p>
-            {frame.trick.length > 0 ? (
-              frame.trick.map((play, i) => (
-                <div key={i} className="review-trick-card">
-                  <div className={`card ${play.card.suit === "♥" || play.card.suit === "♦" ? "red" : "black"}`}>
-                    <CardFace card={play.card} />
-                  </div>
-                  <span>
-                    {nameOf(play.userId)}
-                    {play.isDummy ? " (dummy)" : ""}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="review-trick-empty">—</p>
-            )}
-          </div>
-        )}
-
-        {frame.result && (
-          <p className="review-result">
-            {nameOf(frame.result.bidderId)} {frame.result.bidderMadeBid ? "made" : "missed"} the bid.
-          </p>
-        )}
 
         {isController ? (
           <>

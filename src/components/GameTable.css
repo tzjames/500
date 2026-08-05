@@ -64,6 +64,14 @@
   justify-content: center;
 }
 
+/* The right-side cell's cards align to its left edge (nearest the table),
+   so they need their own left padding to keep some breathing room from the
+   table's edge instead of butting right up against it. */
+.grid-row.middle .revealed-hand-cell:last-child {
+  padding-left: 24px;
+  box-sizing: border-box;
+}
+
 .table.table-shifted {
   width: 45%;
 }

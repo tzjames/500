@@ -20,6 +20,8 @@ function GameTable({
   winningBidder,
   playerId,
   revealedBidderHand,
+  revealedOpponentHand,
+  revealedOpponentDummyHand,
   flyingWinner,
 }) {
   // Your dummy is revealed once you've played your first hand card, and
@@ -28,6 +30,9 @@ function GameTable({
   const hasPlayedFirstCard = playerHand.length < 10;
 
   const getCardColor = (suit) => (suit === "♥" || suit === "♦" ? "red" : "black");
+
+  const leftBowerSuit = { "♠": "♣", "♣": "♠", "♥": "♦", "♦": "♥" }[trumpSuit];
+  const isLeftBower = (card) => card.suit === leftBowerSuit && card.value === "J";
 
   const renderFaceDownCards = (count, className) => {
     return Array(count)
@@ -81,6 +86,16 @@ function GameTable({
     ? getPlayedCardPosition({ playerId: flyingWinner.winnerId, isDummy: flyingWinner.winnerIsDummy })
     : null;
 
+  // A revealed opponent hand/dummy (Open Misère, or a declined "I've got the
+  // rest" claim) replaces the face-down pile in that cell with face-up cards.
+  const revealedHand = revealedBidderHand || revealedOpponentHand;
+  const handContent = revealedHand
+    ? renderRevealedHand(revealedHand)
+    : renderFaceDownCards(opponentHandSize, "vertical");
+  const dummyContent = revealedOpponentDummyHand
+    ? renderRevealedHand(revealedOpponentDummyHand)
+    : renderFaceDownCards(opponentDummyHandSize, "vertical");
+
   return (
     <div className="game-table">
       <div className="grid-row top">
@@ -103,16 +118,15 @@ function GameTable({
         <div
           className={`grid-cell ${
             playerWonBid ? "opponent-dummy-hand" : "opponent-hand"
-          } ${revealedBidderHand ? "revealed-hand-cell" : ""}`}
+          } ${(playerWonBid ? revealedOpponentDummyHand : revealedHand) ? "revealed-hand-cell" : ""}`}
         >
-          {revealedBidderHand
-            ? renderRevealedHand(revealedBidderHand)
-            : renderFaceDownCards(
-                playerWonBid ? opponentDummyHandSize : opponentHandSize,
-                "vertical"
-              )}
+          {playerWonBid ? dummyContent : handContent}
         </div>
-        <div className={`grid-cell table ${revealedBidderHand ? "table-shifted" : ""}`}>
+        <div
+          className={`grid-cell table ${
+            revealedHand || revealedOpponentDummyHand ? "table-shifted" : ""
+          }`}
+        >
           {playedCards.map((play, index) => (
             <div
               key={index}
@@ -121,18 +135,18 @@ function GameTable({
               )} ${play.isDummy ? "dummy" : ""} ${winnerPosition ? "flying" : ""}`}
             >
               <CardFace card={play.card} />
+              {isLeftBower(play.card) && (
+                <div className="left-bower-indicator">LB</div>
+              )}
             </div>
           ))}
         </div>
         <div
           className={`grid-cell ${
             playerWonBid ? "opponent-hand" : "opponent-dummy-hand"
-          }`}
+          } ${(playerWonBid ? revealedHand : revealedOpponentDummyHand) ? "revealed-hand-cell" : ""}`}
         >
-          {renderFaceDownCards(
-            playerWonBid ? opponentHandSize : opponentDummyHandSize,
-            "vertical"
-          )}
+          {playerWonBid ? handContent : dummyContent}
         </div>
       </div>
       <div className="grid-row bottom">

@@ -30,8 +30,23 @@ class Room {
     this.offerPassDeclined = snap.offerPassDeclined || false;
     this.offerRetroactivePassDeclined = snap.offerRetroactivePassDeclined || false;
     this.pendingOffer = snap.pendingOffer || null;
+    // "I've got the rest": pendingClaim is the ephemeral yes/no negotiation
+    // (like pendingOffer, not resent on reconnect); revealedClaimerId is the
+    // persistent consolation prize when it's declined — the claimer's hand
+    // and dummy stay visible to the other player for the rest of the round.
+    this.pendingClaim = snap.pendingClaim || null;
+    this.revealedClaimerId = snap.revealedClaimerId || null;
     this.reviewControllerId = snap.reviewControllerId || null;
     this.reviewStepIndex = snap.reviewStepIndex || 0;
+    // The "roundResult" event (bid made/missed, points swing) is otherwise a
+    // one-off broadcast fired once from finishRound() — persisted here too so
+    // a reconnect while sitting on the round-end screen can resend it; without
+    // it the Round Complete modal's data never comes back after a refresh.
+    this.lastRoundResult = snap.lastRoundResult || null;
+    // How many times everyone has passed and redealt within the current
+    // round number — reset once real dealing (a new round or a new game)
+    // happens, not by the redeal itself, so it climbs across repeats.
+    this.redealCount = snap.redealCount || 0;
     this.roundEnd = snap.roundEnd
       ? { readyUserIds: new Set(snap.roundEnd.readyUserIds), proposal: snap.roundEnd.proposal }
       : null;
@@ -42,6 +57,25 @@ class Room {
       this.roundEnd = { readyUserIds: new Set(), proposal: null };
     }
     this.game = snap.game ? this.hydrateGame(snap.game) : null;
+
+    // Same backfill idea as roundEnd above, one level deeper: a game already
+    // sitting in roundEnd/gameOver from before lastRoundResult started being
+    // persisted has no way to get it back except reconstructing it from the
+    // round's own "result" log entry plus the bid still sitting on the game.
+    if (!this.lastRoundResult && (this.gamePhase === "roundEnd" || this.gamePhase === "gameOver") && this.game) {
+      const resultEntry = [...this.log].reverse().find((e) => e.type === "result" && e.round === this.roundNumber);
+      if (resultEntry && this.game.currentBid) {
+        const otherId = this.game.players.find((p) => p.id !== resultEntry.bidderId)?.id;
+        this.lastRoundResult = {
+          bid: this.game.currentBid.bid,
+          bidderName: this.nameOf(resultEntry.bidderId),
+          bidderMadeBid: resultEntry.bidderMadeBid,
+          bidderDelta: resultEntry.bidderDelta,
+          otherName: this.nameOf(otherId),
+          otherDelta: resultEntry.otherDelta,
+        };
+      }
+    }
 
     // A replay is a live, in-memory-only side game — never persisted, so a
     // server restart mid-replay simply abandons it (players land back on the
@@ -104,8 +138,12 @@ class Room {
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
       pendingOffer: this.pendingOffer,
+      pendingClaim: this.pendingClaim,
+      revealedClaimerId: this.revealedClaimerId,
       reviewControllerId: this.reviewControllerId,
       reviewStepIndex: this.reviewStepIndex,
+      lastRoundResult: this.lastRoundResult,
+      redealCount: this.redealCount,
       roundEnd: this.roundEnd
         ? { readyUserIds: [...this.roundEnd.readyUserIds], proposal: this.roundEnd.proposal }
         : null,
@@ -172,6 +210,7 @@ class Room {
       gameSettings: this.gameSettings,
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
+      redealCount: this.redealCount,
     };
   }
 
@@ -253,6 +292,12 @@ class Room {
       gameSettings: this.gameSettings,
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
+      revealedClaimerId: this.revealedClaimerId,
+      pendingClaim: this.pendingClaim
+        ? { fromPlayerId: this.pendingClaim.fromPlayerId, fromName: this.nameOf(this.pendingClaim.fromPlayerId) }
+        : null,
+      roundResult: this.lastRoundResult,
+      redealCount: this.redealCount,
     });
 
     if (this.gamePhase === "kitty" && this.game.currentBid?.player === socket.userId) {
@@ -327,6 +372,10 @@ class Room {
     this.biddingHistory = [];
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
+    this.pendingClaim = null;
+    this.revealedClaimerId = null;
+    this.lastRoundResult = null;
+    this.redealCount = 0;
     this.gamePhase = "bidding";
 
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
@@ -346,6 +395,10 @@ class Room {
     this.biddingHistory = [];
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
+    this.pendingClaim = null;
+    this.revealedClaimerId = null;
+    this.lastRoundResult = null;
+    this.redealCount = 0;
     this.gamePhase = "bidding";
 
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
@@ -361,6 +414,10 @@ class Room {
     this.biddingHistory = [];
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
+    this.pendingClaim = null;
+    this.revealedClaimerId = null;
+    this.lastRoundResult = null;
+    this.redealCount += 1;
     this.gamePhase = "bidding";
 
     this.logEvent("allPassed", {});
@@ -579,6 +636,59 @@ class Room {
     if (mode !== "replay") this.persist();
   }
 
+  // ---- "I've got the rest": a player claims all remaining tricks. Only
+  // allowed when they're on lead (no cards down yet this trick), so there's
+  // no partial trick to untangle. The claimer's hand and dummy are revealed
+  // to the other player the moment the claim is made — they need to see the
+  // cards to judge it — and that reveal persists for the rest of the round
+  // regardless of their answer. If they agree, the round ends immediately in
+  // the claimer's favor. ----
+
+  claimRest(socket) {
+    if (!this.game || this.gamePhase !== "playing" || this.pendingClaim) return;
+    const seat = this.game.getCurrentSeat();
+    if (!seat || seat.playerId !== socket.userId || this.game.currentTrick.length !== 0) return;
+    this.pendingClaim = { fromPlayerId: socket.userId };
+    this.revealedClaimerId = socket.userId;
+    this.emitToUser(this.otherPlayerId(socket.userId), "claimReceived", {
+      fromName: this.nameOf(socket.userId),
+      claimerId: socket.userId,
+    });
+    this.persist();
+  }
+
+  respondToClaim(socket, accept) {
+    if (!this.game || !this.pendingClaim || socket.userId === this.pendingClaim.fromPlayerId) return;
+    const claimerId = this.pendingClaim.fromPlayerId;
+    this.pendingClaim = null;
+
+    if (accept) {
+      const claimer = this.game.players.find((p) => p.id === claimerId);
+      claimer.tricksWon += claimer.hand.length;
+      this.game.players.forEach((p) => {
+        p.hand = [];
+        p.dummyHand = [];
+      });
+      this.logEvent("claimRestAccepted", { claimerId });
+      this.io.to(this.id).emit("claimResolved", {
+        accepted: true,
+        claimerId,
+        players: this.game.players.map((p) => ({ id: p.id, hand: p.hand, dummyHand: p.dummyHand, tricksWon: p.tricksWon })),
+      });
+      this.finishRound();
+      return;
+    }
+
+    this.logEvent("claimDeclined", { claimerId });
+    this.io.to(this.id).emit("claimResolved", {
+      accepted: false,
+      claimerId,
+      revealedClaimerId: this.revealedClaimerId,
+      byName: this.nameOf(socket.userId),
+    });
+    this.persist();
+  }
+
   // ---- round end: result, then ready / review / replay negotiation ----
 
   finishRound() {
@@ -594,14 +704,15 @@ class Room {
       otherDelta,
       scores: Object.fromEntries(this.game.players.map((p) => [p.id, p.score])),
     });
-    this.io.to(this.id).emit("roundResult", {
+    this.lastRoundResult = {
       bid: bidDescription,
       bidderName: bidderPlayer.name,
       bidderMadeBid,
       bidderDelta,
       otherName: otherPlayer.name,
       otherDelta,
-    });
+    };
+    this.io.to(this.id).emit("roundResult", this.lastRoundResult);
     this.scoreHistory.push({
       round: this.roundNumber,
       scores: this.game.players.map((p) => ({ name: p.name, score: p.score })),

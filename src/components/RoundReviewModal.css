@@ -17,10 +17,22 @@
   padding: 24px 32px;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  max-width: 700px;
-  max-height: 90vh;
-  overflow-y: auto;
+  width: 700px;
+  max-width: 90vw;
+  height: 90vh;
   margin: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Everything above the nav/done-button scrolls in its own area, so those
+   controls stay put at the bottom instead of jumping around as the hands,
+   kitty, and trick sections above them grow or shrink between steps. */
+.review-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .review-bid-line {

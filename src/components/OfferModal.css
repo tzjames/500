@@ -11,6 +11,17 @@
   z-index: 1000;
 }
 
+/* Pinned to the top-left corner of the screen instead of centered over the
+   table, so the revealed cards a "claim the rest" response depends on stay
+   visible — with just a light backdrop dim rather than the usual heavy one. */
+.offer-modal-overlay-scoped {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
 .offer-modal {
   background: white;
   padding: 24px;

@@ -12,7 +12,13 @@ function GameStatus({
   trumpSuit,
   currentBidder,
   roundNumber,
+  redealCount,
   onShowScoreHistory,
+  canClaimRest,
+  waitingForClaimResponse,
+  claimStatusMessage,
+  onClaimRest,
+  otherPlayerName,
 }) {
   const currentPlayerData = players.find((p) => p.id === playerId);
   const otherPlayerData = players.find((p) => p.id !== playerId);
@@ -50,10 +56,27 @@ function GameStatus({
         const turnPlayerName = players.find((p) => p.id === currentTurnPlayerId)?.name;
         return `${turnPlayerName}'s turn to play from their ${whoseHand}`;
       }
+      case "roundEnd":
+        return "Round complete";
+      case "review":
+        return "Reviewing last round";
+      case "gameOver":
+        return "Game over";
       default:
         return "Waiting for game to start";
     }
   };
+
+  const ordinal = (n) => {
+    const suffixes = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return `${n}${suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]}`;
+  };
+
+  // Hidden once the round actually ends — it's just a transient note about
+  // this round's bidding, not something worth carrying onto the round-end
+  // screen or into the next round.
+  const showRedealMessage = redealCount > 0 && ["bidding", "kitty", "playing"].includes(gamePhase);
 
   const renderBidWithColoredSuit = (bid) => {
     if (!bid) return null;
@@ -83,6 +106,7 @@ function GameStatus({
           >
             📈
           </button>
+          {showRedealMessage && <span className="redeal-message">{ordinal(redealCount)} Redeal</span>}
         </p>
       </div>
       <div className="status-item">
@@ -114,6 +138,13 @@ function GameStatus({
           <h3>Current Tricks</h3>
           <p>You: {currentPlayerData.tricksWon || 0}</p>
           <p>Opponent: {otherPlayerData.tricksWon || 0}</p>
+          {canClaimRest && (
+            <button className="claim-rest-button" onClick={onClaimRest} disabled={waitingForClaimResponse}>
+              I&apos;ve got the rest!
+            </button>
+          )}
+          {waitingForClaimResponse && <p>Waiting for {otherPlayerName} to respond to your claim...</p>}
+          {claimStatusMessage && <p>{claimStatusMessage}</p>}
         </div>
       )}
       {trumpSuit && (

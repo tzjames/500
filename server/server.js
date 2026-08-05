@@ -124,6 +124,8 @@ io.on("connection", (socket) => {
   socket.on("reviewDone", () => room?.reviewDone(socket));
   socket.on("rematchOffer", () => room?.rematchOffer(socket));
   socket.on("rematchRespond", ({ accept }) => room?.rematchRespond(socket, accept));
+  socket.on("claimRest", () => room?.claimRest(socket));
+  socket.on("respondToClaim", ({ accept }) => room?.respondToClaim(socket, accept));
 
   socket.on("disconnect", () => room?.handleDisconnect(socket));
 });

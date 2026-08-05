@@ -36,6 +36,10 @@ function GameRoomPage() {
   const [pendingOfferReceived, setPendingOfferReceived] = useState(null);
   const [offerStatusMessage, setOfferStatusMessage] = useState("");
   const [waitingForOfferResponse, setWaitingForOfferResponse] = useState(false);
+  const [pendingClaimReceived, setPendingClaimReceived] = useState(null);
+  const [waitingForClaimResponse, setWaitingForClaimResponse] = useState(false);
+  const [claimStatusMessage, setClaimStatusMessage] = useState("");
+  const [revealedClaimerId, setRevealedClaimerId] = useState(null);
   const [currentBidder, setCurrentBidder] = useState(null);
   const [biddingHistory, setBiddingHistory] = useState([]);
   const [isKittyPhase, setIsKittyPhase] = useState(false);
@@ -43,6 +47,7 @@ function GameRoomPage() {
   const [currentTurnIsDummy, setCurrentTurnIsDummy] = useState(false);
   const [gamePhase, setGamePhase] = useState("waiting");
   const [roundNumber, setRoundNumber] = useState(1);
+  const [redealCount, setRedealCount] = useState(0);
   const [scoreHistory, setScoreHistory] = useState([]);
   const [showScoreHistory, setShowScoreHistory] = useState(false);
   const [gameOverInfo, setGameOverInfo] = useState(null);
@@ -99,6 +104,31 @@ function GameRoomPage() {
     });
     socket.on("playersUpdate", ({ count }) => setConnectedPlayers(count));
 
+    socket.on("claimReceived", ({ fromName, claimerId }) => {
+      setPendingClaimReceived({ fromName });
+      setRevealedClaimerId(claimerId);
+    });
+    socket.on("claimResolved", ({ accepted, claimerId, revealedClaimerId: newRevealedId, byName, players }) => {
+      setPendingClaimReceived(null);
+      setWaitingForClaimResponse(false);
+      if (accepted) {
+        setClaimStatusMessage("");
+        setGameState((prevState) => ({
+          ...prevState,
+          players: prevState.players.map((p) => {
+            const updated = players.find((u) => u.id === p.id);
+            return updated ? { ...p, hand: updated.hand, dummyHand: updated.dummyHand, tricksWon: updated.tricksWon } : p;
+          }),
+        }));
+        setPlayedCards([]);
+      } else {
+        setRevealedClaimerId(newRevealedId);
+        setClaimStatusMessage(
+          claimerId === playerId ? `${byName} didn't agree — your hands stay visible for the rest of the round.` : ""
+        );
+      }
+    });
+
     socket.on("gameStart", (initialState) => {
       setGameState(initialState);
       setCurrentBidder(initialState.currentBidder);
@@ -114,6 +144,7 @@ function GameRoomPage() {
       setCurrentTurnIsDummy(false);
       setInvalidPlayMessage("");
       setRoundNumber(initialState.roundNumber || 1);
+      setRedealCount(initialState.redealCount || 0);
       setScoreHistory(initialState.scoreHistory || []);
       setGameOverInfo(null);
       setRoundResult(null);
@@ -130,6 +161,10 @@ function GameRoomPage() {
       setOfferStatusMessage("");
       setWaitingForOfferResponse(false);
       setPendingJokerLead(null);
+      setPendingClaimReceived(null);
+      setWaitingForClaimResponse(false);
+      setClaimStatusMessage("");
+      setRevealedClaimerId(null);
     });
 
     socket.on("updateGame", (newState) => {
@@ -215,13 +250,27 @@ function GameRoomPage() {
       setFlyingWinner(null);
       setIsKittyPhase(state.gamePhase === "kitty");
       setRoundNumber(state.roundNumber || 1);
+      setRedealCount(state.redealCount || 0);
       setScoreHistory(state.scoreHistory || []);
+      setGameOverInfo(null);
+      setRoundResult(state.roundResult || null);
+      setRoundEndInfo(null);
+      setReviewData(null);
+      setReplay(null);
+      setIncomingRematchOffer(null);
+      setWaitingForRematchResponse(false);
+      setRematchStatusMessage("");
       if (state.gameSettings) setGameSettings(state.gameSettings);
       setOfferPassDeclined(state.offerPassDeclined || false);
       setOfferRetroactivePassDeclined(state.offerRetroactivePassDeclined || false);
       setPendingOfferReceived(null);
       setOfferStatusMessage("");
       setWaitingForOfferResponse(false);
+      setClaimStatusMessage("");
+      setRevealedClaimerId(state.revealedClaimerId || null);
+      const claim = state.pendingClaim;
+      setPendingClaimReceived(claim && claim.fromPlayerId !== playerId ? { fromName: claim.fromName } : null);
+      setWaitingForClaimResponse(Boolean(claim && claim.fromPlayerId === playerId));
     });
 
     socket.on("gameOver", (info) => {
@@ -230,7 +279,14 @@ function GameRoomPage() {
     });
 
     socket.on("roundResult", (result) => setRoundResult(result));
-    socket.on("roundEndState", (info) => setRoundEndInfo(info));
+    // Broadcast room-wide whenever the game (re-)enters roundEnd/gameOver —
+    // including right after the review controller clicks "Back to round" —
+    // so this also clears reviewData for the other player, who otherwise had
+    // no signal that review had ended and would stay stuck looking at it.
+    socket.on("roundEndState", (info) => {
+      setRoundEndInfo(info);
+      setReviewData(null);
+    });
     socket.on("reviewStart", (data) => setReviewData(data));
     socket.on("reviewStepChanged", ({ index }) => setReviewData((d) => (d ? { ...d, stepIndex: index } : d)));
 
@@ -394,6 +450,8 @@ function GameRoomPage() {
         "offerDeclined",
         "offerFlagsUpdate",
         "playersUpdate",
+        "claimReceived",
+        "claimResolved",
         "gameStart",
         "updateGame",
         "biddingComplete",
@@ -472,6 +530,17 @@ function GameRoomPage() {
   const handleRespondToOffer = (accept) => {
     socket.emit("respondToOffer", { accept });
     setPendingOfferReceived(null);
+  };
+
+  const handleClaimRest = () => {
+    socket.emit("claimRest");
+    setClaimStatusMessage("");
+    setWaitingForClaimResponse(true);
+  };
+
+  const handleRespondToClaim = (accept) => {
+    socket.emit("respondToClaim", { accept });
+    setPendingClaimReceived(null);
   };
 
   const handleCardClick = (index) => {
@@ -627,6 +696,11 @@ function GameRoomPage() {
     viewingOpenMisereBidder && tricksPlayedSoFar >= 1 && (otherPlayerData?.tricksWon || 0) === 0
       ? otherPlayerData?.hand
       : null;
+
+  // A declined "I've got the rest" claim leaves the claimer's hand and dummy
+  // visible to the other player for the rest of the round.
+  const revealedOpponentHand = revealedClaimerId === otherPlayerData?.id ? otherPlayerData.hand : null;
+  const revealedOpponentDummyHand = revealedClaimerId === otherPlayerData?.id ? otherPlayerData.dummyHand : null;
 
   const replayCurrentPlayerData = replay?.players.find((p) => p.id === playerId);
   const replayOtherPlayerData = replay?.players.find((p) => p.id !== playerId);
@@ -847,7 +921,13 @@ function GameRoomPage() {
             trumpSuit={gameState.trumpSuit}
             currentBidder={currentBidder}
             roundNumber={roundNumber}
+            redealCount={redealCount}
             onShowScoreHistory={() => setShowScoreHistory(true)}
+            canClaimRest={playerId === currentPlayer && playedCards.length === 0}
+            waitingForClaimResponse={waitingForClaimResponse}
+            claimStatusMessage={claimStatusMessage}
+            onClaimRest={handleClaimRest}
+            otherPlayerName={otherPlayerData?.name}
           />
           {gamePhase === "bidding" && (
             <BiddingInterface
@@ -898,7 +978,17 @@ function GameRoomPage() {
               winningBidder={gameState.currentBid?.player}
               playerId={playerId}
               revealedBidderHand={revealedBidderHand}
+              revealedOpponentHand={revealedOpponentHand}
+              revealedOpponentDummyHand={revealedOpponentDummyHand}
               flyingWinner={flyingWinner}
+            />
+          )}
+          {pendingClaimReceived && (
+            <OfferModal
+              type="claimRest"
+              fromName={pendingClaimReceived.fromName}
+              onRespond={handleRespondToClaim}
+              scoped
             />
           )}
         </div>
