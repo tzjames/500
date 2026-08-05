@@ -186,11 +186,6 @@ function GameRoomPage() {
         if (!prevState) return prevState;
         const currentPlayerHand = prevState.players.find((p) => p.id === playerId)?.hand || [];
         const newCombinedHand = [...currentPlayerHand, ...kittyCards.map((card) => ({ ...card, isKitty: true }))];
-        console.log("[showKitty]", {
-          currentPlayerHand: currentPlayerHand.map(c => c.value + c.suit).join(","),
-          kittyCards: kittyCards.map(c => c.value + c.suit).join(","),
-          combinedHand: newCombinedHand.map(c => c.value + c.suit).join(","),
-        });
         setCombinedHand(newCombinedHand);
         return {
           ...prevState,
@@ -558,13 +553,6 @@ function GameRoomPage() {
     const newHand = combinedHand
       .filter((_, index) => !selectedCards.includes(index))
       .map((card) => ({ ...card, isKitty: false }));
-    const discarded = combinedHand.filter((_, index) => selectedCards.includes(index));
-    console.log("[kittyDone]", {
-      combinedHand: combinedHand.map(c => c.value + c.suit).join(","),
-      selectedIndices: selectedCards,
-      discarded: discarded.map(c => c.value + c.suit).join(","),
-      newHand: newHand.map(c => c.value + c.suit).join(","),
-    });
     setGameState((prevState) => ({
       ...prevState,
       players: prevState.players.map((p) => (p.id === playerId ? { ...p, hand: newHand } : p)),

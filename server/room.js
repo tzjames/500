@@ -850,7 +850,9 @@ class Room {
   startReplay() {
     const round = this.roundNumber;
     const roundLog = this.log.filter((e) => e.round === round);
-    const dealEntry = roundLog.find((e) => e.type === "deal");
+    // Last deal, not first: an all-pass redeal logs another deal for this same
+    // round number, and only the final one is the deal that was actually played.
+    const dealEntry = [...roundLog].reverse().find((e) => e.type === "deal");
     const kittyEntry = roundLog.find((e) => e.type === "kittyDealt");
     const dummyEntry = roundLog.find((e) => e.type === "dummyDealt");
     const bidWonEntry = roundLog.find((e) => e.type === "bidWon");

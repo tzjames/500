@@ -78,7 +78,9 @@ function buildFrame(dealEntry, steps, index) {
 // is the source of truth for `stepIndex` so both clients stay in lockstep;
 // the other player just watches (see the isController-gated nav below).
 function RoundReviewModal({ round, log, players, stepIndex, isController, controllerName, onStep, onDone }) {
-  const dealEntry = useMemo(() => log.find((e) => e.type === "deal"), [log]);
+  // A round can contain several deals — every all-pass redeal logs another one
+  // under the same round number — and only the last is the one actually played.
+  const dealEntry = useMemo(() => [...log].reverse().find((e) => e.type === "deal"), [log]);
   const bidWonEntry = useMemo(() => log.find((e) => e.type === "bidWon"), [log]);
   const steps = useMemo(() => log.filter((e) => STEP_TYPES.includes(e.type)), [log]);
   const clampedIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
