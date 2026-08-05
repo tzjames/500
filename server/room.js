@@ -547,7 +547,16 @@ class Room {
 
     if (mode !== "replay") {
       const combined = [...winningPlayer.hand, ...activeGame.kitty];
+      // Validate: the new hand must be exactly the combined hand minus 3 cards.
+      if (combined.length !== 13 || newHand.length !== 10) {
+        console.error("kittyDone: invalid hand sizes", { startHand: winningPlayer.hand.length, kitty: activeGame.kitty.length, newHand: newHand.length });
+        return;
+      }
       const discarded = combined.filter((c) => !newHand.some((h) => h.suit === c.suit && h.value === c.value));
+      if (discarded.length !== 3) {
+        console.error("kittyDone: discard count mismatch", { expected: 3, got: discarded.length, combined: combined.map(c => c.value+c.suit).join(","), newHand: newHand.map(c => c.value+c.suit).join(",") });
+        return;
+      }
       this.logEvent("discard", { userId: socket.userId, discarded, handAfter: [...newHand] });
     }
     winningPlayer.hand = newHand;
