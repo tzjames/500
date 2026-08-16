@@ -11,8 +11,8 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  --card-hand: clamp(52px, 6.4vw, 100px);
-  --card-dummy: clamp(40px, 4.6vw, 72px);
+  --card-hand: clamp(58px, 7.4vw, 116px);
+  --card-dummy: clamp(42px, 5vw, 78px);
   --card-played: clamp(52px, 6vw, 88px);
   --card-fan: clamp(28px, 3.2vw, 46px);
 }
@@ -43,7 +43,6 @@
   bottom: 26px;
   left: 50%;
   transform: translateX(-50%);
-  max-width: 86%;
 }
 
 /* No max-width on the side seats: they shrink-wrap their fan instead. A width

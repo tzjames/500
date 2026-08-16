@@ -48,14 +48,12 @@
   z-index: 30;
 }
 
+/* Not playable right now just means not clickable. Face-up cards always render
+   at full strength — dimming the whole hand between turns made your own cards
+   look greyed out for most of the round, and whose turn it is is already said
+   plainly by the status pill and the ring on an active dummy. */
 .pc-disabled {
   cursor: default;
-}
-
-/* Dim only drawn/played-from hands, never the table — callers opt in by passing
-   disabled on cards that genuinely can't be played right now. */
-.pc-disabled.pc-face {
-  opacity: 0.72;
 }
 
 .pc-selected {

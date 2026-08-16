@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
 import * as api from "../api";
 import ThemedTable from "../components/ThemedTable";
@@ -73,8 +73,18 @@ function opponentName(game, userId) {
 function HomePage() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [games, setGames] = useState([]);
   const [error, setError] = useState("");
+
+  // Set when a protected route sent us here to authenticate (see
+  // GameRoomPage) — typically an invite link opened by someone without an
+  // account yet. Logging in or signing up hands them straight on to it.
+  const redirectTo = location.state?.from;
+
+  useEffect(() => {
+    if (session && redirectTo) navigate(redirectTo, { replace: true });
+  }, [session, redirectTo, navigate]);
 
   useEffect(() => {
     if (!session) return;
@@ -100,7 +110,15 @@ function HomePage() {
         </header>
 
         {!session ? (
-          <AuthForm />
+          <>
+            {redirectTo?.startsWith("/game/") && (
+              <p className="home-invite-note">
+                You&apos;ve been invited to a game. Log in or sign up and
+                we&apos;ll take you straight there.
+              </p>
+            )}
+            <AuthForm />
+          </>
         ) : (
           <>
             <div className="home-welcome">

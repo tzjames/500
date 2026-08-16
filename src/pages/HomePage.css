@@ -24,6 +24,17 @@
   margin: 8px 0 0;
 }
 
+.home-invite-note {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--positive-fill);
+  border: 1px solid var(--positive-border);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 /* ---- auth ---- */
 
 .auth-form {

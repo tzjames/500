@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
@@ -20,13 +20,21 @@ import "../App.css";
 function GameRoomPage() {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { session } = useAuth();
   const playerId = session?.user?.id;
   const socket = useMemo(() => (session ? getSocket(session.token) : null), [session]);
 
+  // Following an invite link without an account sends you to the home page to
+  // log in or sign up — carry where you were headed, so signing up lands you
+  // in the game you were invited to instead of dumping you on the home page
+  // with the link lost. `replace` so the back button doesn't bounce you
+  // straight back out again.
   useEffect(() => {
-    if (!session) navigate("/");
-  }, [session, navigate]);
+    if (!session) {
+      navigate("/", { replace: true, state: { from: location.pathname + location.search } });
+    }
+  }, [session, navigate, location.pathname, location.search]);
 
   const [gameState, setGameState] = useState(null);
   const [connectedPlayers, setConnectedPlayers] = useState(0);
