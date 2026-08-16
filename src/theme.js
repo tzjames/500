@@ -96,7 +96,7 @@ const PLACES = [
     name: "Serengeti",
     caption: "Serengeti — acacia and giraffe, late afternoon haze",
     photo: "/backdrops/serengeti.jpg",
-    shape: "hex",
+    shape: "oval",
     dot: "#d8b878",
     wash: "linear-gradient(180deg,#6d5c42,#a08765 32%,#7a6246 64%,#332a1e 100%)",
     tint: "linear-gradient(180deg,rgba(44,36,25,.44),rgba(28,23,16,.62))",
