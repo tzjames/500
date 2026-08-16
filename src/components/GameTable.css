@@ -220,25 +220,40 @@
   opacity: 0;
 }
 
-/* ---- trick piles, sitting out on the cloth ---- */
+/* ---- trick piles ---- */
 
-.pile {
-  position: absolute;
-  z-index: 2;
-  transform: scale(0.8);
+/* Both piles render at 0.68 — 15% down from the 0.8 they were drawn at, which
+   crowded the opponent's name and fan. */
+.pile-seated,
+.pile-floating {
+  transform: scale(0.68);
 }
 
-/* Tucked into the felt's upper-left and lower-right, in the gaps between the
-   north/south hands and the two side seats — the mockup's positions were tuned
-   for four separate players and land on top of the dummy here. */
-.pile-opponent {
-  left: 6%;
-  top: 24%;
+/* The opponent's pile is in flow at the foot of their seat, offset left of the
+   fan's centre so the two read as separate objects. The negative margins undo
+   the gap and footprint the scale leaves behind. */
+.pile-seated {
+  align-self: center;
+  /* Right margin pushes it left of the fan's centre. The top margin clears the
+     fan: its cards are 3D-rotated, so they paint well below the box flow
+     reserved for them, and the overhang grows with card size — hence a margin
+     derived from --card-fan rather than a fixed number. The negative bottom
+     reclaims the empty space scale() leaves inside the layout box. */
+  margin: calc(var(--card-fan) * 0.9 + 6px) 26% -14px 0;
+  z-index: 2;
+}
+
+/* Yours has no seat to hang off — your hand is the full width of the table's
+   bottom edge — so it floats on the cloth to the right of it, below the side
+   seat and above the hand. */
+.pile-floating {
+  position: absolute;
+  z-index: 2;
 }
 
 .pile-mine {
-  right: 6%;
-  bottom: 26%;
+  right: 5%;
+  bottom: calc(var(--card-hand) * 1.4 + 34px);
 }
 
 /* ---- status pill ---- */
@@ -261,7 +276,8 @@
 }
 
 @media (max-width: 1100px) {
-  .pile {
-    transform: scale(0.6);
+  .pile-seated,
+  .pile-floating {
+    transform: scale(0.52);
   }
 }

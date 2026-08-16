@@ -90,14 +90,19 @@ function GameTable({
         ) : (
           <FanOfBacks count={count} side={side} />
         )}
+        {/* The opponent's won tricks sit in flow beneath their fan rather than
+            floating at fixed coordinates — that's what kept it colliding with
+            their name pill once the seat grew or the window changed shape. */}
+        {holdsOpponentHand && (
+          <TrickPile className="pile-seated" count={opponentTricksWon} owner={opponentName} />
+        )}
       </div>
     );
   };
 
   return (
     <div className={`game-table${compact ? " compact" : ""}`}>
-      <TrickPile className="pile pile-opponent" count={opponentTricksWon} owner={opponentName} />
-      <TrickPile className="pile pile-mine" count={playerTricksWon} owner="You" />
+      <TrickPile className="pile-floating pile-mine" count={playerTricksWon} owner="You" />
 
       <div className="seat seat-north">
         <div className="seat-id">
