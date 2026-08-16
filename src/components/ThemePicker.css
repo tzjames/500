@@ -45,6 +45,15 @@
   color: var(--ink);
 }
 
+.theme-select optgroup {
+  background: #121619;
+  color: rgba(244, 241, 234, 0.55);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .theme-dot {
   position: absolute;
   left: 13px;

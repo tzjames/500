@@ -19,10 +19,9 @@ export const TABLE_SHAPES = {
   },
 };
 
-// `photo` is the backdrop photography slot. No shots have been supplied yet, so
-// every location currently renders its `wash` gradient alone; setting `photo` to
-// a URL layers the image under the wash without any other change.
-export const LOCATIONS = [
+// `photo` is the backdrop photography slot: a URL layers that image under the
+// wash and tint, `null` renders the wash alone.
+const PLACES = [
   {
     id: "falls",
     name: "Victoria Falls",
@@ -71,7 +70,30 @@ export const LOCATIONS = [
     felt: "radial-gradient(58% 62% at 50% 46%, #3b4a3a, #232e26 66%, rgba(12,18,14,.72))",
     back: "linear-gradient(150deg,#6a5470,#2c2233)",
   },
-];
+].map((place) => ({ ...place, group: "Locations" }));
+
+// Each place's palette, minus the photograph — a plain gradient table for when
+// you'd rather not play over scenery. Derived from PLACES rather than written
+// out again, so a tweak to a location's colours carries to its plain twin and
+// the two can't drift apart. They're named for the colour, not the place,
+// because without the backdrop that's all they are.
+const PLAIN_NAMES = {
+  falls: "Teal",
+  zanzibar: "Ocean",
+  canyon: "Ember",
+  kyoto: "Moss",
+};
+
+const PLAIN = PLACES.map((place) => ({
+  ...place,
+  id: `plain-${place.id}`,
+  name: PLAIN_NAMES[place.id],
+  caption: null,
+  photo: null,
+  group: "Plain colours",
+}));
+
+export const LOCATIONS = [...PLACES, ...PLAIN];
 
 // `art: "image"` decks load a face per card from `path`; `art: "glyph"` decks
 // draw the face from the rank and the Unicode suit character. A glyph deck has

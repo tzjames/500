@@ -7,7 +7,17 @@ const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
 // Mirrors of the client's theme registry (src/theme.js), kept here only to
 // reject junk before it reaches the shared, persisted gameSettings.
-const LOCATION_IDS = ["falls", "zanzibar", "canyon", "kyoto"];
+const LOCATION_IDS = [
+  "falls",
+  "zanzibar",
+  "canyon",
+  "kyoto",
+  // The same four palettes without their backdrop photograph.
+  "plain-falls",
+  "plain-zanzibar",
+  "plain-canyon",
+  "plain-kyoto",
+];
 const DECK_IDS = ["traveller", "classic"];
 
 // One Room per game document. Player identity is the account's userId (stable

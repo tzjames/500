@@ -4,6 +4,15 @@ import "./ThemePicker.css";
 
 const SURPRISE = "__surprise__";
 
+// Locations and plain colours, in declaration order, as [group, options] pairs
+// for the dropdown's optgroups.
+const GROUPS = LOCATIONS.reduce((acc, location) => {
+  const entry = acc.find(([group]) => group === location.group);
+  if (entry) entry[1].push(location);
+  else acc.push([location.group, [location]]);
+  return acc;
+}, []);
+
 // Location and deck pickers. Both settings are room-wide: picking either one
 // emits through the same server-synced `gameSettings` channel the offer-pass
 // toggles already use, so the change lands on both players' tables at once.
@@ -25,12 +34,16 @@ function ThemePicker({ locationId, deckId, onChange, compact = false }) {
           className="theme-select"
           value={locationId}
           onChange={handleLocation}
-          aria-label="Table location"
+          aria-label="Table"
         >
-          {LOCATIONS.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
+          {GROUPS.map(([group, options]) => (
+            <optgroup key={group} label={group}>
+              {options.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
           <option value={SURPRISE}>Surprise me — random table</option>
         </select>
