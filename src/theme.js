@@ -51,7 +51,7 @@ export const LOCATIONS = [
     id: "canyon",
     name: "Grand Canyon Rim",
     caption: "Grand Canyon — south rim, twenty minutes before sunset",
-    photo: null,
+    photo: "/backdrops/canyon.jpg",
     shape: "rect",
     dot: "#e0a072",
     wash: "linear-gradient(180deg,#28183a,#4e2742 30%,#8d4636 62%,#3a1d20 100%)",
@@ -79,8 +79,11 @@ export const LOCATIONS = [
 // gradient — which is how the deck picker still yields a per-location back.
 export const DECKS = [
   {
+    // The id stays "traveller" even though the deck is now called "Travelers" —
+    // it's the value persisted in every saved game's gameSettings, so renaming
+    // it would silently reset existing games to the default deck.
     id: "traveller",
-    name: "Traveller",
+    name: "Travelers",
     blurb: "Labrador courts, navy and gold",
     art: "image",
     path: "/cards/traveller",

@@ -47,7 +47,7 @@
    squeezed. The threshold is set by the widest thing on the felt: a ten-card
    hand needs roughly 695px at this breakpoint's card size, and two 212px
    panels plus gaps leave less than that below ~1240px. */
-@media (max-width: 1240px) {
+@media (max-width: 1280px) {
   .board-row > .side-panel {
     display: none;
   }

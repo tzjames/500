@@ -17,6 +17,10 @@
   --card-dummy: clamp(42px, 5vw, 78px);
   --card-played: clamp(52px, 6vw, 88px);
   --card-fan: clamp(28px, 3.2vw, 46px);
+  /* Strip along the board's bottom-right kept clear of your hand, so your
+     trick pile always has somewhere to sit beside the cards rather than on
+     top of them. Wide enough for the pile plus its inset at every size. */
+  --pile-gutter: clamp(64px, 6vw, 88px);
 }
 
 .game-table {
@@ -47,11 +51,13 @@
 }
 
 /* Clear of the bottom edge by more than the arc's deepest drop (see the
-   translateY in PlayerHand), so the outer cards don't get clipped. */
+   translateY in PlayerHand), so the outer cards don't get clipped.
+   Spans the board minus the pile gutter and centres the hand in what's left,
+   rather than centring on the board and running into the corner. */
 .seat-south {
   bottom: 26px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: var(--pile-gutter);
 }
 
 /* No max-width on the side seats: they shrink-wrap their fan instead. A width
@@ -259,14 +265,12 @@
   z-index: 2;
 }
 
-/* As low as it goes: your hand spans nearly the full width of the board's
-   bottom edge, so its top is the floor here — the clear strip beside it is
-   only ~37px at 1280px wide, too narrow to drop the pile into the corner.
-   Sitting on that floor, and growing downward from it, is what puts the most
-   cloth between this pile and the opponent's cards. */
+/* Down in the near corner, inside the gutter your hand leaves free — the
+   furthest point on the cloth from the opponent's cards, and clear of both
+   their pile and yours at any size. */
 .pile-mine {
-  right: 4%;
-  bottom: calc(var(--card-hand) * 1.4 + 38px);
+  right: 8px;
+  bottom: 20px;
 }
 
 /* ---- status pill ---- */

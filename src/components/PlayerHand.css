@@ -16,9 +16,14 @@
   margin-left: 14px;
 }
 
+/* Cards overlap by 38% of their width. That's a touch tighter than reads best
+   in isolation, but it's what keeps a ten-card hand inside the board once the
+   pile gutter is taken out — at the narrowest width where the side panels are
+   still shown, a looser fan runs off the end. The index corner stays fully
+   visible either way. */
 .player-hand .hand-card {
   --card-w: var(--card-hand, 100px);
-  margin-left: calc(var(--card-w) * -0.32);
+  margin-left: calc(var(--card-w) * -0.38);
   transform-origin: 50% 132%;
 }
 

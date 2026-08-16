@@ -1,0 +1,25 @@
+# Backdrop photography
+
+One wide landscape shot per location, layered under the theme's gradient wash
+and tint (see `LOCATIONS` in `src/theme.js`). A location with `photo: null`
+renders its wash alone.
+
+Filenames match the location's `photo` path:
+
+| Location         | File          | Shot                                              |
+| ---------------- | ------------- | ------------------------------------------------- |
+| Grand Canyon Rim | `canyon.jpg`  | South rim, twenty minutes before sunset           |
+| Victoria Falls   | `falls.jpg`   | Dawn mist, from the eastern cataract              |
+| Zanzibar Beach   | `zanzibar.jpg`| Low tide at Nungwi, late afternoon                |
+| Kyoto Garden     | `kyoto.jpg`   | Moss garden after rain, maples turning            |
+
+Only `canyon.jpg` is wired up so far; point the other locations at their file
+in `src/theme.js` as the shots arrive.
+
+Guidelines: landscape, at least 1600px wide, and dark enough that white UI
+reads over it. The tint layer sits on top and does some of that work, but it
+can't rescue a bright sky behind white text. Keep them compressed — they load
+on every hand.
+
+A missing file degrades quietly: nothing paints, and the wash shows through as
+though `photo` were null.
