@@ -1,0 +1,45 @@
+/* The handoff is drawn at a fixed 1440×900 and asks for the whole board to be
+   scaled to fit rather than reflowed. This app has to survive arbitrary window
+   sizes, so instead of a uniform transform the shell fills the viewport and the
+   felt/overlay are sized in percentages off it — the same composition, but it
+   holds together at any aspect ratio. */
+
+.themed-table {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  color: var(--ink);
+  font-family: var(--sans);
+  /* `clip` rather than `hidden`: the felt's rotateX projection is wider than
+     the viewport, and `hidden` would make this a scroll container — so merely
+     focusing a button (a bid cell, a card) scrolls the whole board sideways
+     and every subsequent click lands off-target. `clip` cuts the overflow
+     without ever scrolling. `hidden` stays as the fallback declaration. */
+  overflow: hidden;
+  overflow: clip;
+}
+
+.table-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 20px 26px 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Scrollable variant for the auth/home screens, which are documents rather
+   than a fixed board. */
+.themed-table.scrolling {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+.themed-table.scrolling .table-overlay {
+  position: relative;
+  inset: auto;
+}

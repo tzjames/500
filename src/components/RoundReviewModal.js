@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
-import CardFace from "./CardFace";
+import Card from "./Card";
+import { getDeck } from "../theme";
+import { SUIT_ORDER as suitOrder, VALUE_ORDER as valueOrder, cardColor } from "../cards";
 import "./RoundReviewModal.css";
 
 const STEP_TYPES = ["kittyDealt", "discard", "dummyDealt", "play", "trick", "result"];
-const suitOrder = ["♠", "♣", "♥", "♦"];
-const valueOrder = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
 function sameCard(a, b) {
   return a.suit === b.suit && a.value === b.value;
@@ -77,7 +77,8 @@ function buildFrame(dealEntry, steps, index) {
 // Navigation is driven by whichever player proposed the review — the server
 // is the source of truth for `stepIndex` so both clients stay in lockstep;
 // the other player just watches (see the isController-gated nav below).
-function RoundReviewModal({ round, log, players, stepIndex, isController, controllerName, onStep, onDone }) {
+function RoundReviewModal({ round, log, players, stepIndex, isController, controllerName, onStep, onDone, deckId }) {
+  const deck = getDeck(deckId);
   // A round can contain several deals — every all-pass redeal logs another one
   // under the same round number — and only the last is the one actually played.
   const dealEntry = useMemo(() => [...log].reverse().find((e) => e.type === "deal"), [log]);
@@ -91,9 +92,14 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
   const renderHand = (cards) => (
     <div className="review-hand">
       {sortCards(cards).map((card, i) => (
-        <div key={i} className={`card ${card.suit === "♥" || card.suit === "♦" ? "red" : "black"} review-card`}>
-          <CardFace card={card} />
-        </div>
+        <Card
+          key={i}
+          card={card}
+          deck={deck}
+          width={38}
+          disabled
+          className={`review-card ${cardColor(card.suit)}`}
+        />
       ))}
     </div>
   );
@@ -161,9 +167,13 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
               {frame.trick.length > 0 ? (
                 frame.trick.map((play, i) => (
                   <div key={i} className="review-trick-card">
-                    <div className={`card ${play.card.suit === "♥" || play.card.suit === "♦" ? "red" : "black"}`}>
-                      <CardFace card={play.card} />
-                    </div>
+                    <Card
+                      card={play.card}
+                      deck={deck}
+                      width={44}
+                      disabled
+                      className={cardColor(play.card.suit)}
+                    />
                     <span>
                       {nameOf(play.userId)}
                       {play.isDummy ? " (dummy)" : ""}

@@ -1,0 +1,155 @@
+.side-panel {
+  width: 212px;
+  flex: 0 0 auto;
+  padding: 14px 16px 16px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-panel);
+  align-self: flex-start;
+  z-index: 5;
+}
+
+.side-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.side-note {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  opacity: 0.72;
+}
+
+.icon-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.icon-button:hover {
+  opacity: 1;
+}
+
+/* ---- contract ---- */
+
+.contract {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.contract-bid {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.contract-bid.contract-misere {
+  font-size: 21px;
+}
+
+.contract-points {
+  font-size: 12px;
+  opacity: 0.66;
+  white-space: nowrap;
+}
+
+.score-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.score-value {
+  font-size: 22px;
+}
+
+.claim-button {
+  margin-top: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 12.5px;
+}
+
+/* ---- last trick ---- */
+
+.side-panel-right .panel-heading {
+  margin-bottom: 10px;
+}
+
+.last-trick {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  height: 78px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.last-trick-slot {
+  position: relative;
+  display: block;
+  margin-left: -30px;
+  transition: margin-left 0.2s ease, transform 0.2s ease;
+}
+
+.last-trick-slot:first-child {
+  margin-left: 0;
+}
+
+.last-trick-slot .pc {
+  transform: rotate(calc((var(--i) - 1.5) * 4deg));
+}
+
+.last-trick-slot.winner .pc {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 1px;
+}
+
+/* Fanned open: the cards separate and each gets its "who played it" caption. */
+.last-trick.open .last-trick-slot {
+  margin-left: 2px;
+}
+
+.last-trick.open .last-trick-slot:first-child {
+  margin-left: 0;
+}
+
+.last-trick-who {
+  display: block;
+  margin-top: 4px;
+  font-size: 8.5px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-align: center;
+  max-width: 46px;
+}
+
+.last-trick.open .last-trick-who {
+  opacity: 0.7;
+}
+
+.last-trick:focus-visible {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 4px;
+  border-radius: 8px;
+}

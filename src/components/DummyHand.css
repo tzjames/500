@@ -1,65 +1,35 @@
+/* One row, always. Wrapping made the seat shrink-to-fit at its wrapped width
+   and drop a trailing card onto a second line even with room to spare; ten
+   cards at this size fit the seat's cap comfortably. */
 .dummy-hand {
-  margin-bottom: 20px;
-}
-
-.dummy-cards {
   display: flex;
-  flex-wrap: nowrap;
+  align-items: flex-start;
   justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0 12px;
 }
 
-.suit-group {
+.dummy-suit-group {
   display: flex;
-  margin-right: 20px;
 }
 
-.suit-group:last-child {
-  margin-right: 0;
+.dummy-hand .dummy-card {
+  --card-w: var(--card-dummy, 64px);
+  margin-left: calc(var(--card-w) * -0.36);
 }
 
-.dummy-card {
-  width: 60px;
-  height: 90px;
-  margin: 0 2px;
-  padding: 5px;
-  font-size: 14px;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: transform 0.1s;
+.dummy-suit-group .dummy-card:first-child {
+  margin-left: 0;
 }
 
-.dummy-card:not(:disabled) {
-  cursor: pointer;
+.dummy-hand .dummy-card:hover {
+  z-index: 40;
 }
 
-.dummy-card:disabled {
-  cursor: not-allowed;
-}
-
-.dummy-card:not(:disabled):hover {
-  transform: translateY(-5px);
-}
-
-.dummy-card.red {
-  color: red;
-}
-
-.dummy-card.black {
-  color: black;
-}
-
-.dummy-card-value {
-  font-size: 18px;
-  font-weight: bold;
-  text-align: left;
-  padding-left: 5px;
-}
-
-.dummy-card-suit {
-  font-size: 24px;
-  text-align: center;
+/* When it's the dummy's turn, ring the whole group so it's obvious which of
+   your two hands you're being asked to play from. */
+.dummy-hand.active {
+  padding: 6px 10px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px var(--amber-ring);
 }

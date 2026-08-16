@@ -1,54 +1,70 @@
 .offer-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(6, 10, 12, 0.62);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  padding: 24px;
+  z-index: 1600;
 }
 
-/* Pinned to the top-left corner of the screen instead of centered over the
-   table, so the revealed cards a "claim the rest" response depends on stay
-   visible — with just a light backdrop dim rather than the usual heavy one. */
+/* Scoped variant sits inside its container (the table area) rather than over
+   the whole window — used for the "I've got the rest" claim, which is about
+   the table specifically. */
 .offer-modal-overlay-scoped {
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.35);
-  box-sizing: border-box;
+  position: absolute;
+  z-index: 20;
 }
 
 .offer-modal {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  max-width: 360px;
+  width: min(420px, 100%);
+  padding: 24px 26px 22px;
+  border-radius: 18px;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: var(--shadow-result);
   text-align: center;
+}
+
+.offer-modal p {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .offer-modal-buttons {
   display: flex;
+  gap: 10px;
   justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 .offer-modal-buttons button {
-  padding: 6px 24px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  min-width: 96px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--surface-faint);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.offer-yes {
-  background: #d4edda;
+.offer-modal-buttons button:hover {
+  background: rgba(255, 255, 255, 0.13);
 }
 
-.offer-no {
-  background: #f8d7da;
+.offer-modal-buttons .offer-yes {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--ink-dark);
+}
+
+.offer-modal-buttons .offer-yes:hover {
+  background: rgba(255, 240, 214, 0.98);
 }

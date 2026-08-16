@@ -1,12 +1,23 @@
 import React from "react";
+import Card from "./Card";
 import PlayerHand from "./PlayerHand";
 import DummyHand from "./DummyHand";
-import CardFace from "./CardFace";
+import TrickPile from "./TrickPile";
+import { getDeck } from "../theme";
+import { cardColor, groupHandBySuit } from "../cards";
 import "./GameTable.css";
 
-const suitOrder = ["♠", "♣", "♥", "♦"];
-const valueOrder = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
-
+// The mockup seats four players around the felt; this game has two, each with a
+// dummy hand, which is also four positions — so the seat geometry carries over
+// unchanged and only the labels differ:
+//
+//        north = your dummy hand
+//   west  ...  the trick  ...  east      <- opponent's hand and dummy
+//        south = your own hand
+//
+// Which of west/east holds the opponent's *hand* (rather than their dummy)
+// follows who won the bid, so the bidder's side of the table stays put across
+// the round. That mapping is unchanged from the pre-theme layout.
 function GameTable({
   playedCards,
   opponentHandSize,
@@ -23,144 +34,167 @@ function GameTable({
   revealedOpponentHand,
   revealedOpponentDummyHand,
   flyingWinner,
+  deckId,
+  opponentName = "Opponent",
+  playerTricksWon = 0,
+  opponentTricksWon = 0,
+  statusText,
+  compact = false,
 }) {
-  // Your dummy is revealed once you've played your first hand card, and
-  // stays revealed for the rest of the round. Derived from hand size (starts
-  // at 10 post-kitty) rather than local state, so it survives reconnects.
+  const deck = getDeck(deckId);
+
+  // Your dummy is revealed once you've played your first hand card, and stays
+  // revealed for the rest of the round. Derived from hand size (starts at 10
+  // post-kitty) rather than local state, so it survives reconnects.
   const hasPlayedFirstCard = playerHand.length < 10;
 
-  const getCardColor = (suit) => (suit === "♥" || suit === "♦" ? "red" : "black");
-
-  const leftBowerSuit = { "♠": "♣", "♣": "♠", "♥": "♦", "♦": "♥" }[trumpSuit];
-  const isLeftBower = (card) => card.suit === leftBowerSuit && card.value === "J";
-
-  const renderFaceDownCards = (count, className) => {
-    return Array(count)
-      .fill()
-      .map((_, i) => <div key={i} className={`card back ${className}`} />);
-  };
-
-  // Open Misère: once the bidder loses their first trick, their whole hand
-  // is exposed — plain suit order, no trump, since there's no trump suit.
-  const renderRevealedHand = (hand) => {
-    const rows = suitOrder
-      .map((suit) =>
-        [...hand]
-          .filter((c) => c.suit === suit)
-          .sort((a, b) => valueOrder.indexOf(a.value) - valueOrder.indexOf(b.value))
-      )
-      .concat([hand.filter((c) => c.suit === "Joker")])
-      .filter((row) => row.length > 0);
-
-    return (
-      <div className="revealed-hand">
-        {rows.map((row, rowIndex) => (
-          <div key={rowIndex} className="revealed-hand-row">
-            {row.map((card, cardIndex) => (
-              <div
-                key={cardIndex}
-                className={`card ${getCardColor(card.suit)} revealed-card`}
-              >
-                <CardFace card={card} />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   const playerWonBid = winningBidder === playerId;
-  // Each played card sits at the edge of the table nearest the hand it came
-  // from, so it lands "in front of" whoever played it.
   const opponentSide = playerWonBid ? "right" : "left";
+
+  // Each played card sits at the edge of the trick well nearest the hand it
+  // came from, so it lands "in front of" whoever played it.
   const getPlayedCardPosition = (play) => {
     const isSelf = play.playerId === playerId;
     if (isSelf) return play.isDummy ? "top" : "bottom";
     if (play.isDummy) return opponentSide === "right" ? "left" : "right";
     return opponentSide;
   };
+
   // Once a trick is decided, every played card flies to the same anchor —
   // wherever the winner's own cards would sit — and fades out together.
   const winnerPosition = flyingWinner
-    ? getPlayedCardPosition({ playerId: flyingWinner.winnerId, isDummy: flyingWinner.winnerIsDummy })
+    ? getPlayedCardPosition({
+        playerId: flyingWinner.winnerId,
+        isDummy: flyingWinner.winnerIsDummy,
+      })
     : null;
 
   // A revealed opponent hand/dummy (Open Misère, or a declined "I've got the
-  // rest" claim) replaces the face-down pile in that cell with face-up cards.
+  // rest" claim) replaces that side's face-down fan with face-up cards.
   const revealedHand = revealedBidderHand || revealedOpponentHand;
-  const handContent = revealedHand
-    ? renderRevealedHand(revealedHand)
-    : renderFaceDownCards(opponentHandSize, "vertical");
-  const dummyContent = revealedOpponentDummyHand
-    ? renderRevealedHand(revealedOpponentDummyHand)
-    : renderFaceDownCards(opponentDummyHandSize, "vertical");
+
+  const renderSideSeat = (side) => {
+    const holdsOpponentHand = side === opponentSide;
+    const revealed = holdsOpponentHand ? revealedHand : revealedOpponentDummyHand;
+    const count = holdsOpponentHand ? opponentHandSize : opponentDummyHandSize;
+    const label = holdsOpponentHand ? opponentName : `${opponentName}'s dummy`;
+
+    return (
+      <div className={`seat seat-${side}${revealed ? " seat-revealed" : ""}`}>
+        <div className="seat-id">
+          <span className="seat-avatar">{label.charAt(0).toUpperCase()}</span>
+          <span className="seat-name">{label}</span>
+        </div>
+        {revealed ? (
+          <RevealedHand hand={revealed} deck={deck} />
+        ) : (
+          <FanOfBacks count={count} side={side} />
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className="game-table">
-      <div className="grid-row top">
-        <div className="grid-cell"></div>
-        <div className="grid-cell player-dummy-hand">
-          {hasPlayedFirstCard ? (
-            <DummyHand
-              hand={playerDummyHand}
-              onPlayCard={(card) => onPlayCard(card, true)}
-              trumpSuit={trumpSuit}
-              isCurrentPlayer={isCurrentPlayerDummyTurn}
-            />
-          ) : (
-            renderFaceDownCards(10, "horizontal")
-          )}
+    <div className={`game-table${compact ? " compact" : ""}`}>
+      <TrickPile className="pile pile-opponent" count={opponentTricksWon} owner={opponentName} />
+      <TrickPile className="pile pile-mine" count={playerTricksWon} owner="You" />
+
+      <div className="seat seat-north">
+        <div className="seat-id">
+          <span className="seat-avatar">D</span>
+          <span className="seat-name">Your dummy</span>
         </div>
-        <div className="grid-cell"></div>
+        {hasPlayedFirstCard ? (
+          <DummyHand
+            hand={playerDummyHand}
+            onPlayCard={(card) => onPlayCard(card, true)}
+            trumpSuit={trumpSuit}
+            isCurrentPlayer={isCurrentPlayerDummyTurn}
+            deckId={deckId}
+          />
+        ) : (
+          <FanOfBacks count={10} side="north" />
+        )}
       </div>
-      <div className="grid-row middle">
-        <div
-          className={`grid-cell ${
-            playerWonBid ? "opponent-dummy-hand" : "opponent-hand"
-          } ${(playerWonBid ? revealedOpponentDummyHand : revealedHand) ? "revealed-hand-cell" : ""}`}
-        >
-          {playerWonBid ? dummyContent : handContent}
-        </div>
-        <div
-          className={`grid-cell table ${
-            revealedHand || revealedOpponentDummyHand ? "table-shifted" : ""
-          }`}
-        >
-          {playedCards.map((play, index) => (
-            <div
-              key={index}
-              className={`played-card played-card-${winnerPosition || getPlayedCardPosition(play)} card ${getCardColor(
-                play.card.suit
-              )} ${play.isDummy ? "dummy" : ""} ${winnerPosition ? "flying" : ""}`}
-            >
-              <CardFace card={play.card} />
-              {isLeftBower(play.card) && (
-                <div className="left-bower-indicator">LB</div>
-              )}
-            </div>
+
+      {renderSideSeat("left")}
+      {renderSideSeat("right")}
+
+      <div className="trick-well">
+        {playedCards.map((play, index) => (
+          <div
+            key={index}
+            className={`played-card played-card-${
+              winnerPosition || getPlayedCardPosition(play)
+            } ${play.isDummy ? "from-dummy" : ""} ${winnerPosition ? "flying" : ""}`}
+          >
+            <Card
+              card={play.card}
+              deck={deck}
+              trumpSuit={trumpSuit}
+              width={88}
+              className={cardColor(play.card.suit)}
+            />
+          </div>
+        ))}
+      </div>
+
+      {statusText && <div className="table-status pill">{statusText}</div>}
+
+      <div className="seat seat-south">
+        <PlayerHand
+          hand={playerHand}
+          onPlayCard={(card) => onPlayCard(card, false)}
+          trumpSuit={trumpSuit}
+          isCurrentPlayer={isCurrentPlayerHandTurn}
+          deckId={deckId}
+        />
+      </div>
+    </div>
+  );
+}
+
+// A held hand seen from the outside: card backs splayed from a pivot below the
+// cards, so the fan widens at the top.
+function FanOfBacks({ count, side }) {
+  const width = side === "north" ? 40 : 46;
+  return (
+    <div className={`fan fan-${side}`}>
+      {Array.from({ length: Math.max(0, count) }).map((_, i) => {
+        const offset = i - (count - 1) / 2;
+        return (
+          <Card
+            key={i}
+            faceDown
+            width={width}
+            rotate={offset * 9}
+            className="fan-card"
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// Open Misère, or a declined "I've got the rest" claim: the whole hand is
+// exposed in plain suit order — there's no trump to rank it against.
+function RevealedHand({ hand, deck }) {
+  return (
+    <div className="revealed-hand">
+      {groupHandBySuit(hand).map((row, rowIndex) => (
+        <div key={rowIndex} className="revealed-hand-row">
+          {row.map((card, cardIndex) => (
+            <Card
+              key={cardIndex}
+              card={card}
+              deck={deck}
+              width={38}
+              disabled
+              className={cardColor(card.suit)}
+            />
           ))}
         </div>
-        <div
-          className={`grid-cell ${
-            playerWonBid ? "opponent-hand" : "opponent-dummy-hand"
-          } ${(playerWonBid ? revealedHand : revealedOpponentDummyHand) ? "revealed-hand-cell" : ""}`}
-        >
-          {playerWonBid ? handContent : dummyContent}
-        </div>
-      </div>
-      <div className="grid-row bottom">
-        <div className="grid-cell"></div>
-        <div className="grid-cell player-hand-container">
-          <PlayerHand
-            hand={playerHand}
-            onPlayCard={(card) => onPlayCard(card, false)}
-            trumpSuit={trumpSuit}
-            isCurrentPlayer={isCurrentPlayerHandTurn}
-          />
-        </div>
-        <div className="grid-cell"></div>
-      </div>
+      ))}
     </div>
   );
 }

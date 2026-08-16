@@ -5,6 +5,11 @@ const db = require("./db");
 
 const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
+// Mirrors of the client's theme registry (src/theme.js), kept here only to
+// reject junk before it reaches the shared, persisted gameSettings.
+const LOCATION_IDS = ["falls", "zanzibar", "canyon", "kyoto"];
+const DECK_IDS = ["traveller", "classic"];
+
 // One Room per game document. Player identity is the account's userId (stable
 // forever), never a socket id — reconnecting is just "does this userId already
 // own a slot here," so there's no name-matching or pending-restore guesswork.
@@ -23,9 +28,17 @@ class Room {
     this.gamePhase = snap.gamePhase || "waiting";
     this.currentBidder = snap.currentBidder || null;
     this.biddingHistory = snap.biddingHistory || [];
-    this.gameSettings = snap.gameSettings || {
+    // Room-wide, not per-user: both players always look at the same table, so
+    // the location/deck theme rides along with the existing offer-button
+    // settings on the same broadcast-and-persist path. Games saved before
+    // theming existed have no location/deck keys, so default them here rather
+    // than only in the `||` branch above.
+    this.gameSettings = {
       showOfferPassButton: true,
       showOfferRetroactivePassButton: true,
+      location: "falls",
+      deck: "traveller",
+      ...(snap.gameSettings || {}),
     };
     this.offerPassDeclined = snap.offerPassDeclined || false;
     this.offerRetroactivePassDeclined = snap.offerRetroactivePassDeclined || false;
@@ -43,6 +56,11 @@ class Room {
     // a reconnect while sitting on the round-end screen can resend it; without
     // it the Round Complete modal's data never comes back after a refresh.
     this.lastRoundResult = snap.lastRoundResult || null;
+    // The most recently resolved trick — cards, who played each, who won —
+    // kept for the "Last trick" panel. resolveTrick() clears the live trick,
+    // so without stashing it here there'd be nothing left to show. Persisted
+    // so the panel survives a reconnect mid-round.
+    this.lastTrick = snap.lastTrick || null;
     // How many times everyone has passed and redealt within the current
     // round number — reset once real dealing (a new round or a new game)
     // happens, not by the redeal itself, so it climbs across repeats.
@@ -143,6 +161,7 @@ class Room {
       reviewControllerId: this.reviewControllerId,
       reviewStepIndex: this.reviewStepIndex,
       lastRoundResult: this.lastRoundResult,
+      lastTrick: this.lastTrick,
       redealCount: this.redealCount,
       roundEnd: this.roundEnd
         ? { readyUserIds: [...this.roundEnd.readyUserIds], proposal: this.roundEnd.proposal }
@@ -289,6 +308,7 @@ class Room {
       currentPlayer: this.game.currentPlayer,
       currentIsDummy: currentSeat ? currentSeat.isDummy : false,
       playedCards: this.game.currentTrick,
+      lastTrick: this.lastTrick,
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
       gameSettings: this.gameSettings,
@@ -377,6 +397,7 @@ class Room {
     this.pendingClaim = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
+    this.lastTrick = null;
     this.redealCount = 0;
     this.gamePhase = "bidding";
 
@@ -400,6 +421,7 @@ class Room {
     this.pendingClaim = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
+    this.lastTrick = null;
     this.redealCount = 0;
     this.gamePhase = "bidding";
 
@@ -419,6 +441,7 @@ class Room {
     this.pendingClaim = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
+    this.lastTrick = null;
     this.redealCount += 1;
     this.gamePhase = "bidding";
 
@@ -492,8 +515,24 @@ class Room {
   }
 
   setGameSettings(socket, settings) {
-    this.gameSettings = { ...this.gameSettings, ...settings };
+    const next = { ...this.gameSettings };
+    if (typeof settings.showOfferPassButton === "boolean") {
+      next.showOfferPassButton = settings.showOfferPassButton;
+    }
+    if (typeof settings.showOfferRetroactivePassButton === "boolean") {
+      next.showOfferRetroactivePassButton = settings.showOfferRetroactivePassButton;
+    }
+    // Themes are picked from a fixed list on the client, so anything else is
+    // either a stale client or hand-crafted — drop it rather than persist a
+    // value that would render as an unstyled table for both players.
+    if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
+    if (DECK_IDS.includes(settings.deck)) next.deck = settings.deck;
+
+    this.gameSettings = next;
     this.io.to(this.id).emit("gameSettingsUpdated", this.gameSettings);
+    // Theme changes can happen long after the last move, so this settle needs
+    // its own save — nothing else is going to persist it.
+    this.persist();
   }
 
   offerPass(socket) {
@@ -623,10 +662,22 @@ class Room {
 
     if (activeGame.currentTrick.length === activeGame.seats.length) {
       const trickWinner = activeGame.resolveTrick();
+      // A replay is a side game that never touches persisted room state, so it
+      // reports its trick inline without disturbing the live game's lastTrick.
+      const trick = {
+        plays: trickWinner.plays,
+        winnerId: trickWinner.playerId,
+        winnerIsDummy: trickWinner.isDummy,
+        winnerName: this.nameOf(trickWinner.playerId),
+        winningCard: trickWinner.winningCard,
+        leadSuit: trickWinner.leadSuit,
+      };
+      if (mode !== "replay") this.lastTrick = trick;
       this.io.to(this.id).emit(mode === "replay" ? "replayTrickResolved" : "trickResolved", {
         winner: trickWinner.playerId,
         winnerIsDummy: trickWinner.isDummy,
         newScores: activeGame.players.map((p) => ({ id: p.id, score: p.score, tricksWon: p.tricksWon })),
+        lastTrick: trick,
       });
       if (mode !== "replay") {
         this.logEvent("trick", {
@@ -768,6 +819,11 @@ class Room {
       proposal: this.roundEnd.proposal
         ? { ...this.roundEnd.proposal, fromName: this.nameOf(this.roundEnd.proposal.fromUserId) }
         : null,
+      // The round-end screen charts score by round, and the round that just
+      // finished is the interesting one. Clients otherwise only receive
+      // scoreHistory at gameStart/gameResumed/gameOver, so without this the
+      // chart would sit one whole round behind — and be empty after round 1.
+      scoreHistory: this.scoreHistory,
     };
   }
 

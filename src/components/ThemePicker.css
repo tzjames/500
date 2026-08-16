@@ -1,0 +1,78 @@
+.theme-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.theme-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 8px 34px 8px 32px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border-strong);
+  background: rgba(10, 14, 17, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  min-width: 214px;
+  cursor: pointer;
+}
+
+/* The deck select has no colour dot, so it doesn't need the extra left inset. */
+.theme-select.deck-select {
+  padding-left: 16px;
+  min-width: 236px;
+}
+
+.theme-select:focus-visible {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 2px;
+}
+
+.theme-select option {
+  background: #121619;
+  color: var(--ink);
+}
+
+.theme-dot {
+  position: absolute;
+  left: 13px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.theme-caret {
+  position: absolute;
+  right: 14px;
+  width: 8px;
+  height: 6px;
+  background: var(--ink);
+  opacity: 0.7;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  pointer-events: none;
+}
+
+.theme-picker.compact .theme-select {
+  min-width: 0;
+  font-size: 12px;
+  padding: 6px 28px 6px 28px;
+}
+
+.theme-picker.compact .theme-select.deck-select {
+  padding-left: 14px;
+}

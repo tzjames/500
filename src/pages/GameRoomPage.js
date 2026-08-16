@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getSocket } from "../socket";
-import GameStatus from "../components/GameStatus";
+import ThemedTable from "../components/ThemedTable";
+import ThemePicker from "../components/ThemePicker";
+import ContractPanel from "../components/ContractPanel";
+import LastTrickPanel from "../components/LastTrickPanel";
 import BiddingInterface from "../components/BiddingInterface";
 import GameTable from "../components/GameTable";
 import AnimatedHand from "../components/AnimatedHand";
@@ -11,6 +14,7 @@ import OfferModal from "../components/OfferModal";
 import RoundEndModal from "../components/RoundEndModal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
+import { DEFAULT_LOCATION, DEFAULT_DECK } from "../theme";
 import "../App.css";
 
 function GameRoomPage() {
@@ -30,6 +34,8 @@ function GameRoomPage() {
   const [gameSettings, setGameSettings] = useState({
     showOfferPassButton: true,
     showOfferRetroactivePassButton: true,
+    location: DEFAULT_LOCATION,
+    deck: DEFAULT_DECK,
   });
   const [offerPassDeclined, setOfferPassDeclined] = useState(false);
   const [offerRetroactivePassDeclined, setOfferRetroactivePassDeclined] = useState(false);
@@ -55,6 +61,7 @@ function GameRoomPage() {
   const [roundEndInfo, setRoundEndInfo] = useState(null);
   const [reviewData, setReviewData] = useState(null);
   const [replay, setReplay] = useState(null);
+  const [lastTrick, setLastTrick] = useState(null);
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
   const [incomingRematchOffer, setIncomingRematchOffer] = useState(null);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
@@ -146,6 +153,7 @@ function GameRoomPage() {
       pendingClearTokenRef.current = null;
       lastPlaySeqRef.current = null;
       setFlyingWinner(null);
+      setLastTrick(null);
       setCurrentPlayer(null);
       setCurrentTurnIsDummy(false);
       setInvalidPlayMessage("");
@@ -261,6 +269,7 @@ function GameRoomPage() {
       pendingClearTokenRef.current = null;
       lastPlaySeqRef.current = null;
       setFlyingWinner(null);
+      setLastTrick(state.lastTrick || null);
       setIsKittyPhase(state.gamePhase === "kitty");
       setRoundNumber(state.roundNumber || 1);
       setRedealCount(state.redealCount || 0);
@@ -298,6 +307,7 @@ function GameRoomPage() {
     // no signal that review had ended and would stay stuck looking at it.
     socket.on("roundEndState", (info) => {
       setRoundEndInfo(info);
+      if (info.scoreHistory) setScoreHistory(info.scoreHistory);
       setReviewData(null);
     });
     socket.on("reviewStart", (data) => setReviewData(data));
@@ -310,7 +320,7 @@ function GameRoomPage() {
     });
     socket.on("rematchStarted", ({ gameId: newGameId }) => navigate(`/game/${newGameId}`));
 
-    socket.on("trickResolved", ({ winner, winnerIsDummy, newScores }) => {
+    socket.on("trickResolved", ({ winner, winnerIsDummy, newScores, lastTrick: resolved }) => {
       setGameState((prev) => ({
         ...prev,
         players: prev.players.map((p) => {
@@ -318,6 +328,7 @@ function GameRoomPage() {
           return updated ? { ...p, score: updated.score, tricksWon: updated.tricksWon } : p;
         }),
       }));
+      if (resolved) setLastTrick(resolved);
       const token = ++trickTokenCounterRef.current;
       pendingClearTokenRef.current = token;
       setTimeout(() => {
@@ -647,54 +658,90 @@ function GameRoomPage() {
 
   const handleReplayReturn = () => setReplay(null);
 
+  const locationId = gameSettings.location || DEFAULT_LOCATION;
+  const deckId = gameSettings.deck || DEFAULT_DECK;
+
   if (!session) return null;
 
   if (joinRejected) {
     return (
-      <div className="room-full">
-        {joinRejected}
-        <p>
-          <Link to="/">Back to home</Link>
-        </p>
-      </div>
+      <ThemedTable locationId={locationId} deckId={deckId} plain>
+        <div className="room-full">
+          <p>{joinRejected}</p>
+          <p>
+            <Link to="/">Back to home</Link>
+          </p>
+        </div>
+      </ThemedTable>
     );
   }
 
   if (!gameState || !gameState.players) {
     if (connectedPlayers <= 1) {
       return (
-        <div className="game-settings-screen">
-          <h2>Waiting for opponent</h2>
-          <p>Share this link with them:</p>
-          <input readOnly value={window.location.href} onClick={(e) => e.target.select()} />
-          <label>
-            <input
-              type="checkbox"
-              checked={gameSettings.showOfferPassButton}
-              onChange={(e) => handleSetGameSettings({ showOfferPassButton: e.target.checked })}
+        <ThemedTable locationId={locationId} deckId={deckId}>
+          <div className="table-topbar">
+            <h1 className="table-title">500</h1>
+            <ThemePicker
+              locationId={locationId}
+              deckId={deckId}
+              onChange={handleSetGameSettings}
             />
-            Show &quot;Offer a pass&quot; button
-          </label>
-          <label>
+          </div>
+          <div className="waiting-panel panel">
+            <h2>Waiting for your opponent</h2>
+            <p>Send them this link:</p>
             <input
-              type="checkbox"
-              checked={gameSettings.showOfferRetroactivePassButton}
-              onChange={(e) => handleSetGameSettings({ showOfferRetroactivePassButton: e.target.checked })}
+              className="share-link"
+              readOnly
+              value={window.location.href}
+              onClick={(e) => e.target.select()}
             />
-            Show &quot;Offer a retroactive pass&quot; button
-          </label>
-        </div>
+            <div className="settings-list">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={gameSettings.showOfferPassButton}
+                  onChange={(e) => handleSetGameSettings({ showOfferPassButton: e.target.checked })}
+                />
+                Show &quot;Offer a pass&quot; button
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={gameSettings.showOfferRetroactivePassButton}
+                  onChange={(e) =>
+                    handleSetGameSettings({ showOfferRetroactivePassButton: e.target.checked })
+                  }
+                />
+                Show &quot;Offer a retroactive pass&quot; button
+              </label>
+            </div>
+          </div>
+        </ThemedTable>
       );
     }
-    return <div>Loading game state...</div>;
+    return (
+      <ThemedTable locationId={locationId} deckId={deckId}>
+        <div className="waiting-panel">
+          <p>Loading game state…</p>
+        </div>
+      </ThemedTable>
+    );
   }
 
   const currentPlayerData = gameState.players.find((p) => p.id === playerId);
   const otherPlayerData = gameState.players.find((p) => p.id !== playerId);
 
   if (!currentPlayerData) {
-    return <div>Error: Player not found in game state</div>;
+    return (
+      <ThemedTable locationId={locationId} deckId={deckId} plain>
+        <div className="room-full">Error: player not found in game state</div>
+      </ThemedTable>
+    );
   }
+
+  const opponentName = otherPlayerData?.name || "Opponent";
 
   // Open Misère: the bidder's hand is exposed to the opponent once the
   // bidder has lost their first trick. Winning a trick ends the round
@@ -731,6 +778,42 @@ function GameRoomPage() {
       ? replayOtherPlayerData?.hand
       : null;
 
+  // One line under the table saying whose move it is and what's trumps.
+  const statusText = (() => {
+    if (gamePhase !== "playing") return null;
+    const trumpNote = gameState.trumpSuit
+      ? ` — ${gameState.trumpSuit} are trumps`
+      : gameState.currentBid?.bid?.includes("Misere")
+      ? " — no trumps"
+      : "";
+    if (playerId === currentPlayer) {
+      return `Your turn, from your ${currentTurnIsDummy ? "dummy" : "hand"}${trumpNote}`;
+    }
+    return `${opponentName}'s turn, from their ${
+      currentTurnIsDummy ? "dummy" : "hand"
+    }${trumpNote}`;
+  })();
+
+  const suitNominator = (onPick, onCancel) => (
+    <div className="offer-modal-overlay">
+      <div className="offer-modal">
+        <p>Nominate a suit for the Joker:</p>
+        <div className="offer-modal-buttons">
+          {["♠", "♣", "♥", "♦"].map((suit) => (
+            <button key={suit} onClick={() => onPick(suit)}>
+              {suit}
+            </button>
+          ))}
+        </div>
+        {onCancel && (
+          <div className="offer-modal-buttons" style={{ marginTop: 10 }}>
+            <button onClick={onCancel}>Cancel</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // Shared between the game-over screen and the normal in-game screen: the
   // score-history graph, and the review/replay overlays (both work exactly
   // the same way once a hand is over, whether or not the game itself is).
@@ -755,39 +838,45 @@ function GameRoomPage() {
           }
           onStep={handleReviewStep}
           onDone={handleReviewDone}
+          deckId={deckId}
         />
       )}
       {!reviewData && replay && (
         <div className="replay-overlay">
           <div className="replay-panel">
-            <p className="replay-banner">Replay — this won't count towards your game</p>
+            <p className="replay-banner">Replay — this won&apos;t count towards your game</p>
             {replay.result ? (
               <div className="replay-result-box">
                 <p>
                   {replay.result.bidderName} bid {replay.result.bid} and{" "}
                   {replay.result.bidderMadeBid ? "made it!" : "missed it."}
                 </p>
-                <button onClick={handleReplayReturn}>Return to round</button>
+                <button className="btn-primary" onClick={handleReplayReturn}>
+                  Return to round
+                </button>
               </div>
             ) : replay.isKittyPhase && replay.currentBid?.player === playerId ? (
-              <div>
-                <h2>Select 3 cards to discard (Replay)</h2>
+              <div className="replay-kitty">
+                <h2>Select 3 cards to discard</h2>
                 <AnimatedHand
                   hand={replay.combinedHand}
                   selectedCards={replay.selectedCards}
                   onCardClick={handleReplayCardClick}
                   trumpSuit={replay.trumpSuit}
+                  deckId={deckId}
                 />
                 <button
+                  className="btn-primary"
                   onClick={handleReplayKittyDone}
                   disabled={replay.selectedCards.length !== 3}
-                  className="done-button"
                 >
-                  Done discarding
+                  Throw three &amp; play
                 </button>
               </div>
             ) : replay.isKittyPhase ? (
-              <p>Waiting for {replayOtherPlayerData?.name} to discard to the kitty.</p>
+              <p className="replay-result-box">
+                Waiting for {replayOtherPlayerData?.name} to discard to the kitty.
+              </p>
             ) : (
               <>
                 <div className="replay-status">
@@ -817,24 +906,18 @@ function GameRoomPage() {
                   playerId={playerId}
                   revealedBidderHand={replayRevealedBidderHand}
                   flyingWinner={replay.flyingWinner}
+                  deckId={deckId}
+                  opponentName={replayOtherPlayerData?.name || "Opponent"}
+                  playerTricksWon={replayCurrentPlayerData?.tricksWon || 0}
+                  opponentTricksWon={replayOtherPlayerData?.tricksWon || 0}
+                  compact
                 />
               </>
             )}
-            {replay.invalidPlayMessage && <p className="invalid-play-message">{replay.invalidPlayMessage}</p>}
-            {replay.pendingJokerLead && (
-              <div className="offer-modal-overlay">
-                <div className="offer-modal">
-                  <p>Nominate a suit for the Joker:</p>
-                  <div className="offer-modal-buttons">
-                    {["♠", "♣", "♥", "♦"].map((suit) => (
-                      <button key={suit} onClick={() => handleReplayNominateSuit(suit)}>
-                        {suit}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            {replay.invalidPlayMessage && (
+              <p className="invalid-play-message">{replay.invalidPlayMessage}</p>
             )}
+            {replay.pendingJokerLead && suitNominator(handleReplayNominateSuit)}
           </div>
         </div>
       )}
@@ -850,60 +933,69 @@ function GameRoomPage() {
     const wentOutBackDoor = (loser?.score ?? 0) <= -500;
     const subtext = wentOutBackDoor
       ? `${loser.id === playerId ? "You" : loser.name} went out the back door`
-      : `${didIWin ? "You" : gameOverInfo.winner.name} won with ${gameOverInfo.winner.score} points!`;
+      : `${didIWin ? "You" : gameOverInfo.winner.name} won with ${gameOverInfo.winner.score} points`;
 
     const proposal = roundEndInfo?.proposal;
     const proposalIsMine = proposal?.fromUserId === playerId;
     const proposalIsIncoming = proposal && !proposalIsMine;
 
     return (
-      <div className="game-over">
+      <ThemedTable locationId={locationId} deckId={deckId} dimmed>
         {didIWin && <Confetti />}
-        <h1>{didIWin ? "🎉 You Win! 🎉" : "Game Over"}</h1>
-        <p className="game-over-subtext">{subtext}</p>
-        <button
-          className="graph-icon-button"
-          onClick={() => setShowScoreHistory(true)}
-          title="View score history"
-          aria-label="View score history"
-        >
-          📈
-        </button>
-        {!didIWin && !wentOutBackDoor && <p className="loser-message">Better luck next time!</p>}
-        <ul>
-          {gameOverInfo.players.map((p) => (
-            <li key={p.id}>
-              {p.id === playerId ? "You" : p.name}: {p.score}
-            </li>
-          ))}
-        </ul>
+        <div className="game-over-card">
+          <p className="overline">Game over</p>
+          <h1>{didIWin ? "You win" : "Better luck next time"}</h1>
+          <p className="game-over-subtext">{subtext}</p>
 
-        {proposalIsIncoming ? (
-          <div className="round-end-proposal">
-            <p>
-              {proposal.fromName} wants to {proposal.type === "review" ? "review" : "replay"} the last
-              hand. Do you agree?
-            </p>
-            <div className="round-end-proposal-buttons">
-              <button onClick={() => handleRespondRoundEnd(true)}>Yes</button>
-              <button onClick={() => handleRespondRoundEnd(false)}>No</button>
+          <ul className="game-over-scores">
+            {gameOverInfo.players.map((p) => (
+              <li key={p.id}>
+                <span>{p.id === playerId ? "You" : p.name}</span>
+                <b>{p.score}</b>
+              </li>
+            ))}
+          </ul>
+
+          {proposalIsIncoming ? (
+            <div className="round-end-proposal">
+              <p>
+                {proposal.fromName} wants to {proposal.type === "review" ? "review" : "replay"} the
+                last hand. Do you agree?
+              </p>
+              <div className="round-end-proposal-buttons">
+                <button className="btn-primary" onClick={() => handleRespondRoundEnd(true)}>
+                  Yes
+                </button>
+                <button className="btn-ghost" onClick={() => handleRespondRoundEnd(false)}>
+                  No
+                </button>
+              </div>
             </div>
-          </div>
-        ) : proposalIsMine ? (
-          <p className="round-end-waiting">Waiting for a response to your invite...</p>
-        ) : waitingForRematchResponse ? (
-          <p className="round-end-waiting">Waiting for a response to your rematch offer...</p>
-        ) : (
-          <div className="game-over-buttons">
-            <button onClick={() => handlePropose("review")}>Review Last Hand</button>
-            <button onClick={() => handlePropose("replay")}>Replay Last Hand</button>
-            <button onClick={handleRematchOffer}>Offer a Rematch</button>
-            <Link to="/" className="game-over-home-button">
-              Back to Home
-            </Link>
-          </div>
-        )}
-        {rematchStatusMessage && <p className="invalid-play-message">{rematchStatusMessage}</p>}
+          ) : proposalIsMine ? (
+            <p className="round-end-waiting">Waiting for a response to your invite…</p>
+          ) : waitingForRematchResponse ? (
+            <p className="round-end-waiting">Waiting for a response to your rematch offer…</p>
+          ) : (
+            <div className="game-over-buttons">
+              <button className="btn-primary" onClick={handleRematchOffer}>
+                Offer a rematch
+              </button>
+              <button className="btn-ghost" onClick={() => handlePropose("review")}>
+                Review last hand
+              </button>
+              <button className="btn-ghost" onClick={() => handlePropose("replay")}>
+                Replay last hand
+              </button>
+              <button className="btn-ghost" onClick={() => setShowScoreHistory(true)}>
+                Score history
+              </button>
+              <Link to="/" className="btn-ghost">
+                Back to home
+              </Link>
+            </div>
+          )}
+          {rematchStatusMessage && <p className="invalid-play-message">{rematchStatusMessage}</p>}
+        </div>
 
         {commonOverlays}
         {incomingRematchOffer && (
@@ -913,71 +1005,86 @@ function GameRoomPage() {
             onRespond={handleRespondRematch}
           />
         )}
-      </div>
+      </ThemedTable>
     );
   }
 
+  const isDiscarding = isKittyPhase && playerId === gameState.currentBid?.player;
+
   return (
-    <div className="App">
-      <div className="game-container">
-        <div className="game-info">
-          <h1>500 Card Game</h1>
-          <p>Welcome, {currentPlayerData.name}!</p>
-          <GameStatus
-            players={gameState.players}
-            playerId={playerId}
-            currentTurnPlayerId={currentPlayer}
-            currentTurnIsDummy={currentTurnIsDummy}
-            dealerId={gameState.dealerId}
+    <ThemedTable locationId={locationId} deckId={deckId} dimmed={isDiscarding}>
+      <div className="table-topbar">
+        <div>
+          <h1 className="table-title">500</h1>
+          <p className="table-subtitle">
+            {currentPlayerData.name} vs {opponentName}
+          </p>
+        </div>
+        <ThemePicker
+          locationId={locationId}
+          deckId={deckId}
+          onChange={handleSetGameSettings}
+          compact
+        />
+      </div>
+
+      {isDiscarding ? (
+        <div className="kitty-screen">
+          <div>
+            <h2 className="kitty-heading">
+              You won the bid with {gameState.currentBid?.bid} for {gameState.currentBid?.points}
+            </h2>
+            <p className="kitty-subheading">
+              The kitty is yours — take these three, then throw any three back.
+            </p>
+          </div>
+          <div className="kitty-hand-wrap">
+            <AnimatedHand
+              hand={combinedHand}
+              selectedCards={selectedCards}
+              onCardClick={handleCardClick}
+              trumpSuit={gameState.trumpSuit}
+              deckId={deckId}
+            />
+          </div>
+          <div className="kitty-actions">
+            <span className="pill">{selectedCards.length} of 3 chosen</span>
+            <button
+              className="btn-primary"
+              onClick={handleKittyDone}
+              disabled={selectedCards.length !== 3}
+            >
+              Throw three &amp; play
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="board-row">
+          <ContractPanel
             currentBid={gameState.currentBid}
-            gamePhase={gamePhase}
-            trumpSuit={gameState.trumpSuit}
-            currentBidder={currentBidder}
+            bidderName={
+              gameState.players.find((p) => p.id === gameState.currentBid?.player)?.name
+            }
+            playerIsBidder={gameState.currentBid?.player === playerId}
+            playerScore={currentPlayerData.score}
+            opponentScore={otherPlayerData?.score ?? 0}
+            opponentName={opponentName}
+            playerTricksWon={currentPlayerData.tricksWon || 0}
             roundNumber={roundNumber}
             redealCount={redealCount}
+            gamePhase={gamePhase}
+            dealerIsYou={gameState.dealerId === playerId}
+            trumpSuit={gameState.trumpSuit}
             onShowScoreHistory={() => setShowScoreHistory(true)}
-            canClaimRest={playerId === currentPlayer && playedCards.length === 0}
+            canClaimRest={
+              gamePhase === "playing" && playerId === currentPlayer && playedCards.length === 0
+            }
             waitingForClaimResponse={waitingForClaimResponse}
             claimStatusMessage={claimStatusMessage}
             onClaimRest={handleClaimRest}
-            otherPlayerName={otherPlayerData?.name}
           />
-          {gamePhase === "bidding" && (
-            <BiddingInterface
-              currentBid={gameState.currentBid}
-              players={gameState.players}
-              playerId={playerId}
-              dealerId={gameState.dealerId}
-              currentBidder={currentBidder}
-              onPlaceBid={handlePlaceBid}
-              biddingComplete={gameState.biddingComplete}
-              biddingHistory={biddingHistory}
-              gameSettings={gameSettings}
-              offerPassDeclined={offerPassDeclined}
-              offerRetroactivePassDeclined={offerRetroactivePassDeclined}
-              waitingForOfferResponse={waitingForOfferResponse}
-              onOfferPass={handleOfferPass}
-              onOfferRetroactivePass={handleOfferRetroactivePass}
-            />
-          )}
-          {offerStatusMessage && <p className="invalid-play-message">{offerStatusMessage}</p>}
-          {invalidPlayMessage && <p className="invalid-play-message">{invalidPlayMessage}</p>}
-        </div>
-        <div className="game-table-container">
-          {isKittyPhase && playerId === gameState.currentBid?.player ? (
-            <div>
-              <h2>Select 3 cards to discard</h2>
-              <AnimatedHand
-                hand={combinedHand}
-                selectedCards={selectedCards}
-                onCardClick={handleCardClick}
-                trumpSuit={gameState.currentBid?.bid?.split(" ")[1]}
-              />
-              <button onClick={handleKittyDone} disabled={selectedCards.length !== 3} className="done-button">
-                Done discarding
-              </button>
-            </div>
-          ) : (
+
+          <div className="board-center">
             <GameTable
               playedCards={playedCards}
               opponentHandSize={otherPlayerData?.hand?.length || 0}
@@ -994,24 +1101,70 @@ function GameRoomPage() {
               revealedOpponentHand={revealedOpponentHand}
               revealedOpponentDummyHand={revealedOpponentDummyHand}
               flyingWinner={flyingWinner}
+              deckId={deckId}
+              opponentName={opponentName}
+              playerTricksWon={currentPlayerData.tricksWon || 0}
+              opponentTricksWon={otherPlayerData?.tricksWon || 0}
+              statusText={statusText}
             />
-          )}
-          {pendingClaimReceived && (
-            <OfferModal
-              type="claimRest"
-              fromName={pendingClaimReceived.fromName}
-              onRespond={handleRespondToClaim}
-              scoped
-            />
-          )}
+
+            {gamePhase === "bidding" && (
+              <div className="centered-panel">
+                <BiddingInterface
+                  currentBid={gameState.currentBid}
+                  players={gameState.players}
+                  playerId={playerId}
+                  currentBidder={currentBidder}
+                  onPlaceBid={handlePlaceBid}
+                  biddingComplete={gameState.biddingComplete}
+                  biddingHistory={biddingHistory}
+                  gameSettings={gameSettings}
+                  offerPassDeclined={offerPassDeclined}
+                  offerRetroactivePassDeclined={offerRetroactivePassDeclined}
+                  waitingForOfferResponse={waitingForOfferResponse}
+                  onOfferPass={handleOfferPass}
+                  onOfferRetroactivePass={handleOfferRetroactivePass}
+                  playerScore={currentPlayerData.score}
+                  opponentScore={otherPlayerData?.score ?? 0}
+                  opponentName={opponentName}
+                />
+              </div>
+            )}
+
+            {isKittyPhase && !isDiscarding && (
+              <div className="centered-panel">
+                <div className="panel waiting-panel">
+                  <p>Waiting for {opponentName} to take the kitty and discard.</p>
+                </div>
+              </div>
+            )}
+
+            {pendingClaimReceived && (
+              <OfferModal
+                type="claimRest"
+                fromName={pendingClaimReceived.fromName}
+                onRespond={handleRespondToClaim}
+                scoped
+              />
+            )}
+
+            {(offerStatusMessage || invalidPlayMessage) && (
+              <div className="floating-message">
+                {offerStatusMessage && <p className="invalid-play-message">{offerStatusMessage}</p>}
+                {invalidPlayMessage && <p className="invalid-play-message">{invalidPlayMessage}</p>}
+              </div>
+            )}
+          </div>
+
+          <LastTrickPanel
+            lastTrick={lastTrick}
+            playerId={playerId}
+            deckId={deckId}
+            opponentName={opponentName}
+          />
         </div>
-      </div>
-      {playerId !== currentPlayer && currentPlayer && gamePhase === "playing" && (
-        <p className="waiting-message">
-          Waiting for {gameState.players.find((p) => p.id === currentPlayer)?.name || "the other player"} to play{" "}
-          {currentTurnIsDummy ? "from their dummy hand" : "a card"}.
-        </p>
       )}
+
       {pendingOfferReceived && (
         <OfferModal
           type={pendingOfferReceived.type}
@@ -1019,21 +1172,7 @@ function GameRoomPage() {
           onRespond={handleRespondToOffer}
         />
       )}
-      {pendingJokerLead && (
-        <div className="offer-modal-overlay">
-          <div className="offer-modal">
-            <p>Nominate a suit for the Joker:</p>
-            <div className="offer-modal-buttons">
-              {["♠", "♣", "♥", "♦"].map((suit) => (
-                <button key={suit} onClick={() => handleNominateSuit(suit)}>
-                  {suit}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setPendingJokerLead(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
+      {pendingJokerLead && suitNominator(handleNominateSuit, () => setPendingJokerLead(null))}
 
       {commonOverlays}
 
@@ -1045,9 +1184,12 @@ function GameRoomPage() {
           onReady={handleReady}
           onPropose={handlePropose}
           onRespond={handleRespondRoundEnd}
+          scoreHistory={scoreHistory}
+          players={gameState.players}
+          roundNumber={roundNumber}
         />
       )}
-    </div>
+    </ThemedTable>
   );
 }
 

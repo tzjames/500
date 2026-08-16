@@ -282,8 +282,23 @@ class Game500 {
       if (winningSeatIndex !== -1) this.currentSeatIndex = winningSeatIndex;
     }
 
+    // Hand the resolved trick back along with the winner: the room keeps it as
+    // `lastTrick` for the "Last trick" panel, which would otherwise have
+    // nothing to show once currentTrick is cleared on the next line.
+    const plays = this.currentTrick.map((p) => ({
+      playerId: p.playerId,
+      isDummy: p.isDummy,
+      card: p.card,
+    }));
+
     this.currentTrick = [];
-    return { playerId: winningPlay.playerId, isDummy: winningPlay.isDummy };
+    return {
+      playerId: winningPlay.playerId,
+      isDummy: winningPlay.isDummy,
+      plays,
+      winningCard: winningPlay.card,
+      leadSuit,
+    };
   }
 
   isRoundOver() {

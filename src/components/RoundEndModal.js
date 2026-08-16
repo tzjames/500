@@ -1,12 +1,37 @@
 import React from "react";
+import ScoreChart from "./ScoreChart";
+import { isRed } from "../cards";
 import "./RoundEndModal.css";
 
-function formatDelta(delta) {
-  return delta >= 0 ? `+${delta}` : `${delta}`;
+const formatDelta = (delta) => (delta >= 0 ? `+${delta}` : `${delta}`);
+
+function renderBid(bid) {
+  if (!bid) return null;
+  if (bid.includes("Misere")) return bid.replace("Misere", "Misère");
+  const [level, suit] = bid.split(" ");
+  return (
+    <>
+      {level} <span className={isRed(suit) ? "red-suit" : ""}>{suit}</span>
+    </>
+  );
 }
 
-function RoundEndModal({ result, roundEndInfo, playerId, onReady, onPropose, onRespond }) {
-  const { bid, bidderName, bidderMadeBid, bidderDelta, otherName, otherDelta } = result;
+// End of hand: the result, the two score swings, and where that leaves the
+// game. The score chart is inline here rather than only behind the 📈 button —
+// the moment you most want to see the shape of the game is right after a swing.
+function RoundEndModal({
+  result,
+  roundEndInfo,
+  playerId,
+  onReady,
+  onPropose,
+  onRespond,
+  scoreHistory = [],
+  players = [],
+  roundNumber,
+}) {
+  const { bid, bidderName, bidderMadeBid, bidderDelta, otherName, otherDelta } =
+    result;
   const iAmReady = roundEndInfo.readyUserIds.includes(playerId);
   const proposal = roundEndInfo.proposal;
   const proposalIsMine = proposal?.fromUserId === playerId;
@@ -15,48 +40,86 @@ function RoundEndModal({ result, roundEndInfo, playerId, onReady, onPropose, onR
   return (
     <div className="round-result-overlay">
       <div className="round-result-modal">
-        <h2>Round Complete</h2>
-        <p>
-          {bidderName} bid {bid} and {bidderMadeBid ? "made it!" : "missed it."}
+        <p className="overline">
+          Round {roundNumber} · contract {bidderMadeBid ? "made" : "missed"}
         </p>
-        <ul className="round-result-scores">
-          <li className={bidderDelta >= 0 ? "positive" : "negative"}>
-            {bidderName}: {formatDelta(bidderDelta)} pts
-          </li>
-          <li className={otherDelta >= 0 ? "positive" : "negative"}>
-            {otherName}: {formatDelta(otherDelta)} pts
-          </li>
-        </ul>
+        <h2 className="round-result-headline serif">
+          {bidderName} bid {renderBid(bid)} and{" "}
+          {bidderMadeBid ? "made it" : "missed it"}
+        </h2>
+
+        <div className="round-result-boxes">
+          <div className={`round-result-box${bidderDelta >= 0 ? " up" : " down"}`}>
+            <span className="round-result-name">{bidderName}</span>
+            <span className="round-result-delta serif">
+              {formatDelta(bidderDelta)}
+            </span>
+          </div>
+          <div className={`round-result-box${otherDelta >= 0 ? " up" : " down"}`}>
+            <span className="round-result-name">{otherName}</span>
+            <span className="round-result-delta serif">
+              {formatDelta(otherDelta)}
+            </span>
+          </div>
+        </div>
+
+        {scoreHistory.length > 0 && players.length > 0 && (
+          <div className="round-result-chart">
+            <ScoreChart
+              scoreHistory={scoreHistory}
+              players={players}
+              width={620}
+              height={168}
+            />
+          </div>
+        )}
 
         {proposalIsIncoming ? (
           <div className="round-end-proposal">
             <p>
-              {proposal.fromName} wants to {proposal.type === "review" ? "review" : "replay"} the
-              previous round. Do you agree?
+              {proposal.fromName} wants to{" "}
+              {proposal.type === "review" ? "review" : "replay"} the previous
+              round. Do you agree?
             </p>
             <div className="round-end-proposal-buttons">
-              <button onClick={() => onRespond(true)}>Yes</button>
-              <button onClick={() => onRespond(false)}>No</button>
+              <button className="btn-primary" onClick={() => onRespond(true)}>
+                Yes
+              </button>
+              <button className="btn-ghost" onClick={() => onRespond(false)}>
+                No
+              </button>
             </div>
           </div>
         ) : proposalIsMine ? (
-          <p className="round-end-waiting">Waiting for a response to your invite...</p>
+          <p className="round-end-waiting">
+            Waiting for a response to your invite…
+          </p>
         ) : (
           <div className="round-end-buttons">
-            <button disabled={iAmReady} onClick={() => onPropose("review")}>
-              Invite Review of Previous Round
-            </button>
-            <button disabled={iAmReady} onClick={() => onPropose("replay")}>
-              Invite Replay of Previous Round
-            </button>
-            <p className="round-end-helper-text">
-              Replaying will not affect the outcome of the current round. It is just there to satisfy
-              your curiosity of what could have been if you played differently.
-            </p>
-            <button disabled={iAmReady} onClick={onReady}>
+            <button className="btn-primary" disabled={iAmReady} onClick={onReady}>
               Ready for next round
             </button>
-            {iAmReady && <p className="round-end-waiting">Waiting for the other player...</p>}
+            <button
+              className="btn-ghost"
+              disabled={iAmReady}
+              onClick={() => onPropose("review")}
+            >
+              Review this round
+            </button>
+            <button
+              className="btn-ghost"
+              disabled={iAmReady}
+              onClick={() => onPropose("replay")}
+            >
+              Replay this round
+            </button>
+            <p className="round-end-helper-text">
+              Replaying won&apos;t affect the outcome — it&apos;s just there to
+              satisfy your curiosity about what might have been.
+            </p>
+            {iAmReady && (
+              <p className="round-end-waiting">Waiting for the other player…</p>
+            )}
           </div>
         )}
       </div>
