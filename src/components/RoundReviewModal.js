@@ -108,7 +108,7 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
           key={i}
           card={card}
           deck={deck}
-          width={38}
+          width={null}
           disabled
           className={`review-card ${cardColor(card.suit)}`}
         />
@@ -182,9 +182,9 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
                     <Card
                       card={play.card}
                       deck={deck}
-                      width={44}
+                      width={null}
                       disabled
-                      className={cardColor(play.card.suit)}
+                      className={`review-trick-face ${cardColor(play.card.suit)}`}
                     />
                     <span>
                       {nameOf(play.userId)}

@@ -10,8 +10,10 @@
   overflow-y: auto;
 }
 
+/* Wide: two hands plus two dummies sit side by side here, and at the old 760px
+   the cards had to be tiny to fit — too small to actually read a hand off. */
 .round-review-modal {
-  width: min(760px, 100%);
+  width: min(1280px, 100%);
   height: 90vh;
   padding: 24px 30px 22px;
   border-radius: 20px;
@@ -74,7 +76,14 @@
 .review-hand {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: 4px;
+}
+
+/* Sized off the viewport so the cards grow with the wider modal but still
+   shrink rather than wrap awkwardly on a small screen. A ten-card hand fits
+   one row per column at the top of that range. */
+.review-hand .review-card {
+  --card-w: clamp(40px, 3.7vw, 60px);
 }
 
 .review-kitty {
@@ -86,10 +95,12 @@
   justify-content: center;
 }
 
+/* Height reserved from the same measure the trick cards use, so the modal
+   doesn't resize each time a trick resolves and this briefly empties. */
 .review-trick {
   margin-top: 12px;
   text-align: center;
-  min-height: 96px;
+  min-height: calc(clamp(50px, 4.6vw, 78px) * 1.4 + 28px);
 }
 
 .review-trick-empty {
@@ -100,10 +111,16 @@
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  margin: 0 8px;
-  font-size: 10.5px;
+  gap: 5px;
+  margin: 0 10px;
+  font-size: 11.5px;
   opacity: 0.85;
+}
+
+/* The trick is the thing you're stepping through, so its cards read larger
+   than the hands they came from. */
+.review-trick-face {
+  --card-w: clamp(50px, 4.6vw, 78px);
 }
 
 .review-result {
