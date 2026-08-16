@@ -222,11 +222,19 @@
 
 /* ---- trick piles ---- */
 
-/* Both piles render at 0.68 — 15% down from the 0.8 they were drawn at, which
-   crowded the opponent's name and fan. */
-.pile-seated,
-.pile-floating {
+/* The two piles are deliberately different sizes: the opponent's tricks lie at
+   the far side of the table, so they read smaller, and yours sit near you at
+   15% more. Everything else on the felt is foreshortened by the tilted plane
+   behind it; these are the one pair of objects that has to say it themselves. */
+.pile-seated {
   transform: scale(0.68);
+}
+
+/* Anchored at its foot, so scaling grows it downward toward you rather than up
+   into the opponent's cards. */
+.pile-floating {
+  transform: scale(0.78);
+  transform-origin: bottom center;
 }
 
 /* The opponent's pile is in flow at the foot of their seat, offset left of the
@@ -251,9 +259,14 @@
   z-index: 2;
 }
 
+/* As low as it goes: your hand spans nearly the full width of the board's
+   bottom edge, so its top is the floor here — the clear strip beside it is
+   only ~37px at 1280px wide, too narrow to drop the pile into the corner.
+   Sitting on that floor, and growing downward from it, is what puts the most
+   cloth between this pile and the opponent's cards. */
 .pile-mine {
-  right: 5%;
-  bottom: calc(var(--card-hand) * 1.4 + 34px);
+  right: 4%;
+  bottom: calc(var(--card-hand) * 1.4 + 38px);
 }
 
 /* ---- status pill ---- */
