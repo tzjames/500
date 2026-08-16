@@ -12,12 +12,14 @@ const LOCATION_IDS = [
   "zanzibar",
   "samana",
   "canyon",
+  "sierras",
   "serengeti",
   // The same palettes without their backdrop photograph.
   "plain-falls",
   "plain-zanzibar",
   "plain-samana",
   "plain-canyon",
+  "plain-sierras",
   "plain-serengeti",
 ];
 const DECK_IDS = ["traveller", "classic"];

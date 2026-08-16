@@ -59,6 +59,21 @@ const PLACES = [
     back: "linear-gradient(150deg,#a35a3c,#4a231f)",
   },
   {
+    // Dusk over a high lake: lavender sky, the last gold along the ridge line,
+    // then slate water over pale granite. Same rounded-rectangle table as the
+    // Grand Canyon.
+    id: "sierras",
+    name: "Sierra Nevada",
+    caption: "Sierra Nevada — granite and still water at dusk",
+    photo: "/backdrops/sierras.jpg",
+    shape: "rect",
+    dot: "#a9a3c8",
+    wash: "linear-gradient(180deg,#59537a,#8f89a6 28%,#d3bd96 54%,#39414f 100%)",
+    tint: "linear-gradient(180deg,rgba(70,64,100,.34),rgba(40,45,56,.58))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #3f5068, #28323f 66%, rgba(14,18,24,.72))",
+    back: "linear-gradient(150deg,#5b6f8c,#28323f)",
+  },
+  {
     // Sampled off the photograph: blue sky down through the gold band at the
     // horizon into the turquoise shallows, with the headland's dark green
     // closing the bottom.
@@ -100,6 +115,7 @@ const PLAIN_NAMES = {
   zanzibar: "Ocean",
   samana: "Turquoise",
   canyon: "Ember",
+  sierras: "Slate",
   serengeti: "Ochre",
 };
 

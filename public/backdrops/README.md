@@ -12,9 +12,10 @@ Filenames match the location's `photo` path:
 | Zanzibar Beach   | `zanzibar.jpg`  | Low tide at Nungwi, late afternoon       |
 | Samaná           | `samana.jpg`    | Sunrise over the bay, from Playa Rincón  |
 | Grand Canyon Rim | `canyon.jpg`    | South rim, twenty minutes before sunset  |
+| Sierra Nevada    | `sierras.jpg`   | Granite and still water at dusk          |
 | Serengeti        | `serengeti.jpg` | Acacia and giraffe, late afternoon haze  |
 
-All five are supplied and wired in `src/theme.js`.
+All six are supplied and wired in `src/theme.js`.
 
 Guidelines: landscape, at least 1600px wide, and dark enough that white UI
 reads over it. The tint layer sits on top and does some of that work, but it
