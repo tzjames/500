@@ -1,5 +1,12 @@
 import React from "react";
-import { LOCATIONS, DECKS, getLocation, randomLocationId } from "../theme";
+import {
+  LOCATIONS,
+  DECKS,
+  getLocation,
+  getFeltMode,
+  nextFeltMode,
+  randomLocationId,
+} from "../theme";
 import "./ThemePicker.css";
 
 const SURPRISE = "__surprise__";
@@ -16,8 +23,9 @@ const GROUPS = LOCATIONS.reduce((acc, location) => {
 // Location and deck pickers. Both settings are room-wide: picking either one
 // emits through the same server-synced `gameSettings` channel the offer-pass
 // toggles already use, so the change lands on both players' tables at once.
-function ThemePicker({ locationId, deckId, onChange, compact = false }) {
+function ThemePicker({ locationId, deckId, feltId, onChange, compact = false }) {
   const location = getLocation(locationId);
+  const felt = getFeltMode(feltId);
 
   const handleLocation = (e) => {
     const value = e.target.value;
@@ -65,6 +73,30 @@ function ThemePicker({ locationId, deckId, onChange, compact = false }) {
         </select>
         <span className="theme-caret" />
       </label>
+
+      {/* Cycles shown -> faded -> hidden. The icon is the table itself, so its
+          own fill tells you which state you're in without a label. */}
+      <button
+        type="button"
+        className="felt-toggle"
+        onClick={() => onChange({ felt: nextFeltMode(felt.id) })}
+        title={`${felt.label} — click to change`}
+        aria-label={`${felt.label}. Click to cycle table visibility.`}
+      >
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <ellipse
+            cx="12"
+            cy="12"
+            rx="9.5"
+            ry="6.5"
+            fill="currentColor"
+            fillOpacity={felt.opacity}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeDasharray={felt.id === "hidden" ? "2.5 2.5" : "none"}
+          />
+        </svg>
+      </button>
     </div>
   );
 }

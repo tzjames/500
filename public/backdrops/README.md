@@ -6,16 +6,15 @@ renders its wash alone.
 
 Filenames match the location's `photo` path:
 
-| Location         | File           | Shot                                     |
-| ---------------- | -------------- | ---------------------------------------- |
-| Victoria Falls   | `falls.jpg`    | Dawn mist, from the eastern cataract     |
-| Zanzibar Beach   | `zanzibar.jpg` | Low tide at Nungwi, late afternoon       |
-| Samaná           | `samana.jpg`   | Sunrise over the bay, from Playa Rincón  |
-| Grand Canyon Rim | `canyon.jpg`   | South rim, twenty minutes before sunset  |
-| Kyoto Garden     | `kyoto.jpg`    | Moss garden after rain, maples turning   |
+| Location         | File            | Shot                                     |
+| ---------------- | --------------- | ---------------------------------------- |
+| Victoria Falls   | `falls.jpg`     | Dawn mist, from the eastern cataract     |
+| Zanzibar Beach   | `zanzibar.jpg`  | Low tide at Nungwi, late afternoon       |
+| Samaná           | `samana.jpg`    | Sunrise over the bay, from Playa Rincón  |
+| Grand Canyon Rim | `canyon.jpg`    | South rim, twenty minutes before sunset  |
+| Serengeti        | `serengeti.jpg` | Acacia and giraffe, late afternoon haze  |
 
-All five paths are wired in `src/theme.js`. Only `kyoto.jpg` is still missing;
-it falls back to its gradient until the file lands.
+All five are supplied and wired in `src/theme.js`.
 
 Guidelines: landscape, at least 1600px wide, and dark enough that white UI
 reads over it. The tint layer sits on top and does some of that work, but it

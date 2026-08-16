@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
 import * as api from "../api";
 import ThemedTable from "../components/ThemedTable";
-import { DEFAULT_LOCATION, DEFAULT_DECK } from "../theme";
+import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "./HomePage.css";
 
 function AuthForm() {
@@ -102,7 +102,7 @@ function HomePage() {
   // The home screen is a document rather than a fixed board, so the shell
   // scrolls and skips the tilted felt — just the backdrop wash behind it.
   return (
-    <ThemedTable locationId={DEFAULT_LOCATION} deckId={DEFAULT_DECK} plain scrolling>
+    <ThemedTable locationId={DEFAULT_LOCATION} deckId={DEFAULT_DECK} feltId={DEFAULT_FELT} plain scrolling>
       <div className="home-page">
         <header className="home-header">
           <h1 className="serif">500</h1>

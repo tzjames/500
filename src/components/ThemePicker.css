@@ -76,6 +76,36 @@
   pointer-events: none;
 }
 
+.felt-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border-strong);
+  background: rgba(10, 14, 17, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.felt-toggle:hover {
+  background: rgba(10, 14, 17, 0.78);
+}
+
+.felt-toggle:focus-visible {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 2px;
+}
+
+.theme-picker.compact .felt-toggle {
+  width: 30px;
+  height: 30px;
+}
+
 .theme-picker.compact .theme-select {
   min-width: 0;
   font-size: 12px;

@@ -12,6 +12,7 @@ import "./ThemedTable.css";
 function ThemedTable({
   locationId,
   deckId,
+  feltId,
   dimmed = false,
   plain = false,
   scrolling = false,
@@ -22,7 +23,7 @@ function ThemedTable({
   return (
     <div
       className={`themed-table${scrolling ? " scrolling" : ""}`}
-      style={themeVars(locationId, deckId)}
+      style={themeVars(locationId, deckId, feltId)}
     >
       <div className={`backdrop${dimmed ? " dimmed" : ""}`}>
         <div className="backdrop-wash" />

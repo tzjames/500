@@ -74,16 +74,19 @@ const PLACES = [
     back: "linear-gradient(150deg,#2f9fae,#10454f)",
   },
   {
-    id: "kyoto",
-    name: "Kyoto Garden",
-    caption: "Kyoto — moss garden after rain, maples turning",
-    photo: "/backdrops/kyoto.jpg",
+    // The photograph is a backlit silhouette — pale sky, dark grass — so this
+    // one carries a heavier tint than the others: white UI has nothing to read
+    // against up top otherwise.
+    id: "serengeti",
+    name: "Serengeti",
+    caption: "Serengeti — acacia and giraffe, late afternoon haze",
+    photo: "/backdrops/serengeti.jpg",
     shape: "hex",
-    dot: "#c9a6c8",
-    wash: "linear-gradient(180deg,#1a2430,#2c3f3c 38%,#4a5a44 68%,#1b2320 100%)",
-    tint: "linear-gradient(180deg,rgba(26,36,48,.34),rgba(27,35,32,.58))",
-    felt: "radial-gradient(58% 62% at 50% 46%, #3b4a3a, #232e26 66%, rgba(12,18,14,.72))",
-    back: "linear-gradient(150deg,#6a5470,#2c2233)",
+    dot: "#d8b878",
+    wash: "linear-gradient(180deg,#6d5c42,#a08765 32%,#7a6246 64%,#332a1e 100%)",
+    tint: "linear-gradient(180deg,rgba(44,36,25,.44),rgba(28,23,16,.62))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #6b6139, #423b23 66%, rgba(22,19,11,.72))",
+    back: "linear-gradient(150deg,#9c7b46,#4a3a1f)",
   },
 ].map((place) => ({ ...place, group: "Locations" }));
 
@@ -97,7 +100,7 @@ const PLAIN_NAMES = {
   zanzibar: "Ocean",
   samana: "Turquoise",
   canyon: "Ember",
-  kyoto: "Moss",
+  serengeti: "Ochre",
 };
 
 const PLAIN = PLACES.map((place) => ({
@@ -137,6 +140,24 @@ export const DECKS = [
   },
 ];
 
+// How much of the felt to draw. Fading or hiding it lets the backdrop through,
+// which is the point of having photographs behind the table at all.
+export const FELT_MODES = [
+  { id: "solid", label: "Table shown", opacity: 1 },
+  { id: "faded", label: "Table faded", opacity: 0.5 },
+  { id: "hidden", label: "Table hidden", opacity: 0 },
+];
+
+export const DEFAULT_FELT = FELT_MODES[0].id;
+
+export const getFeltMode = (id) =>
+  FELT_MODES.find((m) => m.id === id) || FELT_MODES[0];
+
+export const nextFeltMode = (id) => {
+  const i = FELT_MODES.findIndex((m) => m.id === id);
+  return FELT_MODES[(i + 1) % FELT_MODES.length].id;
+};
+
 export const DEFAULT_LOCATION = LOCATIONS[0].id;
 export const DEFAULT_DECK = DECKS[0].id;
 
@@ -171,11 +192,12 @@ export function cardBackUrl(deck) {
 // The CSS custom properties every themed surface reads. Spread onto the style
 // of a wrapper element; children reference them by name and never touch the
 // theme objects directly.
-export function themeVars(locationId, deckId) {
+export function themeVars(locationId, deckId, feltId) {
   const location = getLocation(locationId);
   const deck = getDeck(deckId);
   const shape = TABLE_SHAPES[location.shape] || TABLE_SHAPES.oval;
   return {
+    "--felt-opacity": getFeltMode(feltId).opacity,
     "--wash": location.wash,
     "--tint": location.tint,
     "--felt": location.felt,

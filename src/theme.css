@@ -112,6 +112,9 @@ body {
   z-index: 1;
 }
 
+/* --felt-opacity fades the cloth to let the backdrop through. It applies to the
+   whole element including its shadow, so a hidden table leaves no ghost of
+   itself behind the cards. */
 .table-felt {
   position: absolute;
   inset: var(--felt-inset);
@@ -120,6 +123,8 @@ body {
   background: var(--felt);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.6), 0 60px 120px rgba(0, 0, 0, 0.5);
+  opacity: var(--felt-opacity, 1);
+  transition: opacity 0.25s ease;
 }
 
 /* ---- shared shells ---- */

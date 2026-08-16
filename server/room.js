@@ -12,15 +12,16 @@ const LOCATION_IDS = [
   "zanzibar",
   "samana",
   "canyon",
-  "kyoto",
+  "serengeti",
   // The same palettes without their backdrop photograph.
   "plain-falls",
   "plain-zanzibar",
   "plain-samana",
   "plain-canyon",
-  "plain-kyoto",
+  "plain-serengeti",
 ];
 const DECK_IDS = ["traveller", "classic"];
+const FELT_IDS = ["solid", "faded", "hidden"];
 
 // One Room per game document. Player identity is the account's userId (stable
 // forever), never a socket id — reconnecting is just "does this userId already
@@ -50,6 +51,7 @@ class Room {
       showOfferRetroactivePassButton: true,
       location: "falls",
       deck: "traveller",
+      felt: "solid",
       ...(snap.gameSettings || {}),
     };
     this.offerPassDeclined = snap.offerPassDeclined || false;
@@ -542,6 +544,7 @@ class Room {
     // value that would render as an unstyled table for both players.
     if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
     if (DECK_IDS.includes(settings.deck)) next.deck = settings.deck;
+    if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
 
     this.gameSettings = next;
     this.io.to(this.id).emit("gameSettingsUpdated", this.gameSettings);

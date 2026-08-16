@@ -14,7 +14,7 @@ import OfferModal from "../components/OfferModal";
 import RoundEndModal from "../components/RoundEndModal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
-import { DEFAULT_LOCATION, DEFAULT_DECK } from "../theme";
+import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "../App.css";
 
 function GameRoomPage() {
@@ -44,6 +44,7 @@ function GameRoomPage() {
     showOfferRetroactivePassButton: true,
     location: DEFAULT_LOCATION,
     deck: DEFAULT_DECK,
+    felt: DEFAULT_FELT,
   });
   const [offerPassDeclined, setOfferPassDeclined] = useState(false);
   const [offerRetroactivePassDeclined, setOfferRetroactivePassDeclined] = useState(false);
@@ -699,12 +700,13 @@ function GameRoomPage() {
 
   const locationId = gameSettings.location || DEFAULT_LOCATION;
   const deckId = gameSettings.deck || DEFAULT_DECK;
+  const feltId = gameSettings.felt || DEFAULT_FELT;
 
   if (!session) return null;
 
   if (joinRejected) {
     return (
-      <ThemedTable locationId={locationId} deckId={deckId} plain>
+      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} plain>
         <div className="room-full">
           <p>{joinRejected}</p>
           <p>
@@ -718,12 +720,13 @@ function GameRoomPage() {
   if (!gameState || !gameState.players) {
     if (connectedPlayers <= 1) {
       return (
-        <ThemedTable locationId={locationId} deckId={deckId}>
+        <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
           <div className="table-topbar">
             <h1 className="table-title">500</h1>
             <ThemePicker
               locationId={locationId}
               deckId={deckId}
+              feltId={feltId}
               onChange={handleSetGameSettings}
             />
           </div>
@@ -761,7 +764,7 @@ function GameRoomPage() {
       );
     }
     return (
-      <ThemedTable locationId={locationId} deckId={deckId}>
+      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
         <div className="waiting-panel">
           <p>Loading game state…</p>
         </div>
@@ -774,7 +777,7 @@ function GameRoomPage() {
 
   if (!currentPlayerData) {
     return (
-      <ThemedTable locationId={locationId} deckId={deckId} plain>
+      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} plain>
         <div className="room-full">Error: player not found in game state</div>
       </ThemedTable>
     );
@@ -979,7 +982,7 @@ function GameRoomPage() {
     const proposalIsIncoming = proposal && !proposalIsMine;
 
     return (
-      <ThemedTable locationId={locationId} deckId={deckId} dimmed>
+      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed>
         {didIWin && <Confetti />}
         <div className="game-over-card">
           <p className="overline">Game over</p>
@@ -1051,7 +1054,7 @@ function GameRoomPage() {
   const isDiscarding = isKittyPhase && playerId === gameState.currentBid?.player;
 
   return (
-    <ThemedTable locationId={locationId} deckId={deckId} dimmed={isDiscarding}>
+    <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed={isDiscarding}>
       <div className="table-topbar">
         <div>
           <h1 className="table-title">500</h1>
@@ -1062,6 +1065,7 @@ function GameRoomPage() {
         <ThemePicker
           locationId={locationId}
           deckId={deckId}
+          feltId={feltId}
           onChange={handleSetGameSettings}
           compact
         />
