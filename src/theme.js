@@ -164,7 +164,10 @@ export const FELT_MODES = [
   { id: "hidden", label: "Table hidden", opacity: 0 },
 ];
 
-export const DEFAULT_FELT = FELT_MODES[0].id;
+// Tables start half-faded — it shows off the backdrop the location was picked
+// for while still reading as a table to play on. The cycle order above is
+// unchanged, so the button still runs shown -> faded -> hidden.
+export const DEFAULT_FELT = "faded";
 
 export const getFeltMode = (id) =>
   FELT_MODES.find((m) => m.id === id) || FELT_MODES[0];

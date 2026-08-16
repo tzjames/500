@@ -53,7 +53,7 @@ class Room {
       showOfferRetroactivePassButton: true,
       location: "falls",
       deck: "traveller",
-      felt: "solid",
+      felt: "faded",
       ...(snap.gameSettings || {}),
     };
     this.offerPassDeclined = snap.offerPassDeclined || false;
