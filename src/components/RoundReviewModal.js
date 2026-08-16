@@ -4,7 +4,7 @@ import { getDeck } from "../theme";
 import { SUIT_ORDER as suitOrder, VALUE_ORDER as valueOrder, cardColor } from "../cards";
 import "./RoundReviewModal.css";
 
-const STEP_TYPES = ["kittyDealt", "discard", "dummyDealt", "play", "trick", "result"];
+const STEP_TYPES = ["kittyDealt", "discard", "dummyDealt", "play", "retract", "trick", "result"];
 
 function sameCard(a, b) {
   return a.suit === b.suit && a.value === b.value;
@@ -57,6 +57,18 @@ function buildFrame(dealEntry, steps, index) {
           [e.userId]: (frame[key][e.userId] || []).filter((c) => !sameCard(c, e.card)),
         };
         frame.trick = [...frame.trick, { userId: e.userId, card: e.card, isDummy: e.isDummy }];
+        break;
+      }
+      // A card played and then taken back. Undo it exactly: off the trick,
+      // back into the hand it came from. Without this the review would show a
+      // card as played that the player retrieved.
+      case "retract": {
+        const key = e.isDummy ? "dummyHands" : "hands";
+        frame[key] = {
+          ...frame[key],
+          [e.userId]: [...(frame[key][e.userId] || []), e.card],
+        };
+        frame.trick = frame.trick.slice(0, -1);
         break;
       }
       case "trick":

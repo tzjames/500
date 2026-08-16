@@ -117,6 +117,7 @@ io.on("connection", (socket) => {
   socket.on("respondToOffer", ({ accept }) => room?.respondToOffer(socket, accept));
   socket.on("kittyDone", (payload) => room?.kittyDone(socket, payload));
   socket.on("playCard", (payload) => room?.playCard(socket, payload));
+  socket.on("retractCard", () => room?.retractCard(socket));
   socket.on("roundEndReady", () => room?.roundEndReady(socket));
   socket.on("roundEndPropose", ({ type }) => room?.roundEndPropose(socket, type));
   socket.on("roundEndRespond", ({ accept }) => room?.roundEndRespond(socket, accept));

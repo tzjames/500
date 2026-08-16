@@ -70,6 +70,10 @@ function GameRoomPage() {
   const [reviewData, setReviewData] = useState(null);
   const [replay, setReplay] = useState(null);
   const [lastTrick, setLastTrick] = useState(null);
+  // Cards played and then taken back, keyed "<playerId>|hand" / "<playerId>|dummy".
+  // The other player has seen them, so they stay face up in that hand until
+  // they're played for real.
+  const [exposed, setExposed] = useState({});
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
   const [incomingRematchOffer, setIncomingRematchOffer] = useState(null);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
@@ -162,6 +166,7 @@ function GameRoomPage() {
       lastPlaySeqRef.current = null;
       setFlyingWinner(null);
       setLastTrick(null);
+      setExposed({});
       setCurrentPlayer(null);
       setCurrentTurnIsDummy(false);
       setInvalidPlayMessage("");
@@ -230,7 +235,8 @@ function GameRoomPage() {
       }));
     });
 
-    socket.on("cardPlayed", ({ playerId: cardPlayerId, card, isDummy, seq }) => {
+    socket.on("cardPlayed", ({ playerId: cardPlayerId, card, isDummy, exposed: nowExposed, seq }) => {
+      if (nowExposed) setExposed(nowExposed);
       if (seq !== undefined) {
         if (lastPlaySeqRef.current !== null && seq !== lastPlaySeqRef.current + 1) {
           socket.emit("joinRoom", { gameId });
@@ -258,6 +264,25 @@ function GameRoomPage() {
       if (cardPlayerId === playerId) setInvalidPlayMessage("");
     });
 
+    socket.on("cardRetracted", ({ playerId: cardPlayerId, card, isDummy, exposed: nowExposed, seq }) => {
+      // The play is being undone, so the seq run restarts from here rather
+      // than reading as a gap on the next card played.
+      if (seq !== undefined) lastPlaySeqRef.current = seq;
+      setExposed(nowExposed || {});
+      setPlayedCards((prev) => prev.slice(0, -1));
+      setGameState((prevState) => {
+        if (!prevState) return prevState;
+        return {
+          ...prevState,
+          players: prevState.players.map((p) => {
+            if (p.id !== cardPlayerId) return p;
+            const key = isDummy ? "dummyHand" : "hand";
+            return { ...p, [key]: [...(p[key] || []), card] };
+          }),
+        };
+      });
+    });
+
     socket.on("invalidPlay", ({ message }) => setInvalidPlayMessage(message));
 
     socket.on("gameResumed", (state) => {
@@ -278,6 +303,7 @@ function GameRoomPage() {
       lastPlaySeqRef.current = null;
       setFlyingWinner(null);
       setLastTrick(state.lastTrick || null);
+      setExposed(state.exposed || {});
       setIsKittyPhase(state.gamePhase === "kitty");
       setRoundNumber(state.roundNumber || 1);
       setRedealCount(state.redealCount || 0);
@@ -490,6 +516,7 @@ function GameRoomPage() {
         "showKitty",
         "kittyPhaseComplete",
         "cardPlayed",
+        "cardRetracted",
         "invalidPlay",
         "gameResumed",
         "gameOver",
@@ -529,6 +556,10 @@ function GameRoomPage() {
       socket.emit("playCard", { card, isDummy });
     }
   };
+
+  // Clicking your own just-played card takes it back, provided the next player
+  // hasn't played. The server is the authority on whether that still holds.
+  const retractCard = () => socket.emit("retractCard", {});
 
   const handleNominateSuit = (suit) => {
     socket.emit("playCard", { card: pendingJokerLead.card, isDummy: pendingJokerLead.isDummy, nominatedSuit: suit });
@@ -1111,9 +1142,13 @@ function GameRoomPage() {
               flyingWinner={flyingWinner}
               deckId={deckId}
               opponentName={opponentName}
+              opponentId={otherPlayerData?.id}
               playerTricksWon={currentPlayerData.tricksWon || 0}
               opponentTricksWon={otherPlayerData?.tricksWon || 0}
               statusText={statusText}
+              isYourTurn={gamePhase === "playing" && playerId === currentPlayer}
+              exposed={exposed}
+              onRetract={retractCard}
             />
 
             {gamePhase === "bidding" && (

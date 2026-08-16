@@ -36,9 +36,13 @@ function GameTable({
   flyingWinner,
   deckId,
   opponentName = "Opponent",
+  opponentId,
   playerTricksWon = 0,
   opponentTricksWon = 0,
   statusText,
+  isYourTurn = false,
+  exposed = {},
+  onRetract,
   compact = false,
 }) {
   const deck = getDeck(deckId);
@@ -73,11 +77,17 @@ function GameTable({
   // rest" claim) replaces that side's face-down fan with face-up cards.
   const revealedHand = revealedBidderHand || revealedOpponentHand;
 
+  // Opponent cards they played and took back. They're already public, so they
+  // stay face up in their fan until played for real.
+  const exposedFor = (isDummy) =>
+    (opponentId && exposed[`${opponentId}|${isDummy ? "dummy" : "hand"}`]) || [];
+
   const renderSideSeat = (side) => {
     const holdsOpponentHand = side === opponentSide;
     const revealed = holdsOpponentHand ? revealedHand : revealedOpponentDummyHand;
     const count = holdsOpponentHand ? opponentHandSize : opponentDummyHandSize;
     const label = holdsOpponentHand ? opponentName : `${opponentName}'s dummy`;
+    const shown = exposedFor(!holdsOpponentHand);
 
     return (
       <div className={`seat seat-${side}${revealed ? " seat-revealed" : ""}`}>
@@ -88,7 +98,7 @@ function GameTable({
         {revealed ? (
           <RevealedHand hand={revealed} deck={deck} />
         ) : (
-          <FanOfBacks count={count} side={side} />
+          <Fan count={count} side={side} exposed={shown} deck={deck} />
         )}
         {/* The opponent's won tricks sit in flow beneath their fan rather than
             floating at fixed coordinates — that's what kept it colliding with
@@ -118,7 +128,7 @@ function GameTable({
             deckId={deckId}
           />
         ) : (
-          <FanOfBacks count={10} side="north" />
+          <Fan count={10} side="north" deck={deck} />
         )}
       </div>
 
@@ -126,25 +136,44 @@ function GameTable({
       {renderSideSeat("right")}
 
       <div className="trick-well">
-        {playedCards.map((play, index) => (
-          <div
-            key={index}
-            className={`played-card played-card-${
-              winnerPosition || getPlayedCardPosition(play)
-            } ${play.isDummy ? "from-dummy" : ""} ${winnerPosition ? "flying" : ""}`}
-          >
-            <Card
-              card={play.card}
-              deck={deck}
-              trumpSuit={trumpSuit}
-              width={88}
-              className={cardColor(play.card.suit)}
-            />
-          </div>
-        ))}
+        {playedCards.map((play, index) => {
+          // Only your own most recent card can come back, and only while the
+          // trick is still running — once it resolves the cards are flying out
+          // and there's nothing to undo. The server re-checks all of this.
+          const canRetract =
+            Boolean(onRetract) &&
+            !winnerPosition &&
+            index === playedCards.length - 1 &&
+            play.playerId === playerId;
+
+          return (
+            <div
+              key={index}
+              className={`played-card played-card-${
+                winnerPosition || getPlayedCardPosition(play)
+              } ${play.isDummy ? "from-dummy" : ""} ${winnerPosition ? "flying" : ""}${
+                canRetract ? " retractable" : ""
+              }`}
+            >
+              <Card
+                card={play.card}
+                deck={deck}
+                trumpSuit={trumpSuit}
+                width={88}
+                onClick={canRetract ? onRetract : undefined}
+                className={cardColor(play.card.suit)}
+              />
+              {canRetract && <span className="retract-hint">Click to take back</span>}
+            </div>
+          );
+        })}
       </div>
 
-      {statusText && <div className="table-status pill">{statusText}</div>}
+      {statusText && (
+        <div className={`table-status pill${isYourTurn ? " your-turn" : ""}`}>
+          {statusText}
+        </div>
+      )}
 
       <div className="seat seat-south">
         <PlayerHand
@@ -160,20 +189,34 @@ function GameTable({
 }
 
 // A held hand seen from the outside: card backs splayed from a pivot below the
-// cards, so the fan widens at the top.
-function FanOfBacks({ count, side }) {
+// cards, so the fan widens at the top. Any cards in `exposed` — played and
+// then taken back — are drawn face up at the end of the fan, since the holder
+// has already shown them.
+function Fan({ count, side, exposed = [], deck }) {
   const width = side === "north" ? 40 : 46;
+  const total = Math.max(0, count);
+  const shown = exposed.slice(0, total);
+  const backs = Math.max(0, total - shown.length);
+
   return (
     <div className={`fan fan-${side}`}>
-      {Array.from({ length: Math.max(0, count) }).map((_, i) => {
-        const offset = i - (count - 1) / 2;
+      {Array.from({ length: backs }).map((_, i) => {
+        const offset = i - (total - 1) / 2;
+        return (
+          <Card key={`back-${i}`} faceDown width={width} rotate={offset * 9} className="fan-card" />
+        );
+      })}
+      {shown.map((card, i) => {
+        const offset = backs + i - (total - 1) / 2;
         return (
           <Card
-            key={i}
-            faceDown
+            key={`shown-${card.suit}-${card.value}`}
+            card={card}
+            deck={deck}
             width={width}
             rotate={offset * 9}
-            className="fan-card"
+            disabled
+            className="fan-card fan-card-exposed"
           />
         );
       })}

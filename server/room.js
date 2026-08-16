@@ -129,6 +129,7 @@ class Room {
     g.seats = snap.seats || null;
     g.currentSeatIndex = snap.currentSeatIndex || 0;
     g.currentPlayer = snap.currentPlayer || null;
+    g.exposed = snap.exposed || {};
     return g;
   }
 
@@ -154,6 +155,7 @@ class Room {
       seats: g.seats,
       currentSeatIndex: g.currentSeatIndex,
       currentPlayer: g.currentPlayer,
+      exposed: g.exposed,
     };
   }
 
@@ -319,6 +321,7 @@ class Room {
       currentIsDummy: currentSeat ? currentSeat.isDummy : false,
       playedCards: this.game.currentTrick,
       lastTrick: this.lastTrick,
+      exposed: this.game.exposed || {},
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
       gameSettings: this.gameSettings,
@@ -667,6 +670,10 @@ class Room {
       card,
       isDummy,
       nominatedSuit: justPlayed.nominatedSuit,
+      // Playing a card for real ends any exposure it was carrying, so the
+      // other player's view of that hand has to be refreshed here too — not
+      // just on retract.
+      exposed: activeGame.exposed,
       seq,
     });
 
@@ -712,6 +719,43 @@ class Room {
       isDummy: nextSeat.isDummy,
     });
     if (mode !== "replay") this.persist();
+  }
+
+  // Take back the card you just played, if nobody has played after you. The
+  // card returns to your hand but stays exposed — the other player has seen
+  // it, and goes on seeing it until you play it for real.
+  //
+  // The last card of a trick can't be taken back: the trick resolves the
+  // instant it lands, so there's no longer a play to undo.
+  // Live game only — the replay overlay doesn't offer take-backs, so there's
+  // no replay branch here to keep in step.
+  retractCard(socket) {
+    if (!this.game || this.gamePhase !== "playing") return;
+
+    const last = this.game.currentTrick[this.game.currentTrick.length - 1];
+    if (!last || last.playerId !== socket.userId) return;
+
+    const undone = this.game.retractLastPlay(socket.userId, last.isDummy);
+    if (!undone) return;
+
+    const seq = this.logEvent("retract", {
+      userId: socket.userId,
+      card: undone.card,
+      isDummy: undone.isDummy,
+    }).seq;
+
+    this.io.to(this.id).emit("cardRetracted", {
+      playerId: socket.userId,
+      card: undone.card,
+      isDummy: undone.isDummy,
+      exposed: this.game.exposed,
+      seq,
+    });
+    this.io.to(this.id).emit("updateCurrentPlayer", {
+      playerId: undone.playerId,
+      isDummy: undone.isDummy,
+    });
+    this.persist();
   }
 
   // ---- "I've got the rest": a player claims all remaining tricks. Only

@@ -226,6 +226,46 @@
   opacity: 0;
 }
 
+/* Your own card, still takeable back. The hint only shows on hover so the
+   table isn't shouting at you for the two seconds it's live. */
+.played-card.retractable .pc {
+  cursor: pointer;
+}
+
+.played-card.retractable:hover .pc {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 2px;
+}
+
+.retract-hint {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(10, 14, 17, 0.82);
+  border: 1px solid var(--panel-border);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.played-card.retractable:hover .retract-hint {
+  opacity: 0.9;
+}
+
+/* An exposed card sits face up among the backs; the ring marks it as one the
+   holder has already shown rather than one you're meant to have seen. */
+.fan-card-exposed .pc-img,
+.fan-card-exposed.pc {
+  outline: 2px solid rgba(255, 200, 140, 0.7);
+  outline-offset: -1px;
+}
+
 /* ---- trick piles ---- */
 
 /* The two piles are deliberately different sizes: the opponent's tricks lie at
@@ -283,6 +323,12 @@
   bottom: calc(var(--card-hand) * 1.4 + 44px);
   transform: translateX(-50%);
   z-index: 4;
+}
+
+/* Same amber ring the active dummy wears, so "it's on you" reads identically
+   wherever it appears. */
+.table-status.your-turn {
+  box-shadow: 0 0 0 2px var(--amber-ring);
 }
 
 /* ---- compact: the replay overlay, which has no side panels competing ---- */
