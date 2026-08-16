@@ -55,9 +55,18 @@
 
 /* ---- phase overlays that sit over the felt ---- */
 
+/* Phase panels (bidding, "waiting to discard") float over the felt, but must
+   never cover your hand — you're being asked to bid on the strength of those
+   cards, so you have to be able to read them. The floor is the hand's own
+   height plus its 26px offset from the bottom, with a gap on top; anything
+   taller than the space left scrolls inside the panel rather than growing
+   down over the cards. */
 .centered-panel {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--card-hand) * 1.4 + 46px);
   display: flex;
   align-items: center;
   justify-content: center;

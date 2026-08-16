@@ -4,17 +4,26 @@
 
    Sizes scale with the viewport rather than the handoff's fixed 1440×900,
    because this app has to survive arbitrary window sizes. --card-hand and
-   friends are the single place that scaling is expressed. */
+   friends are the single place that scaling is expressed.
+
+   They're declared on the shell rather than on .game-table because overlays
+   that sit *beside* the table in the DOM — the bidding panel, the kitty
+   waiting notice — have to position themselves clear of the hand, and so need
+   to read the hand's size too. .game-table.compact still overrides them for
+   its own subtree. */
+
+.themed-table {
+  --card-hand: clamp(58px, 7.4vw, 116px);
+  --card-dummy: clamp(42px, 5vw, 78px);
+  --card-played: clamp(52px, 6vw, 88px);
+  --card-fan: clamp(28px, 3.2vw, 46px);
+}
 
 .game-table {
   position: relative;
   flex: 1;
   min-height: 0;
   width: 100%;
-  --card-hand: clamp(58px, 7.4vw, 116px);
-  --card-dummy: clamp(42px, 5vw, 78px);
-  --card-played: clamp(52px, 6vw, 88px);
-  --card-fan: clamp(28px, 3.2vw, 46px);
 }
 
 /* ---- seats ---- */
@@ -125,11 +134,11 @@
 /* The side fans tilt away from the viewer so they read as held rather than
    laid out. Mirrored left to right. */
 .fan-left {
-  transform: perspective(900px) rotateY(38deg) rotateZ(-4deg);
+  transform: perspective(500px) rotateY(53deg) rotateZ(-10deg);
 }
 
 .fan-right {
-  transform: perspective(900px) rotateY(-38deg) rotateZ(4deg);
+  transform: perspective(500px) rotateY(-53deg) rotateZ(10deg);
 }
 
 /* ---- revealed hands (Open Misère / declined claim) ---- */
