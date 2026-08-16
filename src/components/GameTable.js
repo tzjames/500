@@ -17,7 +17,8 @@ import "./GameTable.css";
 //
 // Which of west/east holds the opponent's *hand* (rather than their dummy)
 // follows who won the bid, so the bidder's side of the table stays put across
-// the round. That mapping is unchanged from the pre-theme layout.
+// the round — and is chosen so that play runs clockwise, as 500 is dealt and
+// played. See opponentSide below.
 function GameTable({
   playedCards,
   opponentHandSize,
@@ -53,7 +54,12 @@ function GameTable({
   const hasPlayedFirstCard = playerHand.length < 10;
 
   const playerWonBid = winningBidder === playerId;
-  const opponentSide = playerWonBid ? "right" : "left";
+  // The turn rotation is fixed by the server: bidder's hand, opponent's hand,
+  // bidder's dummy, opponent's dummy (see setupSeats). Putting the opponent's
+  // hand on *this* side is what makes that sequence run clockwise round the
+  // table — south → west → north → east — rather than backwards. Mirror it and
+  // the game plays anti-clockwise.
+  const opponentSide = playerWonBid ? "left" : "right";
 
   // Each played card sits at the edge of the trick well nearest the hand it
   // came from, so it lands "in front of" whoever played it.

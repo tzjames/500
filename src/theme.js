@@ -59,6 +59,21 @@ const PLACES = [
     back: "linear-gradient(150deg,#a35a3c,#4a231f)",
   },
   {
+    // Sampled off the photograph: blue sky down through the gold band at the
+    // horizon into the turquoise shallows, with the headland's dark green
+    // closing the bottom.
+    id: "samana",
+    name: "Samaná",
+    caption: "Samaná — sunrise over the bay, from Playa Rincón",
+    photo: "/backdrops/samana.jpg",
+    shape: "oval",
+    dot: "#6fd3d8",
+    wash: "linear-gradient(180deg,#14476e,#3781ab 30%,#e5a763 60%,#1c6570 82%,#123f45 100%)",
+    tint: "linear-gradient(180deg,rgba(20,71,110,.32),rgba(18,63,69,.58))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #1f8189, #11525d 66%, rgba(7,31,37,.72))",
+    back: "linear-gradient(150deg,#2f9fae,#10454f)",
+  },
+  {
     id: "kyoto",
     name: "Kyoto Garden",
     caption: "Kyoto — moss garden after rain, maples turning",
@@ -80,6 +95,7 @@ const PLACES = [
 const PLAIN_NAMES = {
   falls: "Teal",
   zanzibar: "Ocean",
+  samana: "Turquoise",
   canyon: "Ember",
   kyoto: "Moss",
 };

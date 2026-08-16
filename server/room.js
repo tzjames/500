@@ -10,11 +10,13 @@ const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 const LOCATION_IDS = [
   "falls",
   "zanzibar",
+  "samana",
   "canyon",
   "kyoto",
-  // The same four palettes without their backdrop photograph.
+  // The same palettes without their backdrop photograph.
   "plain-falls",
   "plain-zanzibar",
+  "plain-samana",
   "plain-canyon",
   "plain-kyoto",
 ];

@@ -325,8 +325,9 @@
   z-index: 4;
 }
 
-/* Same amber ring the active dummy wears, so "it's on you" reads identically
-   wherever it appears. */
+/* Ringed only when you're to play from your own hand. On a dummy turn the ring
+   goes on the dummy itself, which is where you need to look — two rings would
+   just compete. */
 .table-status.your-turn {
   box-shadow: 0 0 0 2px var(--amber-ring);
 }

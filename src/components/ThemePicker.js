@@ -58,8 +58,8 @@ function ThemePicker({ locationId, deckId, onChange, compact = false }) {
           aria-label="Card deck"
         >
           {DECKS.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name} — {d.blurb}
+            <option key={d.id} value={d.id} title={d.blurb}>
+              {d.name}
             </option>
           ))}
         </select>

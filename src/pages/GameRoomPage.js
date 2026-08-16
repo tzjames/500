@@ -1146,7 +1146,9 @@ function GameRoomPage() {
               playerTricksWon={currentPlayerData.tricksWon || 0}
               opponentTricksWon={otherPlayerData?.tricksWon || 0}
               statusText={statusText}
-              isYourTurn={gamePhase === "playing" && playerId === currentPlayer}
+              isYourTurn={
+                gamePhase === "playing" && playerId === currentPlayer && !currentTurnIsDummy
+              }
               exposed={exposed}
               onRetract={retractCard}
             />
