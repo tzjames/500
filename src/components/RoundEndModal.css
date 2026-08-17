@@ -61,8 +61,8 @@
   font-weight: 700;
 }
 
-/* The total is the headline; the swing that produced it sits beside it,
-   smaller, and carries the colour. */
+/* Total and swing are set at the same size; the colour on the swing is what
+   separates them. */
 .round-result-figures {
   display: inline-flex;
   align-items: baseline;
@@ -70,13 +70,10 @@
   white-space: nowrap;
 }
 
-.round-result-total {
+.round-result-total,
+.round-result-delta {
   font-size: 32px;
   font-weight: 400;
-}
-
-.round-result-delta {
-  font-size: 17px;
   white-space: nowrap;
 }
 
