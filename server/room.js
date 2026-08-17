@@ -930,8 +930,14 @@ class Room {
       scores: this.game.players.map((p) => ({ name: p.name, score: p.score })),
     });
 
-    const bidderWonGame = bidderMadeBid && bidderPlayer.score > 500 && bidderPlayer.score > otherPlayer.score;
-    const bidderLostGame = !bidderMadeBid && bidderPlayer.score < -500;
+    // Both bounds are inclusive: the game is to 500, so landing exactly on it
+    // wins, and exactly -500 goes out the back door. They used to be strict,
+    // which meant an exact ±500 carried on playing — and disagreed with the
+    // game-over screen, which has always called -500 or worse a back door.
+    // Only a bidder can end it either way: the other player never loses points.
+    const bidderWonGame =
+      bidderMadeBid && bidderPlayer.score >= 500 && bidderPlayer.score > otherPlayer.score;
+    const bidderLostGame = !bidderMadeBid && bidderPlayer.score <= -500;
 
     if (bidderWonGame || bidderLostGame) {
       const winner = bidderWonGame ? bidderPlayer : otherPlayer;
