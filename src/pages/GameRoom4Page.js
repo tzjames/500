@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
@@ -9,6 +9,7 @@ import BiddingInterface4 from "../components/BiddingInterface4";
 import ContractPanel4 from "../components/ContractPanel4";
 import LastTrickPanel4 from "../components/LastTrickPanel4";
 import RoundEnd4Modal from "../components/RoundEnd4Modal";
+import RoundReviewModal from "../components/RoundReviewModal";
 import ScoreHistoryModal from "../components/ScoreHistoryModal";
 import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
@@ -18,13 +19,16 @@ import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "../App.css";
 import "./GameRoom4Page.css";
 
+const SUITS = ["♠", "♣", "♥", "♦"];
+
 // The four-player room. The server sends a whole personalised snapshot after
 // every change (`g4:state`), so this page renders from one object rather than
 // stitching together patches. The only local state is the things that are about
-// timing rather than truth: the deal, the beat a finished trick spends on the
-// table, and what you've selected but not yet committed.
+// timing or intent rather than truth: the deal, the beat a finished trick spends
+// on the table, and what you've picked up but not yet committed to.
 function GameRoom4Page() {
   const { id: gameId } = useParams();
+  const navigate = useNavigate();
   const { session } = useAuth();
   const playerId = session?.user?.id;
   const socket = useMemo(() => (session ? getSocket(session.token) : null), [session]);
@@ -35,8 +39,10 @@ function GameRoom4Page() {
   const [invalid, setInvalid] = useState("");
   const [showScoreHistory, setShowScoreHistory] = useState(false);
   const [showRules, setShowRules] = useState(false);
-  const [selectedDiscards, setSelectedDiscards] = useState([]);
+  const [selected, setSelected] = useState([]);
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
+  const [replayResult, setReplayResult] = useState(null);
+  const [rematchPairing, setRematchPairing] = useState("same");
 
   // A finished trick stays on the table for a beat, then flies out to whoever
   // won it. Held here because the server has already cleared the trick by the
@@ -68,6 +74,8 @@ function GameRoom4Page() {
     socket.on("joinRejected", ({ message }) => setRejected(message));
     socket.on("g4:invalidPlay", ({ message }) => setInvalid(message));
     socket.on("g4:notice", ({ text }) => setNotice(text));
+    socket.on("g4:replayResult", (result) => setReplayResult(result));
+    socket.on("g4:rematchStarted", ({ gameId: next }) => navigate(`/game/${next}`));
 
     socket.on("g4:trickResolved", (trick) => {
       const token = ++trickTokenRef.current;
@@ -89,11 +97,18 @@ function GameRoom4Page() {
     return () => {
       socket.emit("leaveRoom", { gameId });
       socket.off("connect", join);
-      ["g4:state", "g4:joinRejected", "joinRejected", "g4:invalidPlay", "g4:notice", "g4:trickResolved"].forEach(
-        (event) => socket.off(event)
-      );
+      [
+        "g4:state",
+        "g4:joinRejected",
+        "joinRejected",
+        "g4:invalidPlay",
+        "g4:notice",
+        "g4:trickResolved",
+        "g4:replayResult",
+        "g4:rematchStarted",
+      ].forEach((event) => socket.off(event));
     };
-  }, [socket, gameId]);
+  }, [socket, gameId, navigate]);
 
   // Run the deal animation whenever a fresh hand arrives. A redeal of the same
   // round counts as a fresh hand, hence both halves of the key.
@@ -102,12 +117,13 @@ function GameRoom4Page() {
     if (!state || state.phase !== "bidding" || !dealKey) return;
     if (dealKeyRef.current === dealKey) return;
     dealKeyRef.current = dealKey;
-    setSelectedDiscards([]);
+    setSelected([]);
     setInvalid("");
+    setReplayResult(null);
     dealTimersRef.current.forEach(clearTimeout);
-    // Skipped outright for reduced motion — suppressing just the animation
-    // would leave the cards face down for a second doing nothing.
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    // Skipped outright for reduced motion, and for a hand you can't see — the
+    // cards are face down either way, so there's nothing to reveal.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || state.you.blind) {
       setDeal(null);
       return;
     }
@@ -126,39 +142,44 @@ function GameRoom4Page() {
   const handleSetGameSettings = (partial) =>
     emit("setGameSettings", { ...(state?.gameSettings || {}), ...partial });
 
-  const playCard = (card) => {
+  const playCard = (card, mode) => {
     setInvalid("");
-    if (
-      state.currentTrick.length === 0 &&
-      card.suit === "Joker" &&
-      !state.trumpSuit
-    ) {
-      setPendingJokerLead(card);
+    const board = mode === "replay" ? state.replay : state;
+    if (board.currentTrick.length === 0 && card.suit === "Joker" && !board.trumpSuit) {
+      setPendingJokerLead({ card, mode });
       return;
     }
-    emit("g4:play", { card });
+    emit("g4:play", { card, mode });
   };
 
   const nominateSuit = (suit) => {
-    emit("g4:play", { card: pendingJokerLead, nominatedSuit: suit });
+    emit("g4:play", {
+      card: pendingJokerLead.card,
+      nominatedSuit: suit,
+      mode: pendingJokerLead.mode,
+    });
     setPendingJokerLead(null);
   };
 
-  const toggleDiscard = (index) =>
-    setSelectedDiscards((prev) =>
+  const toggleSelected = (index, cap) =>
+    setSelected((prev) =>
       prev.includes(index)
         ? prev.filter((i) => i !== index)
-        : prev.length < 3
+        : prev.length < cap
         ? [...prev, index]
         : prev
     );
 
-  const finishDiscard = () => {
-    if (selectedDiscards.length !== 3) return;
-    emit("g4:discard", {
-      keep: state.you.hand.filter((_, index) => !selectedDiscards.includes(index)),
-    });
-    setSelectedDiscards([]);
+  const submitDiscard = (board, mode) => {
+    if (selected.length !== 3) return;
+    emit("g4:discard", { keep: board.you.hand.filter((_, i) => !selected.includes(i)), mode });
+    setSelected([]);
+  };
+
+  const submitPass = (board, mode) => {
+    if (selected.length !== 5) return;
+    emit("g4:pass", { cards: board.you.hand.filter((_, i) => selected.includes(i)), mode });
+    setSelected([]);
   };
 
   const locationId = state?.gameSettings?.location || DEFAULT_LOCATION;
@@ -227,22 +248,7 @@ function GameRoom4Page() {
             onClick={(e) => e.target.select()}
           />
 
-          <ul className="g4-seat-list">
-            {state.slots.map((slot, index) => (
-              <li key={index} className={slot ? "taken" : "empty"}>
-                {slot ? (
-                  <>
-                    <b>{slot.name}</b>
-                    {slot.isBot && <span className="g4-tag">robot</span>}
-                    {slot.userId === state.hostUserId && <span className="g4-tag">host</span>}
-                    {!slot.isBot && !slot.connected && <span className="g4-tag">away</span>}
-                  </>
-                ) : (
-                  <span className="g4-empty-seat">Empty seat</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <SeatList slots={state.slots} hostUserId={state.hostUserId} />
 
           {state.isHost && (
             <>
@@ -318,55 +324,12 @@ function GameRoom4Page() {
             </>
           ) : (
             <p>
-              Waiting for{" "}
-              {state.slots.find((s) => s?.userId === state.hostUserId)?.name} to pick
-              partners.
+              Waiting for {state.slots.find((s) => s?.userId === state.hostUserId)?.name} to
+              pick partners.
             </p>
           )}
           <RulesSummary options={state.options} />
         </div>
-      </ThemedTable>
-    );
-  }
-
-  // ---- the kitty ----
-
-  const iAmBidder = state.currentBid?.seat === state.you.seat;
-  if (state.phase === "kitty" && iAmBidder) {
-    return (
-      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed>
-        {topBar()}
-        <div className="kitty-screen">
-          <div>
-            <h2 className="kitty-heading">
-              You won the bid with {bidLabel(state.currentBid.bid, state.options)} for{" "}
-              {state.currentBid.points}
-            </h2>
-            <p className="kitty-subheading">
-              The kitty is yours — take these three, then throw any three back.
-            </p>
-          </div>
-          <div className="kitty-hand-wrap">
-            <AnimatedHand
-              hand={state.you.hand}
-              selectedCards={selectedDiscards}
-              onCardClick={toggleDiscard}
-              trumpSuit={state.trumpSuit}
-              deckId={deckId}
-            />
-          </div>
-          <div className="kitty-actions">
-            <span className="pill">{selectedDiscards.length} of 3 chosen</span>
-            <button
-              className="btn-primary"
-              onClick={finishDiscard}
-              disabled={selectedDiscards.length !== 3}
-            >
-              Throw three &amp; play
-            </button>
-          </div>
-        </div>
-        {invalid && <div className="floating-message"><p className="invalid-play-message">{invalid}</p></div>}
       </ThemedTable>
     );
   }
@@ -381,6 +344,8 @@ function GameRoom4Page() {
         : state.winner.reason === "pointSpread"
         ? "on the point spread"
         : `with ${state.winner.score} points`;
+    const proposal = state.roundEnd?.proposal;
+
     return (
       <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed>
         {iWon && <Confetti />}
@@ -398,14 +363,93 @@ function GameRoom4Page() {
               </li>
             ))}
           </ul>
-          <div className="game-over-buttons">
-            <button className="btn-ghost" onClick={() => setShowScoreHistory(true)}>
-              Score history
-            </button>
-            <Link to="/" className="btn-ghost">
-              Back to home
-            </Link>
-          </div>
+
+          {state.rematch?.awaitingYou ? (
+            <div className="round-end-proposal">
+              <p>
+                {state.rematch.fromName} wants a rematch —{" "}
+                {state.rematch.pairing === "same"
+                  ? "same partners"
+                  : state.rematch.pairing === "swap"
+                  ? "swapping partners"
+                  : "drawing for partners"}
+                . Are you in?
+              </p>
+              <div className="round-end-proposal-buttons">
+                <button className="btn-primary" onClick={() => emit("g4:rematchRespond", { accept: true })}>
+                  Yes
+                </button>
+                <button className="btn-ghost" onClick={() => emit("g4:rematchRespond", { accept: false })}>
+                  No
+                </button>
+              </div>
+            </div>
+          ) : state.rematch?.mine ? (
+            <p className="round-end-waiting">
+              Waiting on {state.rematch.waitingOn}{" "}
+              {state.rematch.waitingOn === 1 ? "player" : "players"} to agree to a rematch…
+            </p>
+          ) : proposal?.awaitingYou ? (
+            <div className="round-end-proposal">
+              <p>
+                {proposal.fromName} wants to{" "}
+                {proposal.type === "review" ? "review" : "replay"} the last hand. Do you agree?
+              </p>
+              <div className="round-end-proposal-buttons">
+                <button className="btn-primary" onClick={() => emit("g4:respondToProposal", { accept: true })}>
+                  Yes
+                </button>
+                <button className="btn-ghost" onClick={() => emit("g4:respondToProposal", { accept: false })}>
+                  No
+                </button>
+              </div>
+            </div>
+          ) : proposal?.mine ? (
+            <p className="round-end-waiting">Waiting for the others to agree to your invite…</p>
+          ) : (
+            <>
+              <div className="g4-visibility g4-rematch-pairing">
+                <span className="overline">Rematch partners</span>
+                <div className="g4-segments">
+                  {[
+                    { id: "same", label: "Same" },
+                    { id: "swap", label: "Swap" },
+                    { id: "random", label: "Draw" },
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`g4-segment${rematchPairing === option.id ? " on" : ""}`}
+                      onClick={() => setRematchPairing(option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="game-over-buttons">
+                <button
+                  className="btn-primary"
+                  onClick={() => emit("g4:rematchOffer", { pairing: rematchPairing })}
+                >
+                  Offer a rematch
+                </button>
+                <button className="btn-ghost" onClick={() => emit("g4:propose", { type: "review" })}>
+                  Review last hand
+                </button>
+                <button className="btn-ghost" onClick={() => emit("g4:propose", { type: "replay" })}>
+                  Replay last hand
+                </button>
+                <button className="btn-ghost" onClick={() => setShowScoreHistory(true)}>
+                  Score history
+                </button>
+                <Link to="/" className="btn-ghost">
+                  Back to home
+                </Link>
+              </div>
+            </>
+          )}
+          {notice && <p className="g4-notice">{notice}</p>}
         </div>
         {showScoreHistory && (
           <ScoreHistoryModal
@@ -418,58 +462,182 @@ function GameRoom4Page() {
     );
   }
 
+  // ---- the kitty and the exchange, whichever board they belong to ----
+
+  const kittyScreen = (board, mode) => (
+    <div className="kitty-screen">
+      <div>
+        <h2 className="kitty-heading">
+          You won the bid with {bidLabel(board.currentBid.bid, state.options)} for{" "}
+          {board.currentBid.points}
+        </h2>
+        <p className="kitty-subheading">
+          The kitty is yours — take these three, then throw any three back.
+        </p>
+      </div>
+      <div className="kitty-hand-wrap">
+        <AnimatedHand
+          hand={board.you.hand}
+          selectedCards={selected}
+          onCardClick={(index) => toggleSelected(index, 3)}
+          trumpSuit={board.trumpSuit}
+          deckId={deckId}
+        />
+      </div>
+      <div className="kitty-actions">
+        <span className="pill">{selected.length} of 3 chosen</span>
+        <button
+          className="btn-primary"
+          onClick={() => submitDiscard(board, mode)}
+          disabled={selected.length !== 3}
+        >
+          Throw three &amp; play
+        </button>
+      </div>
+    </div>
+  );
+
+  const exchangeScreen = (board, mode) => (
+    <div className="g4-exchange">
+      <div>
+        <h2 className="kitty-heading">Pass five across</h2>
+        <p className="kitty-subheading">
+          You and your partner both have to take no tricks at all, so you each send five
+          cards over at the same time. Choose what you send — you can&apos;t choose what
+          arrives.
+        </p>
+      </div>
+      <div className="kitty-hand-wrap">
+        <AnimatedHand
+          hand={board.you.hand}
+          selectedCards={selected}
+          onCardClick={(index) => toggleSelected(index, 5)}
+          trumpSuit={board.trumpSuit}
+          deckId={deckId}
+          selectedBadge="Pass"
+        />
+      </div>
+      <div className="kitty-actions">
+        <span className="pill">{selected.length} of 5 chosen</span>
+        <button
+          className="btn-primary"
+          onClick={() => submitPass(board, mode)}
+          disabled={selected.length !== 5}
+        >
+          Send them over
+        </button>
+      </div>
+    </div>
+  );
+
+  const iAmBidder = state.currentBid?.seat === state.you.seat;
+  const inExchange = (state.exchangeSeats || []).includes(state.you.seat);
+
+  if (state.phase === "kitty" && iAmBidder) {
+    return (
+      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed>
+        {topBar()}
+        {kittyScreen(state)}
+        {invalid && (
+          <div className="floating-message">
+            <p className="invalid-play-message">{invalid}</p>
+          </div>
+        )}
+      </ThemedTable>
+    );
+  }
+
+  if (state.phase === "exchange" && inExchange && !state.you.passed) {
+    return (
+      <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed>
+        {topBar()}
+        {exchangeScreen(state)}
+        {invalid && (
+          <div className="floating-message">
+            <p className="invalid-play-message">{invalid}</p>
+          </div>
+        )}
+      </ThemedTable>
+    );
+  }
+
   // ---- the board ----
 
-  const onCall = state.seats?.find((s) => s.seat === state.currentSeat);
-  const yourTurn = state.phase === "playing" && state.currentSeat === state.you.seat;
-  const statusText = (() => {
-    if (state.phase !== "playing") return null;
-    const trumpNote = state.trumpSuit
-      ? ` — ${state.trumpSuit} are trumps`
-      : " — no trumps";
-    return yourTurn ? `Your turn${trumpNote}` : `${onCall?.name}'s turn${trumpNote}`;
-  })();
+  const board = (b, { mode, compact }) => {
+    const yourTurn = b.phase === "playing" && b.currentSeat === b.you.seat;
+    const onCall = b.seats?.find((s) => s.seat === b.currentSeat);
+    const mine = pendingTrick && pendingTrick.mode === (mode === "replay" ? "replay" : "live");
+    const cards = mine
+      ? pendingTrick.plays.map((play) => ({ seat: play.seat, card: play.card }))
+      : b.currentTrick || [];
+    const trumpNote = b.trumpSuit ? ` — ${b.trumpSuit} are trumps` : " — no trumps";
+    const statusText =
+      b.phase !== "playing"
+        ? null
+        : yourTurn
+        ? `Your turn${trumpNote}`
+        : `${onCall?.name}'s turn${trumpNote}`;
 
-  const playedCards = pendingTrick
-    ? pendingTrick.plays.map((play) => ({ seat: play.seat, card: play.card }))
-    : state.currentTrick || [];
+    return (
+      <GameTable4
+        seats={b.seats || []}
+        mySeat={b.you.seat}
+        hand={b.you.hand || []}
+        blindCount={b.you.blind ? b.you.handCount : 0}
+        playable={b.legalPlays}
+        onPlayCard={(card) => playCard(card, mode)}
+        currentSeat={b.currentSeat}
+        trumpSuit={b.trumpSuit}
+        deckId={deckId}
+        playedCards={cards}
+        flyToSeat={mine ? flyToSeat : null}
+        revealedHands={b.revealedHands || {}}
+        statusText={statusText}
+        isYourTurn={yourTurn}
+        deal={mode === "replay" ? null : deal}
+        compact={compact}
+      />
+    );
+  };
+
+  const claim = state.claim;
 
   return (
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
       {topBar(state.teamNames ? `${state.teamNames[0]} vs ${state.teamNames[1]}` : null)}
 
       <div className="board-row">
-        <ContractPanel4 state={state} onShowScoreHistory={() => setShowScoreHistory(true)} />
+        <ContractPanel4
+          state={state}
+          onShowScoreHistory={() => setShowScoreHistory(true)}
+          canClaimRest={state.canClaimRest}
+          claimPending={Boolean(claim?.mine)}
+          onClaimRest={() => emit("g4:claimRest")}
+        />
 
         <div className="board-center">
-          <GameTable4
-            seats={state.seats || []}
-            mySeat={state.you.seat}
-            hand={state.you.hand || []}
-            playable={state.legalPlays}
-            onPlayCard={playCard}
-            currentSeat={state.currentSeat}
-            trumpSuit={state.trumpSuit}
-            deckId={deckId}
-            playedCards={playedCards}
-            flyToSeat={flyToSeat}
-            revealedHands={state.revealedHands || {}}
-            statusText={statusText}
-            isYourTurn={yourTurn}
-            deal={deal}
-          />
+          {board(state, {})}
 
-          {state.phase === "bidding" && !deal && (
+          {state.phase === "bidding" && !deal && !state.you.blindPrompt && (
             <div className="centered-panel">
-              <BiddingInterface4
-                seats={state.seats || []}
-                mySeat={state.you.seat}
-                auction={state.auction}
-                availableBids={state.availableBids}
-                legalBids={state.legalBids}
-                options={state.options}
-                onPlaceBid={(bid) => emit("g4:bid", { bid })}
-              />
+              {state.you.blind ? (
+                <div className="panel waiting-panel">
+                  <p>
+                    Your cards are face down — you said you&apos;d bid blind. You&apos;ll be
+                    asked when the auction reaches you.
+                  </p>
+                </div>
+              ) : (
+                <BiddingInterface4
+                  seats={state.seats || []}
+                  mySeat={state.you.seat}
+                  auction={state.auction}
+                  availableBids={state.availableBids}
+                  legalBids={state.legalBids}
+                  options={state.options}
+                  onPlaceBid={(bid) => emit("g4:bid", { bid })}
+                />
+              )}
             </div>
           )}
 
@@ -484,9 +652,21 @@ function GameRoom4Page() {
             </div>
           )}
 
+          {state.phase === "exchange" && (
+            <div className="centered-panel">
+              <div className="panel waiting-panel">
+                <p>
+                  {inExchange
+                    ? "Waiting for your partner to choose their five."
+                    : "The partners are passing five cards each across the table."}
+                </p>
+              </div>
+            </div>
+          )}
+
           {(notice || invalid) && (
             <div className="floating-message">
-              {notice && <p className="invalid-play-message">{notice}</p>}
+              {notice && <p className="g4-notice">{notice}</p>}
               {invalid && <p className="invalid-play-message">{invalid}</p>}
             </div>
           )}
@@ -500,12 +680,53 @@ function GameRoom4Page() {
         />
       </div>
 
+      {/* Blind bidding: asked once, when the auction reaches you, before you've
+          seen a card. Saying no turns the hand over. */}
+      {state.you.blindPrompt && (
+        <div className="offer-modal-overlay">
+          <div className="offer-modal">
+            <p>
+              You said you&apos;d go blind. Do you still want to bid Blind{" "}
+              {state.options.misereName === "nullo" ? "Nullo" : "Misère"} for{" "}
+              {state.you.blindPoints} points, without looking?
+            </p>
+            <div className="offer-modal-buttons">
+              <button className="offer-yes" onClick={() => emit("g4:bid", { bid: "Blind Misere" })}>
+                Yes — bid it blind
+              </button>
+              <button className="offer-no" onClick={() => emit("g4:declineBlind")}>
+                No — show me my cards
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {claim?.awaitingYou && (
+        <div className="offer-modal-overlay">
+          <div className="offer-modal">
+            <p>
+              {claim.name} says they&apos;ve got the rest of the tricks — their hand is face
+              up for you to check. Both of you have to agree. Do you?
+            </p>
+            <div className="offer-modal-buttons">
+              <button className="offer-yes" onClick={() => emit("g4:respondToClaim", { accept: true })}>
+                Yes
+              </button>
+              <button className="offer-no" onClick={() => emit("g4:respondToClaim", { accept: false })}>
+                No, play it out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pendingJokerLead && (
         <div className="offer-modal-overlay">
           <div className="offer-modal">
             <p>Nominate a suit for the Joker:</p>
             <div className="offer-modal-buttons">
-              {["♠", "♣", "♥", "♦"].map((suit) => (
+              {SUITS.map((suit) => (
                 <button key={suit} onClick={() => nominateSuit(suit)}>
                   {suit}
                 </button>
@@ -526,6 +747,63 @@ function GameRoom4Page() {
         />
       )}
 
+      {state.review && (
+        <RoundReviewModal
+          round={state.review.round}
+          log={state.review.log}
+          players={(state.seats || []).map((s) => ({ id: s.userId, name: s.name }))}
+          stepIndex={state.review.stepIndex || 0}
+          isController={state.review.controllerId === playerId}
+          controllerName={
+            state.seats?.find((s) => s.userId === state.review.controllerId)?.name || "Someone"
+          }
+          onStep={(index) => emit("g4:reviewStep", { index })}
+          onDone={() => emit("g4:reviewDone")}
+          deckId={deckId}
+        />
+      )}
+
+      {state.replay && (
+        <div className="replay-overlay">
+          <div className="g4-replay-panel">
+            <div className="g4-replay-head">
+              <p className="g4-replay-banner">Replay — this won&apos;t count</p>
+              <button className="btn-ghost g4-replay-leave" onClick={() => emit("g4:endReplay")}>
+                Leave the replay
+              </button>
+            </div>
+            {replayResult ? (
+              <div className="replay-result-box">
+                <p>
+                  {replayResult.bidderName} bid {bidLabel(replayResult.bid, state.options)} and{" "}
+                  {replayResult.made ? "made it" : "missed it"} — {replayResult.tricks} tricks.
+                </p>
+                <button className="btn-primary" onClick={() => emit("g4:endReplay")}>
+                  Return to the round
+                </button>
+              </div>
+            ) : state.replay.phase === "kitty" &&
+              state.replay.currentBid?.seat === state.replay.you.seat ? (
+              kittyScreen(state.replay, "replay")
+            ) : state.replay.phase === "exchange" &&
+              (state.replay.exchangeSeats || []).includes(state.replay.you.seat) &&
+              !state.replay.you.passed ? (
+              exchangeScreen(state.replay, "replay")
+            ) : state.replay.phase === "kitty" ? (
+              <p className="replay-result-box">
+                Waiting for{" "}
+                {state.replay.seats?.find((s) => s.seat === state.replay.currentBid?.seat)?.name} to
+                discard.
+              </p>
+            ) : state.replay.phase === "exchange" ? (
+              <p className="replay-result-box">The partners are changing five cards each.</p>
+            ) : (
+              board(state.replay, { mode: "replay", compact: true })
+            )}
+          </div>
+        </div>
+      )}
+
       {state.phase === "roundEnd" && state.roundResult && (
         <RoundEnd4Modal
           result={state.roundResult}
@@ -535,9 +813,33 @@ function GameRoom4Page() {
           scoreHistory={state.scoreHistory}
           roundNumber={state.roundNumber}
           onReady={() => emit("g4:ready")}
+          onPropose={(type) => emit("g4:propose", { type })}
+          onRespondToProposal={(accept) => emit("g4:respondToProposal", { accept })}
+          onSetBlindIntent={(on) => emit("g4:setBlindIntent", { on })}
         />
       )}
     </ThemedTable>
+  );
+}
+
+function SeatList({ slots, hostUserId }) {
+  return (
+    <ul className="g4-seat-list">
+      {slots.map((slot, index) => (
+        <li key={index} className={slot ? "taken" : "empty"}>
+          {slot ? (
+            <>
+              <b>{slot.name}</b>
+              {slot.isBot && <span className="g4-tag">robot</span>}
+              {slot.userId === hostUserId && <span className="g4-tag">host</span>}
+              {!slot.isBot && !slot.connected && <span className="g4-tag">away</span>}
+            </>
+          ) : (
+            <span className="g4-empty-seat">Empty seat</span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

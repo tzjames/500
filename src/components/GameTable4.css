@@ -21,6 +21,14 @@
   width: 100%;
 }
 
+/* The replay overlay sits inside a panel rather than the whole screen, so its
+   cards come down a size. */
+.table4.compact {
+  --card-hand: clamp(44px, 5vw, 80px);
+  --card-fan4: clamp(20px, 2.3vw, 34px);
+  --card-played4: clamp(42px, 4.6vw, 70px);
+}
+
 /* ---- seats ---- */
 
 .seat4 {

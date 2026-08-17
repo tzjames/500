@@ -118,6 +118,129 @@
   border-top: 1px solid var(--panel-border);
 }
 
+/* Declaring a blind bid on the round-end screen. Set apart from the buttons
+   below it: it commits you to something on the *next* hand, which is a
+   different kind of decision from "ready when you are". */
+.round-end-blind {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 235, 200, 0.09);
+  border: 1px dashed var(--amber-ring);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.round-end-blind input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.round-end-blind-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0.68;
+}
+
+/* Things the table should know that aren't anybody's mistake — a claim agreed,
+   a redeal, five cards changing hands. The red invalid-play styling was
+   overstating all of them. */
+.g4-notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--positive-fill);
+  border: 1px solid var(--positive-border);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Centred on the game-over card, where everything else is centred too. */
+.g4-rematch-pairing {
+  width: min(300px, 100%);
+  margin: 0 auto 16px;
+  text-align: center;
+}
+
+/* ---- the replay overlay ---- */
+
+.g4-replay-panel {
+  position: relative;
+  width: 96vw;
+  height: 94vh;
+  padding: 14px 18px 16px;
+  border-radius: 20px;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-result);
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.g4-replay-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+.g4-replay-banner {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.g4-replay-leave {
+  padding: 5px 14px;
+  font-size: 11.5px;
+}
+
+/* ---- passing five cards across (Double Nullo) ---- */
+
+.g4-exchange {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-height: 0;
+  text-align: center;
+}
+
+/* ---- blind bidding ---- */
+
+/* The hand you haven't looked at: a fan of backs where your cards would be. */
+.g4-blind-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+}
+
+.g4-blind-hand .pc {
+  --card-w: var(--card-hand);
+  margin-left: calc(var(--card-w) * -0.38);
+}
+
+.g4-blind-hand .pc:first-child {
+  margin-left: 0;
+}
+
 /* Each partnership's score with the two names under it, so you can tell at a
    glance which pair is which. */
 .team-block + .team-block {

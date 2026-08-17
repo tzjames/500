@@ -62,11 +62,21 @@ function tally(map, key, label, isWin) {
 const byPlayed = (a, b) => b.wins + b.losses - (a.wins + a.losses);
 
 async function statsFor(userId, mode) {
-  const [games, bidRounds, elo] = await Promise.all([
+  const [allGames, allRounds, elo] = await Promise.all([
     db.finishedGamesForUser(userId, mode),
     db.roundsBidBy(userId, mode),
     db.eloForUser(userId),
   ]);
+
+  // A table with a robot at it is practice. It's kept out of the record for the
+  // same reason it isn't rated: a win rate padded by beating robots says nothing
+  // about how you do against people. Counted separately rather than silently
+  // dropped, so the page can say what it left out.
+  const hadBots = (game) => (game.playerSlots || []).some((s) => s?.isBot);
+  const games = allGames.filter((game) => !hadBots(game));
+  const bidRounds = allRounds.filter((round) => !round.withBots);
+  const practiceGames = allGames.length - games.length;
+  const practiceRounds = allRounds.length - bidRounds.length;
 
   let wins = 0;
   // Keyed by the whole table for four players — "with Ada against Bo and Cy" is
@@ -143,6 +153,8 @@ async function statsFor(userId, mode) {
     games: games.length,
     wins,
     losses: games.length - wins,
+    practiceGames,
+    practiceRounds,
     contracts: {
       total: numericContracts + specialContracts,
       numeric: numericContracts,

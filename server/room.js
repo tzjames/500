@@ -984,6 +984,8 @@ class Room {
       level: /^\d/.test(bidDescription) ? Number(bidDescription.split(" ")[0]) : null,
       tricks: bidderPlayer.tricksWon,
       made: bidderMadeBid,
+      // The two-player game has no robots, so every hand of it counts.
+      withBots: false,
     }).catch((err) => console.error("failed to record round", err));
 
     // Both bounds are inclusive: the game is to 500, so landing exactly on it

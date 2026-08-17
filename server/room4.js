@@ -771,6 +771,9 @@ class Room4 {
       level,
       tricks: result.biddingTricks,
       made: result.made,
+      // A hand played against robots is practice; the stats page keeps it out of
+      // the record for the same reason a robot game isn't rated.
+      withBots: game.players.some((p) => p.isBot),
     });
   }
 

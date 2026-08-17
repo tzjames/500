@@ -122,6 +122,12 @@
   margin-top: 0;
 }
 
+.home-welcome-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .new-game-button {
   width: 100%;
   padding: 14px 0;

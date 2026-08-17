@@ -9,7 +9,7 @@ import "./AnimatedHand.css";
 // marks it for discard, turning its badge red. Selections are tracked by the
 // card's index in the *unsorted* hand — that's what the discard handler
 // filters on — while the display order comes from the usual suit grouping.
-function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit, deckId }) {
+function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit, deckId, selectedBadge = "Discard" }) {
   const deck = getDeck(deckId);
 
   return (
@@ -19,7 +19,7 @@ function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit, deckId }) {
           {group.map((card, indexInGroup) => {
             const cardIndex = indexInHand(hand, card);
             const isDiscard = selectedCards.includes(cardIndex);
-            const badge = isDiscard ? "Discard" : card.isKitty ? "Kitty" : null;
+            const badge = isDiscard ? selectedBadge : card.isKitty ? "Kitty" : null;
             return (
               <Card
                 key={`${card.suit}-${card.value}-${indexInGroup}`}

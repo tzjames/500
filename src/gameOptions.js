@@ -23,12 +23,16 @@ export function bidLabel(bid, options) {
   return bid.replace("Misere", name);
 }
 
-// Everything that isn't at its default, for a one-line summary of a table.
+// Everything that isn't at its default, for a one-line summary of a table. A
+// switch that's normally on and has been turned off needs saying the other way
+// round — listing "Ten points a trick" on a table that has just switched trick
+// points off would read as exactly the opposite of the truth.
 export function changedOptionLabels(options) {
   const merged = withDefaults(options);
-  return OPTIONS.filter((o) => merged[o.id] !== o.default).map((o) =>
-    o.type === "choice"
-      ? o.choices.find((c) => c.value === merged[o.id])?.label || o.label
-      : o.label
-  );
+  return OPTIONS.filter((o) => merged[o.id] !== o.default).map((o) => {
+    if (o.type === "choice") {
+      return o.choices.find((c) => c.value === merged[o.id])?.label || o.label;
+    }
+    return merged[o.id] ? o.label : o.offLabel || `No ${o.label.toLowerCase()}`;
+  });
 }

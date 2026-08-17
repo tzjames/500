@@ -1,11 +1,26 @@
 {
   "_comment": "House rules for the four-player game, drawn from the variants listed at https://en.wikipedia.org/wiki/500_(card_game). Data only: labels, defaults and the long-form explanation behind each info button live here so the picker on the home page and the validator in server/gameOptions.js can never disagree about what an option is called or what it defaults to. The two-player game predates this and keeps its own settings.",
   "groups": [
-    { "id": "terminology", "label": "Terminology" },
-    { "id": "bidding", "label": "Bidding" },
-    { "id": "contracts", "label": "Extra contracts" },
-    { "id": "play", "label": "Play" },
-    { "id": "scoring", "label": "Scoring and winning" }
+    {
+      "id": "terminology",
+      "label": "Terminology"
+    },
+    {
+      "id": "bidding",
+      "label": "Bidding"
+    },
+    {
+      "id": "contracts",
+      "label": "Extra contracts"
+    },
+    {
+      "id": "play",
+      "label": "Play"
+    },
+    {
+      "id": "scoring",
+      "label": "Scoring and winning"
+    }
   ],
   "options": [
     {
@@ -15,8 +30,14 @@
       "label": "Name for the no-tricks bid",
       "default": "misere",
       "choices": [
-        { "value": "misere", "label": "Misère" },
-        { "value": "nullo", "label": "Nullo" }
+        {
+          "value": "misere",
+          "label": "Misère"
+        },
+        {
+          "value": "nullo",
+          "label": "Nullo"
+        }
       ],
       "help": "Some tables call it Nullo. Naming only — the contract plays the same either way.",
       "detail": "The contract where you undertake to win no tricks at all is Misère in most of the world and Nullo in a lot of Australian and American households. This setting only changes what the table calls it: the bid is worth 250 either way, it sits between 8♠ and 8♣ in the auction either way, and your partner folds either way. Open Misère becomes Open Nullo, Blind Misère becomes Blind Nullo, and so on."
@@ -64,6 +85,7 @@
       "label": "Open Misère",
       "default": true,
       "help": "Worth 500. Your hand goes face up after the first trick.",
+      "offLabel": "No Open Misère",
       "detail": "Open Misère — also called Lay Down Misère — is a Misère played with your cards on the table. You still have to win no tricks at all, but after the first trick has been played your whole hand is turned face up for the defenders to see, so they can work out exactly how to throw a trick at you. It is worth 500 and can be bid at any time, sitting between 10♦ and 10♥. Your partner folds, as in any Misère. It needs a hand that genuinely cannot be forced to win anything."
     },
     {
@@ -100,6 +122,7 @@
       "label": "Joker may be led at no trumps",
       "default": true,
       "help": "In a no-trump or Misère contract, leading the Joker and nominating a suit is allowed even when you could follow.",
+      "offLabel": "Joker only when void",
       "detail": "With no trump suit in the contract, the Joker has no suit of its own and the question is when you are allowed to use it. The common rule, and the one this defaults to, is that you may lead it whenever you like and name the suit everyone else must follow — a powerful play, since you take the trick and choose what gets led. The stricter rule is that the Joker may only ever appear when you cannot follow the suit that was led, which turns it from a weapon into an awkward card you have to find a home for. Following suit is unaffected either way: void in the led suit, the Joker always wins."
     },
     {
@@ -118,6 +141,7 @@
       "label": "Ten points a trick for the defenders",
       "default": true,
       "help": "Turn this off and only a won contract scores anything.",
+      "offLabel": "No trick points",
       "detail": "Normally the side that didn't bid scores ten points for every trick it takes, whether or not the contract was made — so a hand where the bidders scrape home 6♠ for 40 can still hand the defenders 40. Switch this off and only contracts score: a made bid is worth its value, a broken one costs its value, and tricks on their own are worth nothing. Games take longer and the bidding matters more. No-tricks contracts already score nothing for the defenders whatever this is set to."
     },
     {
@@ -127,6 +151,7 @@
       "label": "Slam bonus",
       "default": true,
       "help": "Take all ten tricks on a contract worth less than 250 and score 250 instead.",
+      "offLabel": "No slam bonus",
       "detail": "A partnership that takes all ten tricks has done something worth more than the 40 points a 6♠ contract pays for it. The slam bonus pays a minimum of 250 for a clean sweep, so an underbid hand that runs the table isn't punished for the modest bid. It only lifts contracts already worth less than 250 — a made 9♥ still scores its own 400 — and it only applies to trick contracts, since taking all ten is the last thing a Misère bidder wants."
     },
     {
@@ -145,6 +170,7 @@
       "label": "Out the back door at −500",
       "default": true,
       "help": "A team down to −500 or worse loses the game there and then.",
+      "offLabel": "No back door",
       "detail": "Going out the back door, or out backwards: a partnership whose score falls to −500 or below loses the game immediately, however well the other side is or isn't doing. It is the standard rule, and it is the reason a run of ambitious broken contracts is genuinely dangerous rather than merely expensive. Switch it off and there is no floor at all — a side can go arbitrarily far below zero and still win from there."
     },
     {

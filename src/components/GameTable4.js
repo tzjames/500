@@ -33,6 +33,11 @@ function GameTable4({
   statusText,
   isYourTurn = false,
   deal = null,
+  // A hand you've undertaken to bid blind on: dealt to you face down, and shown
+  // that way until you either make the call or ask to see it.
+  blindCount = 0,
+  // The replay overlay, which has no side panels competing for the width.
+  compact = false,
 }) {
   const deck = getDeck(deckId);
   const reference = mySeat === -1 ? 0 : mySeat;
@@ -75,7 +80,7 @@ function GameTable4({
   };
 
   return (
-    <div className="table4">
+    <div className={`table4${compact ? " compact" : ""}`}>
       {renderSeat("left")}
       {renderSeat("top")}
       {renderSeat("right")}
@@ -110,15 +115,23 @@ function GameTable4({
       <TrickPile className="pile4-mine" count={me?.tricksWon || 0} owner="You" />
 
       <div className="seat4 seat4-bottom">
-        <PlayerHand
-          hand={hand}
-          onPlayCard={(card) => onPlayCard(card)}
-          trumpSuit={trumpSuit}
-          isCurrentPlayer={isYourTurn}
-          playable={playable}
-          deckId={deckId}
-          deal={deal}
-        />
+        {blindCount > 0 ? (
+          <div className="g4-blind-hand" aria-label="Your hand, face down">
+            {Array.from({ length: blindCount }).map((_, i) => (
+              <Card key={i} faceDown width={null} />
+            ))}
+          </div>
+        ) : (
+          <PlayerHand
+            hand={hand}
+            onPlayCard={(card) => onPlayCard(card)}
+            trumpSuit={trumpSuit}
+            isCurrentPlayer={isYourTurn}
+            playable={playable}
+            deckId={deckId}
+            deal={deal}
+          />
+        )}
       </div>
     </div>
   );

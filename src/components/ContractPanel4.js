@@ -9,6 +9,9 @@ import "./SidePanel.css";
 function ContractPanel4({
   state,
   onShowScoreHistory,
+  canClaimRest,
+  claimPending,
+  onClaimRest,
 }) {
   const {
     currentBid,
@@ -128,6 +131,15 @@ function ContractPanel4({
           at all.
         </p>
       )}
+
+      {/* Only from the lead, and both opponents have to agree — it hands your
+          side every trick that's left. */}
+      {canClaimRest && (
+        <button className="btn-ghost claim-button" onClick={onClaimRest} disabled={claimPending}>
+          I&apos;ve got the rest
+        </button>
+      )}
+      {claimPending && <p className="side-note">Waiting for both opponents to agree…</p>}
 
       {rules.length > 0 && (
         <>

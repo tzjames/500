@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import * as api from "../api";
 import { getSocket } from "../socket";
@@ -223,9 +223,14 @@ function HomePage() {
               <span>
                 Welcome, <b>{session.user.name}</b>
               </span>
-              <button className="auth-toggle" onClick={logout}>
-                Log out
-              </button>
+              <span className="home-welcome-links">
+                <Link to="/stats" className="auth-toggle">
+                  Your record
+                </Link>
+                <button className="auth-toggle" onClick={logout}>
+                  Log out
+                </button>
+              </span>
             </div>
 
             <PresenceStrip presence={lobby.presence} />
