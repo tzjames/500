@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { OPTION_GROUPS, optionsByGroup, defaultOptions, withDefaults } from "../gameOptions";
+import HouseRules, { HouseRulesToggle } from "./HouseRules";
+import { defaultOptions, withDefaults } from "../gameOptions";
 import "./NewGameModal.css";
 
 // Starting a game: how many at the table, who can see it, and — for four — how
@@ -28,16 +29,10 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
     if (settings.partnerMode) setPartnerMode(settings.partnerMode);
   }, [settings]);
 
-  const toggle = (id, value) => setOptions((prev) => ({ ...prev, [id]: value }));
-
   const start = () => {
     setStarting(true);
     onStart({ mode, visibility, partnerMode, fillWithBots, options });
   };
-
-  const changedCount = Object.keys(options).filter(
-    (id) => options[id] !== defaultOptions()[id]
-  ).length;
 
   return (
     <div className="new-game-overlay" onClick={onCancel}>
@@ -115,72 +110,13 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
               </span>
             </label>
 
-            <button
-              type="button"
-              className="ng-rules-toggle"
-              onClick={() => setShowRules((open) => !open)}
-              aria-expanded={showRules}
-            >
-              House rules
-              <span className="ng-rules-count">
-                {loadingDefaults
-                  ? "loading…"
-                  : changedCount === 0
-                  ? "standard"
-                  : `${changedCount} changed`}
-              </span>
-            </button>
-
-            {showRules && (
-              <div className="ng-rules">
-                {OPTION_GROUPS.map((group) => (
-                  <div key={group.id} className="ng-rules-group">
-                    <p className="overline">{group.label}</p>
-                    {optionsByGroup(group.id).map((option) =>
-                      option.type === "choice" ? (
-                        <div key={option.id} className="ng-rule ng-rule-choice">
-                          <span className="ng-rule-label">{option.label}</span>
-                          <div className="ng-rule-segments">
-                            {option.choices.map((choice) => (
-                              <button
-                                key={choice.value}
-                                type="button"
-                                className={`ng-segment${
-                                  options[option.id] === choice.value ? " on" : ""
-                                }`}
-                                onClick={() => toggle(option.id, choice.value)}
-                              >
-                                {choice.label}
-                              </button>
-                            ))}
-                          </div>
-                          <span className="ng-note">{option.help}</span>
-                        </div>
-                      ) : (
-                        <label key={option.id} className="ng-rule">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(options[option.id])}
-                            onChange={(e) => toggle(option.id, e.target.checked)}
-                          />
-                          <span>
-                            <span className="ng-rule-label">{option.label}</span>
-                            <span className="ng-note">{option.help}</span>
-                          </span>
-                        </label>
-                      )
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="auth-toggle"
-                  onClick={() => setOptions(defaultOptions())}
-                >
-                  Back to the standard rules
-                </button>
-              </div>
-            )}
+            <HouseRulesToggle
+              options={options}
+              open={showRules}
+              loading={loadingDefaults}
+              onToggle={() => setShowRules((open) => !open)}
+            />
+            {showRules && <HouseRules options={options} onChange={setOptions} />}
           </>
         )}
 

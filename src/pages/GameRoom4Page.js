@@ -12,7 +12,8 @@ import RoundEnd4Modal from "../components/RoundEnd4Modal";
 import ScoreHistoryModal from "../components/ScoreHistoryModal";
 import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
-import { OPTION_GROUPS, optionsByGroup, changedOptionLabels, bidLabel } from "../gameOptions";
+import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
+import { changedOptionLabels, bidLabel } from "../gameOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "../App.css";
 import "./GameRoom4Page.css";
@@ -263,12 +264,19 @@ function GameRoom4Page() {
                   ))}
                 </div>
               </div>
-              <HouseRulesEditor
-                options={state.options}
-                open={showRules}
-                onToggleOpen={() => setShowRules((open) => !open)}
-                onChange={(next) => emit("g4:setOptions", { options: next })}
-              />
+              <div className="g4-rules">
+                <HouseRulesToggle
+                  options={state.options}
+                  open={showRules}
+                  onToggle={() => setShowRules((open) => !open)}
+                />
+                {showRules && (
+                  <HouseRules
+                    options={state.options}
+                    onChange={(next) => emit("g4:setOptions", { options: next })}
+                  />
+                )}
+              </div>
             </>
           )}
           {!state.isHost && <RulesSummary options={state.options} />}
@@ -539,66 +547,6 @@ function RulesSummary({ options }) {
     <p className="side-note g4-rules-summary">
       {rules.length === 0 ? "Standard rules." : `House rules: ${rules.join(" · ")}`}
     </p>
-  );
-}
-
-// The host can still change the rules while the table is filling up — but not
-// once the cards are out, which the server enforces.
-function HouseRulesEditor({ options, open, onToggleOpen, onChange }) {
-  const set = (id, value) => onChange({ ...options, [id]: value });
-  return (
-    <div className="g4-rules">
-      <button type="button" className="ng-rules-toggle" onClick={onToggleOpen} aria-expanded={open}>
-        House rules
-        <span className="ng-rules-count">
-          {changedOptionLabels(options).length === 0
-            ? "standard"
-            : `${changedOptionLabels(options).length} changed`}
-        </span>
-      </button>
-      {open && (
-        <div className="ng-rules">
-          {OPTION_GROUPS.map((group) => (
-            <div key={group.id} className="ng-rules-group">
-              <p className="overline">{group.label}</p>
-              {optionsByGroup(group.id).map((option) =>
-                option.type === "choice" ? (
-                  <div key={option.id} className="ng-rule ng-rule-choice">
-                    <span className="ng-rule-label">{option.label}</span>
-                    <div className="ng-rule-segments">
-                      {option.choices.map((choice) => (
-                        <button
-                          key={choice.value}
-                          type="button"
-                          className={`ng-segment${
-                            options[option.id] === choice.value ? " on" : ""
-                          }`}
-                          onClick={() => set(option.id, choice.value)}
-                        >
-                          {choice.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <label key={option.id} className="ng-rule">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(options[option.id])}
-                      onChange={(e) => set(option.id, e.target.checked)}
-                    />
-                    <span>
-                      <span className="ng-rule-label">{option.label}</span>
-                      <span className="ng-note">{option.help}</span>
-                    </span>
-                  </label>
-                )
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
