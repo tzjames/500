@@ -170,6 +170,25 @@ function chooseDiscard(game, seat) {
   return hand.filter((card) => !discarded.some((d) => key(d) === key(card)));
 }
 
+// Double Nullo's five cards to send across the table. Both partners have to
+// take no tricks, so shifting a high card to your partner doesn't make it safe —
+// what helps is voiding a suit, since a suit you can't follow is a suit you
+// can't be thrown the lead in. Shortest suits go first, highest card first
+// within them.
+function choosePass(game, seat) {
+  const hand = [...game.players[seat].hand];
+  const lengths = Object.fromEntries(
+    REAL_SUITS.map((suit) => [suit, hand.filter((card) => card.suit === suit).length])
+  );
+  return [...hand]
+    .sort((a, b) => {
+      if (isJoker(a) !== isJoker(b)) return isJoker(a) ? -1 : 1;
+      if (lengths[a.suit] !== lengths[b.suit]) return lengths[a.suit] - lengths[b.suit];
+      return rankOf(b) - rankOf(a);
+    })
+    .slice(0, 5);
+}
+
 // ---- play ----
 
 // Cards that are still unaccounted for from this seat's point of view: the
@@ -331,6 +350,15 @@ function chooseFollow(game, seat, legal) {
   return { card: lowest(legal, game) };
 }
 
+// Does the robot believe an opponent who says they've got the rest? It asks the
+// only question that matters: do I hold a card that nothing still out there can
+// beat? The claimer's own hand is among what's still out there, so a card that
+// survives this test really is a trick — and if there isn't one, there's nothing
+// to be gained by making them play it out.
+function acceptsClaim(game, seat) {
+  return !game.players[seat].hand.some((card) => isTopRemaining(game, seat, card));
+}
+
 // The robot's card, as { card, nominatedSuit? }. Always one of legalPlays, so
 // the server's own validation never has cause to reject it.
 function choosePlay(game, seat) {
@@ -380,7 +408,9 @@ function botName(index, taken = []) {
 module.exports = {
   chooseBid,
   chooseDiscard,
+  choosePass,
   choosePlay,
+  acceptsClaim,
   expectedTricks,
   expectedTricksNoTrumps,
   misereRisk,

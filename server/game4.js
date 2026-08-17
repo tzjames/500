@@ -199,6 +199,13 @@ class Game500Four {
     this.playedCards = [];
     this.currentSeat = 0;
     this.auction = null;
+    // Seats that declared before the deal that they mean to go blind. Only
+    // those seats may call a Blind Misère, and only they hold cards they
+    // haven't looked at.
+    this.blindSeats = [];
+    // Double Nullo's five-card exchange: what each partner has chosen to send,
+    // held until both have chosen so neither sees the other's pick first.
+    this.pendingPass = {};
   }
 
   // ---- seats and teams ----
@@ -269,6 +276,8 @@ class Game500Four {
     this.noContract = false;
     this.currentTrick = [];
     this.playedCards = [];
+    this.blindSeats = [];
+    this.pendingPass = {};
     this.players.forEach((p) => {
       p.hand = [];
       p.tricksWon = 0;
@@ -359,6 +368,10 @@ class Game500Four {
     if (available.firstCallOnly && a.history.some((h) => h.seat === seat)) {
       return { ok: false, reason: "That can only be your opening call." };
     }
+    // A blind bid is only blind if it was declared before the cards came out.
+    if (bid === "Blind Misere" && !this.blindSeats.includes(seat)) {
+      return { ok: false, reason: "Blind Misère has to be declared before the deal." };
+    }
     return { ok: true };
   }
 
@@ -448,6 +461,58 @@ class Game500Four {
     player.hand = kept;
     this.currentSeat = seat;
     return { success: true, discarded: pool };
+  }
+
+  // ---- Double Nullo's five-card exchange ----
+
+  // Both partners have to keep a clean hand, so they get to help each other:
+  // each chooses five cards to send across the table and they change hands at
+  // the same moment. You choose what you send, never what you receive, which is
+  // what makes it about voiding your own dangerous suits.
+  exchangeSeats() {
+    if (!this.contractSpec()?.bothPartners) return null;
+    const seat = this.currentBid.seat;
+    return [seat, this.partnerOf(seat)];
+  }
+
+  setPass(seat, cards) {
+    const seats = this.exchangeSeats();
+    if (!seats || !seats.includes(seat)) {
+      return { success: false, reason: "You're not part of this exchange." };
+    }
+    if (!Array.isArray(cards) || cards.length !== 5) {
+      return { success: false, reason: "Choose exactly five cards to pass." };
+    }
+    const pool = [...this.players[seat].hand];
+    const chosen = [];
+    for (const card of cards) {
+      const i = pool.findIndex((c) => c.suit === card.suit && c.value === card.value);
+      if (i === -1) return { success: false, reason: "That isn't a card you hold." };
+      chosen.push(pool.splice(i, 1)[0]);
+    }
+    this.pendingPass[seat] = chosen;
+    return { success: true };
+  }
+
+  exchangeReady() {
+    const seats = this.exchangeSeats();
+    return Boolean(seats && seats.every((seat) => this.pendingPass[seat]));
+  }
+
+  completeExchange() {
+    const [a, b] = this.exchangeSeats();
+    const fromA = this.pendingPass[a];
+    const fromB = this.pendingPass[b];
+    const without = (seat, sent) =>
+      this.players[seat].hand.filter(
+        (card) => !sent.some((s) => s.suit === card.suit && s.value === card.value)
+      );
+    const keptA = without(a, fromA);
+    const keptB = without(b, fromB);
+    this.players[a].hand = [...keptA, ...fromB];
+    this.players[b].hand = [...keptB, ...fromA];
+    this.pendingPass = {};
+    return { [a]: fromA, [b]: fromB };
   }
 
   // ---- play ----

@@ -8,6 +8,7 @@ const db = require("./db");
 const auth = require("./auth");
 const { RoomManager } = require("./room");
 const Presence = require("./presence");
+const stats = require("./stats");
 const { sanitizeOptions } = require("./gameOptions");
 const bot = require("./bot");
 
@@ -67,6 +68,11 @@ app.get("/api/games/:id/meta", auth.requireAuth, async (req, res) => {
 app.get("/api/game-defaults", auth.requireAuth, async (req, res) => {
   const mode = Number(req.query.mode) === 4 ? 4 : 2;
   res.json((await db.lastSettingsForUser(req.user.userId, mode)) || {});
+});
+
+app.get("/api/stats", auth.requireAuth, async (req, res) => {
+  const mode = Number(req.query.mode) === 4 ? 4 : 2;
+  res.json(await stats.statsFor(req.user.userId, mode));
 });
 
 // Win/loss against each opponent, derived from finished games. Not capped the
@@ -187,9 +193,21 @@ io.on("connection", (socket) => {
   socket.on("g4:addBots", () => room?.addBots?.(socket));
   socket.on("g4:choosePartner", (payload) => room?.choosePartner?.(socket, payload || {}));
   socket.on("g4:bid", (payload) => room?.placeBid?.(socket, payload || {}));
+  socket.on("g4:declineBlind", () => room?.declineBlind?.(socket));
   socket.on("g4:discard", (payload) => room?.discard?.(socket, payload || {}));
+  socket.on("g4:pass", (payload) => room?.passCards?.(socket, payload || {}));
   socket.on("g4:play", (payload) => room?.playCard?.(socket, payload || {}));
+  socket.on("g4:claimRest", () => room?.claimRest?.(socket));
+  socket.on("g4:respondToClaim", ({ accept }) => room?.respondToClaim?.(socket, accept));
   socket.on("g4:ready", () => room?.readyForNextRound?.(socket));
+  socket.on("g4:setBlindIntent", ({ on }) => room?.setBlindIntent?.(socket, on));
+  socket.on("g4:propose", ({ type }) => room?.propose?.(socket, type));
+  socket.on("g4:respondToProposal", ({ accept }) => room?.respondToProposal?.(socket, accept));
+  socket.on("g4:reviewStep", ({ index }) => room?.reviewStep?.(socket, index));
+  socket.on("g4:reviewDone", () => room?.reviewDone?.(socket));
+  socket.on("g4:endReplay", () => room?.endReplay?.(socket));
+  socket.on("g4:rematchOffer", (payload) => room?.rematchOffer?.(socket, payload || {}));
+  socket.on("g4:rematchRespond", ({ accept }) => room?.rematchRespond?.(socket, accept));
   socket.on("g4:setOptions", ({ options }) => room?.setOptions?.(socket, options));
   socket.on("g4:setVisibility", ({ visibility }) => room?.setVisibility?.(socket, visibility));
 

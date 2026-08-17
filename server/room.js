@@ -969,6 +969,23 @@ class Room {
       scores: this.game.players.map((p) => ({ name: p.name, score: p.score })),
     });
 
+    // One row per scored round, for the stats page. Best-effort: the hand is
+    // over either way, and a statistics write shouldn't be able to break it.
+    db.recordRound({
+      gameId: this.id,
+      mode: 2,
+      roundNumber: this.roundNumber,
+      at: Date.now(),
+      bidderUserId: bidderId,
+      partnerUserId: null,
+      teamUserIds: [bidderId],
+      bid: bidDescription,
+      points: this.game.currentBid.points,
+      level: /^\d/.test(bidDescription) ? Number(bidDescription.split(" ")[0]) : null,
+      tricks: bidderPlayer.tricksWon,
+      made: bidderMadeBid,
+    }).catch((err) => console.error("failed to record round", err));
+
     // Both bounds are inclusive: the game is to 500, so landing exactly on it
     // wins, and exactly -500 goes out the back door. They used to be strict,
     // which meant an exact ±500 carried on playing — and disagreed with the
@@ -995,7 +1012,11 @@ class Room {
       // The record is read back out of the database, so it can only be sent
       // once this game's own result is in there — hence waiting on persist
       // rather than emitting it alongside gameOver.
-      this.persist().then(() => this.emitMatchRecord());
+      const loser = this.game.players.find((p) => p.id !== winner.id);
+      this.persist()
+        .then(() => db.applyElo(2, [winner.id], [loser.id], this.id))
+        .then(() => this.emitMatchRecord())
+        .catch((err) => console.error("failed to settle finished game", err));
       return;
     }
 

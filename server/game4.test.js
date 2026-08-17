@@ -192,27 +192,86 @@ test("Misère waits for the seven level unless the table says otherwise", () => 
   assert.equal(anytime.bidLegality(0, "Misere").ok, true);
 });
 
-test("Blind Misère is an opening call only", () => {
+test("Blind Misère needs a seat that declared it before the deal", () => {
   const game = table({ blindMisere: true });
   game.startAuction(0);
+  assert.equal(game.bidLegality(0, "Blind Misere").ok, false, "nobody declared");
+  game.blindSeats = [0];
   assert.equal(game.bidLegality(0, "Blind Misere").ok, true);
+  assert.equal(game.bidLegality(1, "Blind Misere").ok, false, "seat 1 didn't declare");
+});
+
+test("Blind Misère is an opening call only", () => {
+  const game = table({ blindMisere: true, bidAfterPass: true });
+  game.startAuction(0);
+  game.blindSeats = [0];
   runAuction(game, [
-    [0, "6 ♠"],
-    [1, "Pass"],
-    [2, "Pass"],
-    [3, "Pass"],
-  ]);
-  // Seat 0 has already spoken, so the blind bid has gone for them.
-  const again = table({ blindMisere: true, bidAfterPass: true });
-  again.startAuction(0);
-  runAuction(again, [
     [0, "Pass"],
     [1, "6 ♠"],
     [2, "Pass"],
     [3, "Pass"],
   ]);
-  assert.equal(again.auction.turnSeat, 0);
-  assert.equal(again.bidLegality(0, "Blind Misere").ok, false);
+  // Seat 0 gets another turn under bid-after-pass, but it isn't their opening
+  // call any more, so the blind bid has gone.
+  assert.equal(game.auction.turnSeat, 0);
+  assert.equal(game.bidLegality(0, "Blind Misere").ok, false);
+});
+
+test("a declared blind seat is dropped once the deal is redone", () => {
+  const game = table({ blindMisere: true });
+  game.deal(0);
+  game.blindSeats = [2];
+  game.deal(1);
+  assert.deepEqual(game.blindSeats, []);
+});
+
+test("Double Nullo's partners change five cards each", () => {
+  const game = table({ doubleNullo: true });
+  game.startAuction(0);
+  runAuction(game, [
+    [0, "Double Nullo"],
+    [1, "Pass"],
+    [2, "Pass"],
+    [3, "Pass"],
+  ]);
+  game.completeBidding();
+  assert.deepEqual(game.exchangeSeats(), [0, 2]);
+
+  game.players[0].hand = [
+    c("A", "♠"), c("K", "♠"), c("Q", "♠"), c("J", "♠"), c("10", "♠"),
+    c("4", "♥"), c("5", "♥"), c("6", "♥"), c("7", "♥"), c("8", "♥"),
+  ];
+  game.players[2].hand = [
+    c("4", "♦"), c("5", "♦"), c("6", "♦"), c("7", "♦"), c("8", "♦"),
+    c("5", "♣"), c("6", "♣"), c("7", "♣"), c("8", "♣"), c("9", "♣"),
+  ];
+
+  // Only the two partners are in it, and it's five cards or nothing.
+  assert.equal(game.setPass(1, game.players[1].hand.slice(0, 5)).success, false);
+  assert.equal(game.setPass(0, game.players[0].hand.slice(0, 4)).success, false);
+  assert.equal(game.setPass(0, [c("A", "♦")]).success, false, "not a card they hold");
+
+  assert.equal(game.setPass(0, game.players[0].hand.slice(0, 5)).success, true);
+  assert.equal(game.exchangeReady(), false, "still waiting on the partner");
+  assert.equal(game.setPass(2, game.players[2].hand.slice(0, 5)).success, true);
+  assert.equal(game.exchangeReady(), true);
+
+  game.completeExchange();
+  assert.equal(game.players[0].hand.length, 10);
+  assert.equal(game.players[2].hand.length, 10);
+  // The spades went across and the diamonds came back.
+  assert.equal(game.players[2].hand.filter((card) => card.suit === "♠").length, 5);
+  assert.equal(game.players[0].hand.filter((card) => card.suit === "♦").length, 5);
+  assert.equal(game.players[0].hand.filter((card) => card.suit === "♠").length, 0);
+  assert.deepEqual(game.pendingPass, {});
+});
+
+test("only Double Nullo has an exchange", () => {
+  const game = table({ doubleNullo: true });
+  game.currentBid = { seat: 0, player: "u0", bid: "8 ♠", points: 240 };
+  assert.equal(game.exchangeSeats(), null);
+  game.currentBid = { seat: 1, player: "u1", bid: "Misere", points: 250 };
+  assert.equal(game.exchangeSeats(), null);
 });
 
 test("the Ralphing bar keeps a seat out of the next auction", () => {

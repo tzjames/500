@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { MongoClient } = require("mongodb");
 
 const MONGO_URI =
@@ -8,6 +9,7 @@ const DB_NAME = process.env.MONGO_DB || "card-game-500";
 
 let users = null;
 let games = null;
+let rounds = null;
 
 async function connect() {
   const client = new MongoClient(MONGO_URI);
@@ -15,7 +17,12 @@ async function connect() {
   const db = client.db(DB_NAME);
   users = db.collection("users");
   games = db.collection("games");
+  // One row per scored round, written as it happens. The stats page is built
+  // from these rather than by walking every game's event log, which is what
+  // makes "how often do you make a 7♥" a query rather than a replay.
+  rounds = db.collection("rounds");
   await users.createIndex({ nameLower: 1 }, { unique: true });
+  await rounds.createIndex({ bidderUserId: 1, mode: 1 });
   console.log(`Connected to MongoDB (${DB_NAME})`);
 }
 
@@ -127,6 +134,78 @@ async function recordsForUser(userId) {
   );
 }
 
+// ---- rounds and ratings ----
+
+async function recordRound(round) {
+  await rounds.insertOne({ _id: crypto.randomUUID(), ...round });
+}
+
+// Every round this player bought the contract for, at this size of table.
+async function roundsBidBy(userId, mode) {
+  const modeQuery = mode === 4 ? { mode: 4 } : { mode: { $ne: 4 } };
+  return rounds.find({ bidderUserId: userId, ...modeQuery }).toArray();
+}
+
+// Elo, one rating per size of table. Winners take from losers in proportion to
+// how surprising the result was; a partnership is rated by its average, and both
+// partners move by the same amount.
+//
+// Games against robots don't count — beating a robot says nothing about how you
+// stack up against people, and the robot has no rating to take it from.
+const K_FACTOR = 24;
+const STARTING_ELO = 1200;
+
+const eloOf = (user, mode) => user?.elo?.[String(mode)] ?? STARTING_ELO;
+
+async function applyElo(mode, winnerIds, loserIds, gameId) {
+  const everyone = [...winnerIds, ...loserIds];
+  if (everyone.some((id) => String(id).startsWith("bot:"))) return null;
+
+  // Guards against a game being rated twice — a server restart replaying the
+  // tail of a finished game, say.
+  const claimed = await games.updateOne(
+    { _id: gameId, eloApplied: { $ne: true } },
+    { $set: { eloApplied: true } }
+  );
+  if (claimed.matchedCount === 0) return null;
+
+  const docs = await users.find({ _id: { $in: everyone } }).toArray();
+  const byId = new Map(docs.map((u) => [u._id, u]));
+  if (everyone.some((id) => !byId.has(id))) return null;
+
+  const average = (ids) => ids.reduce((sum, id) => sum + eloOf(byId.get(id), mode), 0) / ids.length;
+  const winnerRating = average(winnerIds);
+  const loserRating = average(loserIds);
+  const expected = 1 / (1 + 10 ** ((loserRating - winnerRating) / 400));
+  const delta = Math.round(K_FACTOR * (1 - expected));
+
+  const field = `elo.${mode}`;
+  await Promise.all([
+    ...winnerIds.map((id) =>
+      users.updateOne({ _id: id }, { $set: { [field]: eloOf(byId.get(id), mode) + delta } })
+    ),
+    ...loserIds.map((id) =>
+      users.updateOne({ _id: id }, { $set: { [field]: eloOf(byId.get(id), mode) - delta } })
+    ),
+  ]);
+  return delta;
+}
+
+async function eloForUser(userId) {
+  const user = await users.findOne({ _id: userId }, { projection: { elo: 1 } });
+  return { 2: eloOf(user, 2), 4: eloOf(user, 4) };
+}
+
+// Every finished game this player was in, at this size of table — the raw
+// material for win rates and records, assembled into shape by the caller.
+async function finishedGamesForUser(userId, mode) {
+  const modeQuery = mode === 4 ? { mode: 4 } : { mode: { $ne: 4 } };
+  return games
+    .find({ status: "finished", "playerSlots.userId": userId, ...modeQuery })
+    .project({ playerSlots: 1, winner: 1, snapshot: 1, mode: 1, updatedAt: 1 })
+    .toArray();
+}
+
 // Just the two players, for the game-over screen.
 async function headToHead(userIdA, userIdB) {
   const finished = await games
@@ -159,4 +238,9 @@ module.exports = {
   lastSettingsForUser,
   recordsForUser,
   headToHead,
+  recordRound,
+  roundsBidBy,
+  applyElo,
+  eloForUser,
+  finishedGamesForUser,
 };
