@@ -52,15 +52,50 @@ async function listGamesForUser(userId) {
     .toArray();
 }
 
+async function deleteGame(id) {
+  await games.deleteOne({ _id: id });
+}
+
+// The lobby: tables anyone may sit down at. Only ever open, public tables —
+// whether they still have a free seat is settled against live room state by the
+// caller, since a seat taken a second ago isn't in the document yet.
+async function listPublicWaitingGames() {
+  return games
+    .find({ visibility: "public", status: "waiting" })
+    .sort({ createdAt: -1 })
+    .limit(40)
+    .toArray();
+}
+
+// The house rules and table theme this player last used at this size of game,
+// so the new-game screen opens on what they chose last time rather than on the
+// defaults every time. Any game counts, finished or not.
+async function lastSettingsForUser(userId, mode) {
+  const modeQuery = mode === 4 ? { mode: 4 } : { mode: { $ne: 4 } };
+  const doc = await games.findOne(
+    { "playerSlots.userId": userId, ...modeQuery },
+    { sort: { createdAt: -1 }, projection: { options: 1, visibility: 1, partnerMode: 1, snapshot: 1 } }
+  );
+  if (!doc) return null;
+  return {
+    options: doc.options || null,
+    visibility: doc.visibility || null,
+    partnerMode: doc.partnerMode || null,
+    gameSettings: doc.snapshot?.gameSettings || null,
+  };
+}
+
 // Head-to-head records are derived from finished games rather than kept as a
 // running tally, so they're always consistent with the games themselves and
 // nothing needs backfilling. Only games that actually reached 500 or the back
 // door count — one abandoned half way through is neither a win nor a loss.
 
 // Every opponent this player has finished a game against, most-played first.
+// Two-player games only: a head-to-head record has no meaning across a table of
+// four, and games saved before the four-player one existed have no mode field.
 async function recordsForUser(userId) {
   const finished = await games
-    .find({ status: "finished", "playerSlots.userId": userId })
+    .find({ status: "finished", "playerSlots.userId": userId, mode: { $ne: 4 } })
     .project({ playerSlots: 1, winner: 1 })
     .toArray();
 
@@ -93,7 +128,11 @@ async function recordsForUser(userId) {
 // Just the two players, for the game-over screen.
 async function headToHead(userIdA, userIdB) {
   const finished = await games
-    .find({ status: "finished", "playerSlots.userId": { $all: [userIdA, userIdB] } })
+    .find({
+      status: "finished",
+      "playerSlots.userId": { $all: [userIdA, userIdB] },
+      mode: { $ne: 4 },
+    })
     .project({ winner: 1 })
     .toArray();
 
@@ -112,7 +151,10 @@ module.exports = {
   createGame,
   getGame,
   saveGame,
+  deleteGame,
   listGamesForUser,
+  listPublicWaitingGames,
+  lastSettingsForUser,
   recordsForUser,
   headToHead,
 };
