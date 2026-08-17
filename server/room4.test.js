@@ -661,6 +661,75 @@ test("a Double Nullo goes through the exchange before play", () => {
   room.dispose();
 });
 
+test("the bidder's discard screen sees which three cards were the kitty", () => {
+  const { room } = newRoom();
+  const host = fakeSocket("u0", "Player 0");
+  room.handleJoin(host);
+
+  const game = room.game;
+  const seat = game.seatOf("u0");
+  game.auction.complete = true;
+  game.auction.highBid = { seat, bid: "6 ♠", points: 40, rank: 10 };
+  room.finishAuction();
+  assert.equal(room.phase, "kitty");
+
+  const kittyEntry = room.log.find((e) => e.type === "kittyDealt");
+  const kittyKeys = new Set(kittyEntry.kitty.map((c) => `${c.value}${c.suit}`));
+  assert.equal(kittyKeys.size, 3);
+
+  const state = room.stateFor("u0");
+  const marked = state.you.hand.filter((c) => c.isKitty);
+  assert.equal(marked.length, 3, "exactly the three kitty cards should be tagged");
+  assert.deepEqual(new Set(marked.map((c) => `${c.value}${c.suit}`)), kittyKeys);
+
+  // Nobody else took a kitty, so nothing in their own hand gets tagged.
+  const otherSeat = (seat + 1) % 4;
+  const otherState = room.stateFor(game.players[otherSeat].id);
+  assert.equal(otherState.you.hand.length, 10);
+  assert.ok(!otherState.you.hand.some((c) => c.isKitty));
+
+  // Once discarded, the flag is gone — it only ever meant "still deciding".
+  room.discard(host, { keep: game.players[seat].hand.slice(0, 10) });
+  const afterDiscard = room.stateFor("u0");
+  assert.ok(!afterDiscard.you.hand.some((c) => c.isKitty));
+  room.dispose();
+});
+
+test("a replayed kitty screen tags the same three cards the live one did", () => {
+  const { room } = newRoom();
+  const host = fakeSocket("u0", "Player 0");
+  room.handleJoin(host);
+
+  // Force the host to win the bid, so the replayed hand's bidder is known.
+  const game = room.game;
+  const seat = game.seatOf("u0");
+  game.auction.complete = true;
+  game.auction.highBid = { seat, bid: "6 ♠", points: 40, rank: 10 };
+  room.finishAuction();
+  const kittyEntry = room.log.find((e) => e.type === "kittyDealt");
+  const kittyKeys = new Set(kittyEntry.kitty.map((c) => `${c.value}${c.suit}`));
+  room.discard(host, { keep: game.players[seat].hand.slice(0, 10) });
+  assert.equal(room.phase, "playing");
+
+  for (let i = 0; i < 400 && room.phase !== "roundEnd"; i++) {
+    runRobots(room);
+    if (room.phase === "roundEnd" || room.phase === "gameOver") break;
+    takeHumanTurn(room, host);
+  }
+  assert.equal(room.phase, "roundEnd");
+
+  // The only other human is nobody, so the robots agree at once and the
+  // replay starts right away — same as the plain replay test above.
+  room.propose(host, "replay");
+  assert.equal(room.phase, "replay");
+  assert.equal(room.replayGame.currentBid.seat, seat, "the replay should have the same bidder");
+
+  const marked = room.stateFor("u0").replay.you.hand.filter((c) => c.isKitty);
+  assert.equal(marked.length, 3);
+  assert.deepEqual(new Set(marked.map((c) => `${c.value}${c.suit}`)), kittyKeys);
+  room.dispose();
+});
+
 test("a Ralphed bidder sits out the next auction", () => {
   const { room } = newRoom({ options: { ralphing: true } });
   const host = fakeSocket("u0", "Player 0");

@@ -1187,6 +1187,32 @@ class Room4 {
 
   // ---- state broadcast ----
 
+  // The three cards dealt to the kitty this round, read back from this round's
+  // own kittyDealt log entry rather than kept as separate state — that entry
+  // is already the record of exactly which three they were, and it's what
+  // startReplay() itself reconstructs the kitty from, so a replay's discard
+  // screen labels the same cards the live one did.
+  kittyCardsForRound(round) {
+    const entry = [...this.log].reverse().find((e) => e.type === "kittyDealt" && e.round === round);
+    return entry ? entry.kitty : [];
+  }
+
+  // The bidder's hand, with the three cards that came from the kitty marked
+  // for the discard screen's "Kitty" badge — the same treatment the two-player
+  // game's client applies to the cards its own showKitty event hands it.
+  // Everyone else's hand (and the bidder's outside the kitty phase) passes
+  // through untouched.
+  handForDisplay(game, seat, phase) {
+    const hand = game.players[seat].hand;
+    if (phase !== "kitty" || seat !== game.currentBid?.seat) return hand;
+    const kittyCards = this.kittyCardsForRound(this.roundNumber);
+    if (kittyCards.length === 0) return hand;
+    const kittyKeys = new Set(kittyCards.map((c) => `${c.value}${c.suit}`));
+    return hand.map((card) =>
+      kittyKeys.has(`${card.value}${card.suit}`) ? { ...card, isKitty: true } : card
+    );
+  }
+
   // The part of a snapshot that describes a board — used for the live game and,
   // during a replay, for the replay's own board as well.
   boardFor(userId, game, phase) {
@@ -1224,7 +1250,7 @@ class Room4 {
         seated: true,
         seat,
         team: seat === -1 ? null : game.teamOf(seat),
-        hand: seat === -1 || blind ? [] : game.players[seat].hand,
+        hand: seat === -1 || blind ? [] : this.handForDisplay(game, seat, phase),
         handCount: seat === -1 ? 0 : game.players[seat].hand.length,
         blind,
         // Asked when the auction reaches a seat that declared it was going blind.
