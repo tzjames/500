@@ -625,11 +625,12 @@ class Room {
     });
   }
 
-  // Throw the hand in and deal it again, scoring nothing. Available for the
-  // whole of a live round — a hand can be worth abandoning before a bid as
-  // easily as after one.
+  // Throw the hand in and deal it again, scoring nothing. Play only: during
+  // bidding there's already "offer a pass", which redeals by the route the
+  // auction expects, and two ways to do nearly the same thing on one screen
+  // was more confusing than useful.
   offerRedeal(socket) {
-    if (!this.game || !["bidding", "kitty", "playing"].includes(this.gamePhase)) return;
+    if (!this.game || this.gamePhase !== "playing") return;
     if (this.pendingClaim) return;
     this.pendingOffer = { type: "redeal", fromPlayerId: socket.userId };
     this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {

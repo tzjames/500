@@ -11,6 +11,7 @@ import GameTable from "../components/GameTable";
 import AnimatedHand from "../components/AnimatedHand";
 import ScoreHistoryModal from "../components/ScoreHistoryModal";
 import OfferModal from "../components/OfferModal";
+import ConfirmModal from "../components/ConfirmModal";
 import RoundEndModal from "../components/RoundEndModal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
@@ -90,6 +91,9 @@ function GameRoomPage() {
   // Wins each way across every finished game between these two, sent just
   // after a game over once the result has been written.
   const [matchRecord, setMatchRecord] = useState(null);
+  // "resign" | "redeal" while you're being asked whether you meant it. Both
+  // end the hand if the other player agrees, so neither goes out on one click.
+  const [confirmOffer, setConfirmOffer] = useState(null);
   const [roundResult, setRoundResult] = useState(null);
   const [roundEndInfo, setRoundEndInfo] = useState(null);
   const [reviewData, setReviewData] = useState(null);
@@ -667,14 +671,9 @@ function GameRoomPage() {
     setWaitingForOfferResponse(true);
   };
 
-  const handleOfferResign = () => {
-    socket.emit("offerResign");
-    setOfferStatusMessage("");
-    setWaitingForOfferResponse(true);
-  };
-
-  const handleOfferRedeal = () => {
-    socket.emit("offerRedeal");
+  const handleConfirmOffer = () => {
+    socket.emit(confirmOffer === "resign" ? "offerResign" : "offerRedeal");
+    setConfirmOffer(null);
     setOfferStatusMessage("");
     setWaitingForOfferResponse(true);
   };
@@ -1216,10 +1215,10 @@ function GameRoomPage() {
             claimStatusMessage={claimStatusMessage}
             onClaimRest={handleClaimRest}
             canResign={gamePhase === "playing" && Boolean(gameState.currentBid)}
-            canRedeal={["bidding", "kitty", "playing"].includes(gamePhase)}
+            canRedeal={gamePhase === "playing"}
             offerPending={waitingForOfferResponse}
-            onOfferResign={handleOfferResign}
-            onOfferRedeal={handleOfferRedeal}
+            onOfferResign={() => setConfirmOffer("resign")}
+            onOfferRedeal={() => setConfirmOffer("redeal")}
           />
 
           <div className="board-center">
@@ -1310,6 +1309,14 @@ function GameRoomPage() {
         </div>
       )}
 
+      {confirmOffer && (
+        <ConfirmModal
+          type={confirmOffer}
+          opponentName={opponentName}
+          onConfirm={handleConfirmOffer}
+          onCancel={() => setConfirmOffer(null)}
+        />
+      )}
       {pendingOfferReceived && (
         <OfferModal
           type={pendingOfferReceived.type}

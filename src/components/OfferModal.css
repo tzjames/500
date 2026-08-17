@@ -68,3 +68,21 @@
 .offer-modal-buttons .offer-yes:hover {
   background: rgba(255, 240, 214, 0.98);
 }
+
+/* ---- confirming your own offer before it goes out ---- */
+
+.confirm-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.confirm-detail {
+  font-size: 13px;
+  opacity: 0.75;
+  line-height: 1.5;
+}
+
+.confirm-modal .offer-modal-buttons button {
+  min-width: 130px;
+}
