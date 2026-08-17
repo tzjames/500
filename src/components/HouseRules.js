@@ -38,11 +38,28 @@ function HouseRules({ options, onChange, readOnly = false }) {
                 <span className="ng-note">{option.help}</span>
               </div>
             ) : (
-              <label key={option.id} className="ng-rule">
+              // A <label> here would forward a click anywhere in its subtree
+              // to the checkbox — including a click on the ⓘ button, which is
+              // supposed to open its popover instead. A plain div with the
+              // same "click anywhere on the row" toggle, done by hand, keeps
+              // that whole-row convenience without the ⓘ fighting it: it only
+              // steps aside for a click that actually landed on the checkbox
+              // itself (already toggled by then) or inside .option-info.
+              <div
+                key={option.id}
+                className="ng-rule"
+                onClick={(e) => {
+                  if (readOnly) return;
+                  if (e.target.closest(".option-info")) return;
+                  if (e.target.tagName === "INPUT") return;
+                  set(option.id, !options[option.id]);
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={Boolean(options[option.id])}
                   disabled={readOnly}
+                  aria-label={option.label}
                   onChange={(e) => set(option.id, e.target.checked)}
                 />
                 <span>
@@ -52,7 +69,7 @@ function HouseRules({ options, onChange, readOnly = false }) {
                   </span>
                   <span className="ng-note">{option.help}</span>
                 </span>
-              </label>
+              </div>
             )
           )}
         </div>

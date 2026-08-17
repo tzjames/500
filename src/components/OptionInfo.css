@@ -29,17 +29,16 @@
   background: rgba(255, 235, 200, 0.16);
 }
 
-/* Anchored to the ⓘ and pulled left so it stays inside the panel it's in
-   whichever column the rule sits in. Above the rules list's own scroll
-   container, which is why the z-index is high. */
+/* Portaled onto <body> and placed with fixed viewport coordinates computed in
+   JS (see OptionInfo.js), rather than absolutely positioned under the ⓘ —
+   the rules list it normally sits in scrolls its own overflow, which clips an
+   ordinary absolutely positioned child the moment the button is close enough
+   to its left or right edge. Sits above every modal in the app (the highest
+   is 1600), since either modal can host one of these. */
 .option-info-popover {
-  position: absolute;
-  z-index: 60;
-  top: calc(100% + 7px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(310px, 74vw);
-  max-width: 74vw;
+  position: fixed;
+  z-index: 1800;
+  width: min(310px, calc(100vw - 20px));
   padding: 11px 13px;
   border-radius: 11px;
   background: rgba(8, 11, 13, 0.97);
