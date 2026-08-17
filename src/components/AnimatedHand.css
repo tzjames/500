@@ -1,91 +1,40 @@
 .animated-hand {
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-end;
   justify-content: center;
-  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  padding-top: 22px;
+  max-width: 100%;
 }
 
-.suit-group {
+.kitty-suit-group {
   display: flex;
-  margin-right: 20px;
-  margin-bottom: 10px;
+  align-items: flex-end;
 }
 
-.suit-group:last-child {
-  margin-right: 0;
-}
-
-.card {
-  width: 60px;
-  height: 90px;
-  margin: 0 2px;
-  padding: 5px;
-  font-size: 14px;
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+.animated-hand .kitty-card {
+  --card-w: clamp(48px, 5.6vw, 96px);
+  margin-left: calc(var(--card-w) * -0.35);
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  position: relative;
-  transition: transform 0.3s ease;
 }
 
-.card.red {
-  color: red;
+.kitty-suit-group .kitty-card:first-child {
+  margin-left: 0;
 }
 
-.card.black {
-  color: black;
+/* The three that came from the kitty sit proud of the rest, so you can see
+   what you were dealt without reading the badges. */
+.animated-hand .kitty-card.from-kitty {
+  --card-lift: 12px;
 }
 
-.card.selected {
-  transform: translateY(-10px);
+.animated-hand .kitty-card.marked {
+  --card-lift: 26px;
+  opacity: 0.82;
+  box-shadow: var(--shadow-card), inset 0 0 0 2px var(--danger);
 }
 
-.card.kitty {
-  animation: dropIn 0.5s ease-out;
-}
-
-.card-value {
-  font-size: 18px;
-  font-weight: bold;
-  text-align: left;
-  padding-left: 5px;
-}
-
-.card-suit {
-  font-size: 24px;
-  text-align: center;
-}
-
-.kitty-indicator {
-  position: absolute;
-  bottom: 2px;
-  left: 2px;
-  font-size: 10px;
-  color: #888;
-}
-
-.left-bower-indicator {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 10px;
-  font-weight: bold;
-  background-color: rgba(255, 255, 255, 0.7);
-  padding: 1px 3px;
-  border-radius: 3px;
-}
-
-@keyframes dropIn {
-  from {
-    transform: translateY(-100px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.animated-hand .kitty-card:hover {
+  z-index: 40;
 }

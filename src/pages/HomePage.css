@@ -1,79 +1,224 @@
 .home-page {
-  max-width: 480px;
-  margin: 40px auto;
-  padding: 20px;
+  width: min(520px, 100%);
+  margin: 0 auto;
+  padding: 6vh 0 8vh;
+}
+
+.home-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.home-header h1 {
+  font-size: clamp(48px, 9vw, 84px);
+  font-weight: 400;
+  line-height: 1;
+  margin: 0;
+}
+
+.home-tagline {
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin: 8px 0 0;
+}
+
+.home-invite-note {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--positive-fill);
+  border: 1px solid var(--positive-border);
+  font-size: 12.5px;
+  line-height: 1.5;
   text-align: center;
 }
 
+/* ---- auth ---- */
+
 .auth-form {
+  padding: 24px 26px 20px;
+  border-radius: 18px;
+  text-align: center;
+}
+
+.auth-form h2 {
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0 0 16px;
+}
+
+.auth-form form {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 300px;
-  margin: 20px auto;
 }
 
 .auth-form input {
-  padding: 8px;
-  font-size: 16px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border-strong);
+  background: rgba(10, 14, 17, 0.55);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
 }
 
-.auth-form button[type="submit"] {
-  padding: 10px;
-  font-size: 16px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+.auth-form input::placeholder {
+  color: rgba(244, 241, 234, 0.42);
 }
 
-.auth-toggle {
-  background: none;
-  border: none;
-  color: #1f77b4;
-  cursor: pointer;
-  text-decoration: underline;
+.auth-form input:focus-visible {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 1px;
+}
+
+.auth-form .btn-primary {
+  margin-top: 4px;
 }
 
 .auth-error {
-  color: #a33;
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.auth-toggle {
+  margin-top: 14px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  opacity: 0.62;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-toggle:hover {
+  opacity: 0.95;
+}
+
+/* ---- signed in ---- */
+
+.home-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.home-welcome .auth-toggle {
+  margin-top: 0;
 }
 
 .new-game-button {
-  margin: 20px 0;
-  padding: 12px 24px;
-  font-size: 18px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+  width: 100%;
+  padding: 14px 0;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.home-section {
+  margin: 28px 0 10px;
+}
+
+.home-empty {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* Win–loss against each opponent. Counts finished games only, so it stays
+   empty until a match has actually been won. */
+.record-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+  font-size: 13px;
+}
+
+.record-opponent {
+  font-weight: 700;
+}
+
+.record-tally {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--serif);
+  font-size: 20px;
+}
+
+.record-tally b {
+  font-weight: 400;
+}
+
+.record-dash {
+  opacity: 0.45;
 }
 
 .game-list {
   list-style: none;
   padding: 0;
-  text-align: left;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .game-list li {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+  font-size: 13px;
 }
 
 .game-list li.joinable {
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .game-list li.joinable:hover {
-  background-color: #f5f5f5;
+  background: rgba(255, 255, 255, 0.11);
+  transform: translateY(-1px);
+}
+
+.game-opponent {
+  font-weight: 700;
 }
 
 .game-status {
-  color: #666;
+  font-size: 11.5px;
+  opacity: 0.66;
+  text-align: right;
 }

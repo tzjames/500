@@ -49,6 +49,13 @@ app.get("/api/games", auth.requireAuth, async (req, res) => {
   );
 });
 
+// Win/loss against each opponent, derived from finished games. Not capped the
+// way /api/games is — a record that only counted your last twenty games would
+// be worse than none.
+app.get("/api/record", auth.requireAuth, async (req, res) => {
+  res.json(await db.recordsForUser(req.user.userId));
+});
+
 app.post("/api/games", auth.requireAuth, async (req, res) => {
   const game = await db.createGame({
     _id: crypto.randomUUID(),
@@ -115,8 +122,11 @@ io.on("connection", (socket) => {
   socket.on("offerPass", () => room?.offerPass(socket));
   socket.on("offerRetroactivePass", () => room?.offerRetroactivePass(socket));
   socket.on("respondToOffer", ({ accept }) => room?.respondToOffer(socket, accept));
+  socket.on("offerResign", () => room?.offerResign(socket));
+  socket.on("offerRedeal", () => room?.offerRedeal(socket));
   socket.on("kittyDone", (payload) => room?.kittyDone(socket, payload));
   socket.on("playCard", (payload) => room?.playCard(socket, payload));
+  socket.on("retractCard", () => room?.retractCard(socket));
   socket.on("roundEndReady", () => room?.roundEndReady(socket));
   socket.on("roundEndPropose", ({ type }) => room?.roundEndPropose(socket, type));
   socket.on("roundEndRespond", ({ accept }) => room?.roundEndRespond(socket, accept));

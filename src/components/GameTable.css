@@ -1,87 +1,159 @@
+/* The board. Sits inside ThemedTable's untilted overlay, so nothing here is
+   foreshortened — the felt behind it supplies the perspective, and the seats
+   are placed to land on the cloth.
+
+   Sizes scale with the viewport rather than the handoff's fixed 1440×900,
+   because this app has to survive arbitrary window sizes. --card-hand and
+   friends are the single place that scaling is expressed.
+
+   They're declared on the shell rather than on .game-table because overlays
+   that sit *beside* the table in the DOM — the bidding panel, the kitty
+   waiting notice — have to position themselves clear of the hand, and so need
+   to read the hand's size too. .game-table.compact still overrides them for
+   its own subtree. */
+
+.themed-table {
+  --card-hand: clamp(58px, 7.4vw, 116px);
+  --card-dummy: clamp(42px, 5vw, 78px);
+  --card-played: clamp(52px, 6vw, 88px);
+  --card-fan: clamp(28px, 3.2vw, 46px);
+  /* Strip along the board's bottom-right kept clear of your hand, so your
+     trick pile always has somewhere to sit beside the cards rather than on
+     top of them. Wide enough for the pile plus its inset at every size. */
+  --pile-gutter: clamp(64px, 6vw, 88px);
+}
+
 .game-table {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 100%;
-  height: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.grid-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.grid-row.bottom {
-  height: 120px;
-}
-
-.grid-cell {
-  width: 33.33%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.table {
   position: relative;
-  width: 80%;
-  max-height: 42vh;
-  aspect-ratio: 1 / 1;
-  background-color: #d2b48c;
-  border: 10px solid #8b4513;
-  border-radius: 50px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.player-dummy-hand,
-.player-hand-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  flex: 1;
+  min-height: 0;
   width: 100%;
 }
 
-.opponent-hand,
-.opponent-dummy-hand {
+/* ---- seats ---- */
+
+.seat {
+  position: absolute;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  align-items: center;
+  gap: 8px;
+  z-index: 3;
 }
 
-/* Open Misère: the bidder's hand is exposed after their first lost trick.
-   Widen this side (and shrink/shift the table) so a single suit's worth of
-   cards — up to 13 — still fits in one row. */
-.grid-row.middle .revealed-hand-cell {
-  width: 46%;
-  flex-direction: column;
+/* Wide enough for a revealed ten-card dummy in one row — at 62% it wrapped a
+   single trailing card onto a second line. */
+.seat-north {
+  top: 2%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 88%;
+}
+
+/* Clear of the bottom edge by more than the arc's deepest drop (see the
+   translateY in PlayerHand), so the outer cards don't get clipped.
+   Spans the board minus the pile gutter and centres the hand in what's left,
+   rather than centring on the board and running into the corner. */
+.seat-south {
+  bottom: 26px;
+  left: 0;
+  right: var(--pile-gutter);
+}
+
+/* No max-width on the side seats: they shrink-wrap their fan instead. A width
+   cap here doesn't clip the fan, it just lets the cards spill past the box —
+   which pushes the overlay's scrollWidth past the viewport, and then focusing
+   any button scrolls the whole (overflow:hidden) board sideways. */
+.seat-left {
+  left: 1%;
+  top: 46%;
+  transform: translateY(-50%);
   align-items: flex-start;
-  justify-content: center;
 }
 
-/* The right-side cell's cards align to its left edge (nearest the table),
-   so they need their own left padding to keep some breathing room from the
-   table's edge instead of butting right up against it. */
-.grid-row.middle .revealed-hand-cell:last-child {
-  padding-left: 24px;
-  box-sizing: border-box;
+.seat-right {
+  right: 1%;
+  top: 46%;
+  transform: translateY(-50%);
+  align-items: flex-end;
 }
 
-.table.table-shifted {
-  width: 45%;
+/* A revealed hand is far wider than a face-down fan, so it gets a cap and
+   scrolls within itself rather than reaching across the felt. */
+.seat-revealed {
+  max-width: 30%;
 }
+
+.seat-revealed .revealed-hand {
+  overflow-x: auto;
+}
+
+.seat-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.seat-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 244, 225, 0.93);
+  color: var(--ink-dark);
+  font-family: var(--serif);
+  font-size: 17px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+
+.seat-name {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(10, 14, 17, 0.45);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* ---- fans of card backs ---- */
+
+.fan {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 6px;
+}
+
+/* The overlap has to be a fraction of the *card*, not a percentage — a
+   percentage margin resolves against the containing block's width, which here
+   is the whole seat, so it splays the fan into the next county. */
+.fan .fan-card {
+  --card-w: var(--card-fan);
+  margin-left: calc(var(--card-fan) * -0.46);
+  transform-origin: 50% 118%;
+}
+
+.fan .fan-card:first-child {
+  margin-left: 0;
+}
+
+/* The side fans tilt away from the viewer so they read as held rather than
+   laid out. Mirrored left to right. */
+.fan-left {
+  transform: perspective(500px) rotateY(53deg) rotateZ(-10deg);
+}
+
+.fan-right {
+  transform: perspective(500px) rotateY(-53deg) rotateZ(10deg);
+}
+
+/* ---- revealed hands (Open Misère / declined claim) ---- */
 
 .revealed-hand {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 100%;
-  overflow-x: auto;
+  max-width: 100%;
 }
 
 .revealed-hand-row {
@@ -89,100 +161,187 @@
   gap: 2px;
 }
 
-.revealed-card {
-  width: 40px;
-  height: 60px;
-  font-size: 11px;
-  flex-shrink: 0;
-  pointer-events: none;
-}
+/* ---- the trick well ---- */
 
-.card.back {
-  width: 40px;
-  height: 60px;
-  margin: 2px;
-  background-color: #6c757d;
-  border: 1px solid #495057;
-  border-radius: 3px;
-  cursor: default;
-}
-
-.opponent-hand .card.back,
-.opponent-dummy-hand .card.back {
-  transform: rotate(90deg);
-  margin-bottom: -50px;
-}
-
-/* Remove all hover effects for face-down cards */
-.card.back:hover {
-  transform: none;
-  z-index: auto;
-}
-
-.opponent-hand .card.back:hover,
-.opponent-dummy-hand .card.back:hover {
-  transform: rotate(90deg);
-  z-index: auto;
-}
-
-/* Each played card sits at the edge of the table nearest the hand it came
-   from: your own hand at the bottom, your dummy at the top, the opponent's
-   hand/dummy on whichever side their face-down pile is shown.
-   Scoped under ".table" so this reliably beats the plain, unscoped ".card"
-   rule (from AnimatedHand.css et al.) that sets position:relative — same
-   specificity as an unscoped ".played-card" would have, so it could win the
-   cascade depending on stylesheet load order. */
-/* All four resting spots (and the "flying to the winner" destination, below)
-   share one top/left coordinate system so transitioning between any two of
-   them — e.g. a card resting on the left flying out to the bottom — is a
-   plain, guaranteed-smooth interpolation instead of juggling mismatched
-   top/bottom/left/right anchors. */
-.table .played-card {
+.trick-well {
   position: absolute;
-  margin: 0;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 34vw);
+  height: min(300px, 30vh);
+  z-index: 2;
+}
+
+/* All anchors share one top/left coordinate system, so a card moving between
+   any two of them — including flying out to the winner — is a plain
+   interpolation rather than a swap between mismatched edge properties. */
+.played-card {
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  transition: top 0.6s ease-in, left 0.6s ease-in, transform 0.6s ease-in, opacity 0.6s ease-in;
+  transition: top 0.6s ease-in, left 0.6s ease-in, transform 0.6s ease-in,
+    opacity 0.6s ease-in;
 }
 
-.table .played-card.dummy {
-  border: 2px solid #007bff;
+.played-card .pc {
+  --card-w: var(--card-played);
+  box-shadow: var(--shadow-played);
 }
 
-/* Each anchors by the single edge that faces the table's edge — e.g. the
-   bottom card's *bottom* edge sits 5% up from the table's bottom edge, via
-   top:95% + a full translateY(-100%) — with the perpendicular axis centered
-   (translate 50%) same as before. That keeps the padding to the table edge
-   identical on all four sides regardless of card size, and (unlike a plain
-   `bottom`/`right` property) still animates smoothly via top/left/transform
-   when a trick flies from one anchor to another. */
-.table .played-card-bottom {
+/* Each anchors by the single edge facing the well's edge, with the
+   perpendicular axis centred — so the gap to the edge is identical on all four
+   sides whatever the card size. */
+.played-card-bottom {
   top: 95%;
   left: 50%;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -100%) rotate(2deg);
 }
 
-.table .played-card-top {
+.played-card-top {
   top: 5%;
   left: 50%;
-  transform: translate(-50%, 0%);
+  transform: translate(-50%, 0%) rotate(-3deg);
 }
 
-.table .played-card-left {
+.played-card-left {
   top: 50%;
   left: 5%;
-  transform: translate(0%, -50%);
+  transform: translate(0%, -50%) rotate(5deg);
 }
 
-.table .played-card-right {
+.played-card-right {
   top: 50%;
   left: 95%;
-  transform: translate(-100%, -50%);
+  transform: translate(-100%, -50%) rotate(-6deg);
 }
 
-/* Once a trick is decided, all four played cards fly to the winner's edge
-   (same anchor points as above) and fade out together. */
-.table .played-card.flying {
+.played-card.from-dummy .pc {
+  outline: 2px solid rgba(140, 190, 255, 0.75);
+  outline-offset: 1px;
+}
+
+.played-card.flying {
   opacity: 0;
+}
+
+/* Your own card, still takeable back. The hint only shows on hover so the
+   table isn't shouting at you for the two seconds it's live. */
+.played-card.retractable .pc {
+  cursor: pointer;
+}
+
+.played-card.retractable:hover .pc {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 2px;
+}
+
+.retract-hint {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(10, 14, 17, 0.82);
+  border: 1px solid var(--panel-border);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.played-card.retractable:hover .retract-hint {
+  opacity: 0.9;
+}
+
+/* An exposed card sits face up among the backs; the ring marks it as one the
+   holder has already shown rather than one you're meant to have seen. */
+.fan-card-exposed .pc-img,
+.fan-card-exposed.pc {
+  outline: 2px solid rgba(255, 200, 140, 0.7);
+  outline-offset: -1px;
+}
+
+/* ---- trick piles ---- */
+
+/* The two piles are deliberately different sizes: the opponent's tricks lie at
+   the far side of the table, so they read smaller, and yours sit near you at
+   15% more. Everything else on the felt is foreshortened by the tilted plane
+   behind it; these are the one pair of objects that has to say it themselves. */
+.pile-seated {
+  transform: scale(0.68);
+}
+
+/* Anchored at its foot, so scaling grows it downward toward you rather than up
+   into the opponent's cards. */
+.pile-floating {
+  transform: scale(0.78);
+  transform-origin: bottom center;
+}
+
+/* The opponent's pile is in flow at the foot of their seat, offset left of the
+   fan's centre so the two read as separate objects. The negative margins undo
+   the gap and footprint the scale leaves behind. */
+.pile-seated {
+  align-self: center;
+  /* Right margin pushes it left of the fan's centre. The top margin clears the
+     fan: its cards are 3D-rotated, so they paint well below the box flow
+     reserved for them, and the overhang grows with card size — hence a margin
+     derived from --card-fan rather than a fixed number. The negative bottom
+     reclaims the empty space scale() leaves inside the layout box. */
+  margin: calc(var(--card-fan) * 0.9 + 6px) 26% -14px 0;
+  z-index: 2;
+}
+
+/* Yours has no seat to hang off — your hand is the full width of the table's
+   bottom edge — so it floats on the cloth to the right of it, below the side
+   seat and above the hand. */
+.pile-floating {
+  position: absolute;
+  z-index: 2;
+}
+
+/* Down in the near corner, inside the gutter your hand leaves free — the
+   furthest point on the cloth from the opponent's cards, and clear of both
+   their pile and yours at any size. */
+.pile-mine {
+  right: 8px;
+  bottom: 20px;
+}
+
+/* ---- status pill ---- */
+
+/* Clears the hand: the hand's tallest point is one card height (1.4×its width)
+   above its 26px offset, so sit a little above that. */
+.table-status {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--card-hand) * 1.4 + 44px);
+  transform: translateX(-50%);
+  z-index: 4;
+}
+
+/* Ringed only when you're to play from your own hand. On a dummy turn the ring
+   goes on the dummy itself, which is where you need to look — two rings would
+   just compete. */
+.table-status.your-turn {
+  box-shadow: 0 0 0 2px var(--amber-ring);
+}
+
+/* ---- compact: the replay overlay, which has no side panels competing ---- */
+
+.game-table.compact {
+  --card-hand: clamp(46px, 5.2vw, 82px);
+  --card-played: clamp(46px, 5vw, 74px);
+}
+
+@media (max-width: 1100px) {
+  .pile-seated,
+  .pile-floating {
+    transform: scale(0.52);
+  }
 }

@@ -1,132 +1,274 @@
-.bidding-interface {
-  margin-bottom: 20px;
+/* Spacing is deliberately tight: at a 900px-tall window the panel has to fit
+   between the top bar and your hand, and the Bid/Pass buttons at its foot
+   shouldn't need scrolling to reach. Shorter windows still scroll. */
+.bid-panel {
+  width: min(600px, 92vw);
+  padding: 14px 22px 16px;
+  border-radius: 20px;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5);
+  max-height: 100%;
+  overflow-y: auto;
 }
 
-.offer-pass-button {
-  display: block;
-  margin: 0 auto 10px;
-  padding: 5px 14px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #fff3cd;
-  cursor: pointer;
+.bid-panel-result,
+.bid-panel-waiting {
+  width: min(420px, 92vw);
+  text-align: center;
 }
 
-.offer-pass-button:not(:disabled):hover {
-  background-color: #ffe8a1;
-}
-
-.offer-pass-button:disabled {
-  background-color: #eee;
-  color: #999;
-  cursor: not-allowed;
-}
-
-.bidding-options {
+.bid-head {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.bid-selected {
+  font-size: 34px;
+  line-height: 1;
+  margin: 2px 0 0;
+}
+
+.bid-selected-pts {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  opacity: 0.66;
+}
+
+.bid-to-beat {
+  text-align: right;
+}
+
+.bid-to-beat-value {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.bid-outcome {
+  font-size: 21px;
+  margin: 6px 0 0;
+}
+
+/* ---- the level × suit grid ---- */
+
+.bid-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.bid-cell {
+  display: flex;
   align-items: center;
-}
-
-.bid-row {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.bidding-options button {
-  width: 58px;
-  height: 42px;
-  margin: 0 3px;
-  padding: 3px;
-  font-size: 12px;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 9px;
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: var(--ink);
+  font-family: var(--sans);
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
-  color: black;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.bidding-options button:not(:disabled):hover {
-  background-color: #e0e0e0;
+.bid-cell:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
 }
 
-.bidding-options button:disabled {
-  background-color: #d3d3d3;
-  color: #888;
+.bid-cell:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.red-suit {
-  color: red;
-}
-
-.special-bids {
+.bid-cell-label {
   display: flex;
-  justify-content: center;
-  margin-top: 10px;
+  align-items: center;
+  gap: 4px;
 }
 
-.pass-button,
-.misere-button,
-.open-misere-button {
-  width: 90px !important;
-  height: 50px !important;
-  margin: 0 3px;
-  font-size: 11px;
+.bid-cell-level {
+  font-size: 15px;
+  font-weight: 800;
 }
 
-.pass-button {
-  background-color: #ffcccb;
+.bid-cell-suit {
+  font-size: 17px;
 }
 
-.misere-button {
-  background-color: #add8e6;
+.bid-cell-suit.nt {
+  font-size: 12px;
+  font-weight: 800;
 }
 
-.open-misere-button {
-  background-color: #90ee90;
+.bid-cell-pts {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.45;
 }
 
-.pass-button:not(:disabled):hover {
-  background-color: #ffb3b3;
+/* Selected cells invert to the amber fill; the suit glyph drops back to its own
+   ink colour so red suits stay red on the light background. */
+.bid-cell.selected,
+.bid-misere.selected {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--ink-dark);
 }
 
-.misere-button:not(:disabled):hover {
-  background-color: #9ac0cd;
-}
-
-.open-misere-button:not(:disabled):hover {
-  background-color: #7ccd7c;
-}
-
-.pass-button:disabled,
-.misere-button:disabled,
-.open-misere-button:disabled {
+.bid-cell.selected .bid-cell-pts,
+.bid-misere.selected .bid-misere-note {
   opacity: 0.6;
 }
 
-.bidding-options button:disabled .red-suit {
-  color: #ff8080; /* A lighter red for disabled buttons */
+.bid-cell.selected .red-suit,
+.bid-misere.selected .red-suit {
+  color: var(--card-red);
 }
 
-.bidding-history {
-  list-style-type: none;
-  padding: 0;
-  margin: 10px 0;
+/* ---- misère ---- */
+
+.bid-misere-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.bid-misere {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: 11px;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: var(--ink);
+  font-family: var(--sans);
+  cursor: pointer;
   text-align: left;
-  max-height: 150px;
+}
+
+.bid-misere:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.bid-misere:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.bid-misere-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bid-misere-note {
+  display: block;
+  font-size: 11px;
+  opacity: 0.66;
+}
+
+.bid-misere-pts {
+  font-size: 22px;
+}
+
+/* ---- score strip and actions ---- */
+
+.bid-score-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+  font-size: 12.5px;
+}
+
+.bid-score-strip b {
+  font-size: 22px;
+  font-weight: 400;
+  margin: 0 4px;
+}
+
+.bid-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.bid-commit {
+  flex: 1;
+  padding: 13px 0;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.bid-pass {
+  width: 150px;
+  border-radius: 14px;
+}
+
+.bid-offer {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  background: none;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.bid-offer:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--surface-faint);
+}
+
+.bid-offer:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---- history ---- */
+
+.bid-history {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--panel-border);
+  font-size: 12px;
+  max-height: 132px;
   overflow-y: auto;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding: 10px;
 }
 
-.bidding-history li {
-  margin-bottom: 5px;
+.bid-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
 }
 
-.bidding-history .red-suit {
-  color: red;
+.bid-history-who {
+  opacity: 0.7;
+}
+
+.bid-history-pts {
+  opacity: 0.5;
 }

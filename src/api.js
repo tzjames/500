@@ -30,4 +30,6 @@ export const login = (name, password) =>
 
 export const listGames = (token) => request("/api/games", { token });
 
+export const getRecord = (token) => request("/api/record", { token });
+
 export const createGame = (token) => request("/api/games", { method: "POST", token });

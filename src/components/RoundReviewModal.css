@@ -1,34 +1,41 @@
 .round-review-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(6, 10, 12, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
   z-index: 1500;
   overflow-y: auto;
 }
 
+/* Wide: two hands plus two dummies sit side by side here, and at the old 760px
+   the cards had to be tiny to fit — too small to actually read a hand off. */
 .round-review-modal {
-  background: white;
-  padding: 24px 32px;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  width: 700px;
-  max-width: 90vw;
+  width: min(1280px, 100%);
   height: 90vh;
-  margin: 20px;
-  box-sizing: border-box;
+  padding: 24px 30px 22px;
+  border-radius: 20px;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-result);
   display: flex;
   flex-direction: column;
 }
 
-/* Everything above the nav/done-button scrolls in its own area, so those
-   controls stay put at the bottom instead of jumping around as the hands,
-   kitty, and trick sections above them grow or shrink between steps. */
+.round-review-modal h2 {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 400;
+  margin: 0 0 4px;
+}
+
+/* Everything above the nav/done controls scrolls in its own area, so they stay
+   put instead of jumping as the hands, kitty and trick sections grow or shrink
+   between steps. */
 .review-scroll-area {
   flex: 1;
   min-height: 0;
@@ -36,7 +43,9 @@
 }
 
 .review-bid-line {
-  color: #444;
+  font-size: 12.5px;
+  opacity: 0.72;
+  margin: 0 0 16px;
 }
 
 .review-players {
@@ -50,10 +59,18 @@
   min-width: 0;
 }
 
+.review-player-column h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
 .review-hand-label {
-  font-size: 0.8em;
-  color: #888;
-  margin: 6px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin: 8px 0 4px;
 }
 
 .review-hand {
@@ -62,46 +79,55 @@
   gap: 4px;
 }
 
-.round-review-modal .review-card {
-  position: static;
-  width: 40px;
-  height: 56px;
-  font-size: 0.75em;
+/* Sized off the viewport so the cards grow with the wider modal but still
+   shrink rather than wrap awkwardly on a small screen. A ten-card hand fits
+   one row per column at the top of that range. */
+.review-hand .review-card {
+  --card-w: clamp(40px, 3.7vw, 60px);
 }
 
 .review-kitty {
-  margin-top: 10px;
+  margin-top: 12px;
   text-align: center;
 }
 
+.review-kitty .review-hand {
+  justify-content: center;
+}
+
+/* Height reserved from the same measure the trick cards use, so the modal
+   doesn't resize each time a trick resolves and this briefly empties. */
 .review-trick {
-  margin-top: 10px;
+  margin-top: 12px;
   text-align: center;
-  min-height: 96px;
+  min-height: calc(clamp(50px, 4.6vw, 78px) * 1.4 + 28px);
 }
 
 .review-trick-empty {
-  color: #999;
+  opacity: 0.45;
 }
 
 .review-trick-card {
-  display: inline-block;
-  text-align: center;
-  margin: 0 8px;
-  font-size: 0.8em;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin: 0 10px;
+  font-size: 11.5px;
+  opacity: 0.85;
 }
 
-.round-review-modal .review-trick-card .card {
-  position: static;
-  width: 40px;
-  height: 56px;
-  margin: 0 auto 2px;
+/* The trick is the thing you're stepping through, so its cards read larger
+   than the hands they came from. */
+.review-trick-face {
+  --card-w: clamp(50px, 4.6vw, 78px);
 }
 
 .review-result {
   text-align: center;
-  font-weight: bold;
-  margin-top: 10px;
+  font-family: var(--serif);
+  font-size: 20px;
+  margin-top: 14px;
 }
 
 .review-nav {
@@ -110,9 +136,41 @@
   justify-content: center;
   gap: 16px;
   margin-top: 16px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.review-nav button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--surface-faint);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.review-nav button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.review-nav button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .review-done-button {
   display: block;
-  margin: 16px auto 0;
+  margin: 12px auto 0;
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: none;
+  background: var(--amber);
+  color: var(--ink-dark);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
 }

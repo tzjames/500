@@ -5,6 +5,26 @@ const db = require("./db");
 
 const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
+// Mirrors of the client's theme registry (src/theme.js), kept here only to
+// reject junk before it reaches the shared, persisted gameSettings.
+const LOCATION_IDS = [
+  "falls",
+  "zanzibar",
+  "samana",
+  "canyon",
+  "sierras",
+  "serengeti",
+  // The same palettes without their backdrop photograph.
+  "plain-falls",
+  "plain-zanzibar",
+  "plain-samana",
+  "plain-canyon",
+  "plain-sierras",
+  "plain-serengeti",
+];
+const DECK_IDS = ["traveller", "classic"];
+const FELT_IDS = ["solid", "faded", "hidden"];
+
 // One Room per game document. Player identity is the account's userId (stable
 // forever), never a socket id — reconnecting is just "does this userId already
 // own a slot here," so there's no name-matching or pending-restore guesswork.
@@ -23,9 +43,18 @@ class Room {
     this.gamePhase = snap.gamePhase || "waiting";
     this.currentBidder = snap.currentBidder || null;
     this.biddingHistory = snap.biddingHistory || [];
-    this.gameSettings = snap.gameSettings || {
+    // Room-wide, not per-user: both players always look at the same table, so
+    // the location/deck theme rides along with the existing offer-button
+    // settings on the same broadcast-and-persist path. Games saved before
+    // theming existed have no location/deck keys, so default them here rather
+    // than only in the `||` branch above.
+    this.gameSettings = {
       showOfferPassButton: true,
       showOfferRetroactivePassButton: true,
+      location: "falls",
+      deck: "traveller",
+      felt: "faded",
+      ...(snap.gameSettings || {}),
     };
     this.offerPassDeclined = snap.offerPassDeclined || false;
     this.offerRetroactivePassDeclined = snap.offerRetroactivePassDeclined || false;
@@ -43,6 +72,11 @@ class Room {
     // a reconnect while sitting on the round-end screen can resend it; without
     // it the Round Complete modal's data never comes back after a refresh.
     this.lastRoundResult = snap.lastRoundResult || null;
+    // The most recently resolved trick — cards, who played each, who won —
+    // kept for the "Last trick" panel. resolveTrick() clears the live trick,
+    // so without stashing it here there'd be nothing left to show. Persisted
+    // so the panel survives a reconnect mid-round.
+    this.lastTrick = snap.lastTrick || null;
     // How many times everyone has passed and redealt within the current
     // round number — reset once real dealing (a new round or a new game)
     // happens, not by the redeal itself, so it climbs across repeats.
@@ -101,6 +135,7 @@ class Room {
     g.seats = snap.seats || null;
     g.currentSeatIndex = snap.currentSeatIndex || 0;
     g.currentPlayer = snap.currentPlayer || null;
+    g.exposed = snap.exposed || {};
     return g;
   }
 
@@ -126,6 +161,7 @@ class Room {
       seats: g.seats,
       currentSeatIndex: g.currentSeatIndex,
       currentPlayer: g.currentPlayer,
+      exposed: g.exposed,
     };
   }
 
@@ -143,13 +179,16 @@ class Room {
       reviewControllerId: this.reviewControllerId,
       reviewStepIndex: this.reviewStepIndex,
       lastRoundResult: this.lastRoundResult,
+      lastTrick: this.lastTrick,
       redealCount: this.redealCount,
       roundEnd: this.roundEnd
         ? { readyUserIds: [...this.roundEnd.readyUserIds], proposal: this.roundEnd.proposal }
         : null,
       game: this.serializeGame(),
     };
-    db.saveGame(this.id, {
+    // Returned so callers that need the write to have landed can wait on it —
+    // the head-to-head after a game over has to include the game just won.
+    return db.saveGame(this.id, {
       status: this.status,
       playerSlots: this.slots.map((s) => (s ? { userId: s.userId, name: s.name } : null)),
       roundNumber: this.roundNumber,
@@ -161,6 +200,26 @@ class Room {
   }
 
   // ---- small helpers ----
+
+  // Wins each way between these two players across every finished game,
+  // including the one just decided. Best-effort: a failure here costs the
+  // game-over screen a line, and shouldn't take the room down with it.
+  async emitMatchRecord() {
+    const [a, b] = this.slots;
+    if (!a || !b) return;
+    try {
+      const { wins, played } = await db.headToHead(a.userId, b.userId);
+      this.io.to(this.id).emit("matchRecord", {
+        played,
+        players: [
+          { id: a.userId, name: a.name, wins: wins[a.userId] || 0 },
+          { id: b.userId, name: b.name, wins: wins[b.userId] || 0 },
+        ],
+      });
+    } catch (err) {
+      console.error("head-to-head lookup failed", err);
+    }
+  }
 
   nameOf(userId) {
     return (
@@ -289,6 +348,8 @@ class Room {
       currentPlayer: this.game.currentPlayer,
       currentIsDummy: currentSeat ? currentSeat.isDummy : false,
       playedCards: this.game.currentTrick,
+      lastTrick: this.lastTrick,
+      exposed: this.game.exposed || {},
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
       gameSettings: this.gameSettings,
@@ -297,6 +358,16 @@ class Room {
       revealedClaimerId: this.revealedClaimerId,
       pendingClaim: this.pendingClaim
         ? { fromPlayerId: this.pendingClaim.fromPlayerId, fromName: this.nameOf(this.pendingClaim.fromPlayerId) }
+        : null,
+      // Resent on reconnect, like the claim above. It used to be dropped here,
+      // which meant a recipient who reloaded lost the prompt for good while the
+      // server went on believing an offer was outstanding.
+      pendingOffer: this.pendingOffer
+        ? {
+            type: this.pendingOffer.type,
+            fromPlayerId: this.pendingOffer.fromPlayerId,
+            fromName: this.nameOf(this.pendingOffer.fromPlayerId),
+          }
         : null,
       roundResult: this.lastRoundResult,
       redealCount: this.redealCount,
@@ -375,8 +446,10 @@ class Room {
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
     this.pendingClaim = null;
+    this.pendingOffer = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
+    this.lastTrick = null;
     this.redealCount = 0;
     this.gamePhase = "bidding";
 
@@ -398,8 +471,10 @@ class Room {
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
     this.pendingClaim = null;
+    this.pendingOffer = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
+    this.lastTrick = null;
     this.redealCount = 0;
     this.gamePhase = "bidding";
 
@@ -409,7 +484,10 @@ class Room {
     this.persist();
   }
 
-  redealAllPassed() {
+  // Deal the same round again with the same dealer, because it never counted:
+  // either everyone passed, or both players agreed to abandon it. `logType`
+  // records which, so the review can tell them apart.
+  redealAllPassed(logType = "allPassed") {
     const dealerIndex = this.game.players.findIndex((p) => p.isDealer);
     const dealData = this.game.redeal(dealerIndex);
     this.currentBidder = this.game.players.find((p) => p.id !== dealData.dealerId).id;
@@ -417,12 +495,14 @@ class Room {
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
     this.pendingClaim = null;
+    this.pendingOffer = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
+    this.lastTrick = null;
     this.redealCount += 1;
     this.gamePhase = "bidding";
 
-    this.logEvent("allPassed", {});
+    this.logEvent(logType, {});
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
     this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
     this.io.to(this.id).emit("updateGamePhase", "bidding");
@@ -492,8 +572,25 @@ class Room {
   }
 
   setGameSettings(socket, settings) {
-    this.gameSettings = { ...this.gameSettings, ...settings };
+    const next = { ...this.gameSettings };
+    if (typeof settings.showOfferPassButton === "boolean") {
+      next.showOfferPassButton = settings.showOfferPassButton;
+    }
+    if (typeof settings.showOfferRetroactivePassButton === "boolean") {
+      next.showOfferRetroactivePassButton = settings.showOfferRetroactivePassButton;
+    }
+    // Themes are picked from a fixed list on the client, so anything else is
+    // either a stale client or hand-crafted — drop it rather than persist a
+    // value that would render as an unstyled table for both players.
+    if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
+    if (DECK_IDS.includes(settings.deck)) next.deck = settings.deck;
+    if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
+
+    this.gameSettings = next;
     this.io.to(this.id).emit("gameSettingsUpdated", this.gameSettings);
+    // Theme changes can happen long after the last move, so this settle needs
+    // its own save — nothing else is going to persist it.
+    this.persist();
   }
 
   offerPass(socket) {
@@ -515,14 +612,79 @@ class Room {
     });
   }
 
+  // Give up the hand. Offered from the play screen by either player: the
+  // bidder conceding they can't make it, or the other player conceding they
+  // can't stop it. Needs the opponent to agree, like every other offer here.
+  offerResign(socket) {
+    if (!this.game || this.gamePhase !== "playing" || !this.game.currentBid) return;
+    if (this.pendingClaim) return;
+    this.pendingOffer = { type: "resign", fromPlayerId: socket.userId };
+    this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {
+      type: "resign",
+      fromName: this.nameOf(socket.userId),
+    });
+  }
+
+  // Throw the hand in and deal it again, scoring nothing. Play only: during
+  // bidding there's already "offer a pass", which redeals by the route the
+  // auction expects, and two ways to do nearly the same thing on one screen
+  // was more confusing than useful.
+  offerRedeal(socket) {
+    if (!this.game || this.gamePhase !== "playing") return;
+    if (this.pendingClaim) return;
+    this.pendingOffer = { type: "redeal", fromPlayerId: socket.userId };
+    this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {
+      type: "redeal",
+      fromName: this.nameOf(socket.userId),
+    });
+  }
+
+  // The contract is settled against whoever gave up: the bidder resigning
+  // fails it, the other player resigning concedes it. Trick counts are left
+  // as they stand, so the non-bidder's ten-a-trick still reflects what they
+  // actually won. Deciding it this way rather than by awarding the remaining
+  // tricks is what makes it work for Misère too, where the bidder wants none.
+  resignRound(resignerId) {
+    const bidderId = this.game.currentBid.player;
+    this.game.players.forEach((p) => {
+      p.hand = [];
+      p.dummyHand = [];
+    });
+    this.game.currentTrick = [];
+    this.logEvent("resign", { userId: resignerId });
+    this.io.to(this.id).emit("roundResigned", {
+      byName: this.nameOf(resignerId),
+      byId: resignerId,
+    });
+    this.finishRound(resignerId !== bidderId);
+  }
+
   respondToOffer(socket, accept) {
     if (!this.game || !this.pendingOffer || socket.userId === this.pendingOffer.fromPlayerId) return;
     const offer = this.pendingOffer;
     this.pendingOffer = null;
 
     if (accept) {
+      if (offer.type === "resign") {
+        this.resignRound(offer.fromPlayerId);
+        return;
+      }
+      if (offer.type === "redeal") {
+        this.redealAllPassed("redealAgreed");
+        return;
+      }
       this.io.to(this.id).emit("allPlayersPassed");
       this.redealAllPassed();
+      return;
+    }
+
+    // Only the two bidding offers get a "don't ask again" flag; resign and
+    // redeal can be offered as often as you like.
+    if (offer.type === "resign" || offer.type === "redeal") {
+      this.emitToUser(offer.fromPlayerId, "offerDeclined", {
+        byName: this.nameOf(socket.userId),
+        offerType: offer.type,
+      });
       return;
     }
 
@@ -618,15 +780,31 @@ class Room {
       card,
       isDummy,
       nominatedSuit: justPlayed.nominatedSuit,
+      // Playing a card for real ends any exposure it was carrying, so the
+      // other player's view of that hand has to be refreshed here too — not
+      // just on retract.
+      exposed: activeGame.exposed,
       seq,
     });
 
     if (activeGame.currentTrick.length === activeGame.seats.length) {
       const trickWinner = activeGame.resolveTrick();
+      // A replay is a side game that never touches persisted room state, so it
+      // reports its trick inline without disturbing the live game's lastTrick.
+      const trick = {
+        plays: trickWinner.plays,
+        winnerId: trickWinner.playerId,
+        winnerIsDummy: trickWinner.isDummy,
+        winnerName: this.nameOf(trickWinner.playerId),
+        winningCard: trickWinner.winningCard,
+        leadSuit: trickWinner.leadSuit,
+      };
+      if (mode !== "replay") this.lastTrick = trick;
       this.io.to(this.id).emit(mode === "replay" ? "replayTrickResolved" : "trickResolved", {
         winner: trickWinner.playerId,
         winnerIsDummy: trickWinner.isDummy,
         newScores: activeGame.players.map((p) => ({ id: p.id, score: p.score, tricksWon: p.tricksWon })),
+        lastTrick: trick,
       });
       if (mode !== "replay") {
         this.logEvent("trick", {
@@ -651,6 +829,43 @@ class Room {
       isDummy: nextSeat.isDummy,
     });
     if (mode !== "replay") this.persist();
+  }
+
+  // Take back the card you just played, if nobody has played after you. The
+  // card returns to your hand but stays exposed — the other player has seen
+  // it, and goes on seeing it until you play it for real.
+  //
+  // The last card of a trick can't be taken back: the trick resolves the
+  // instant it lands, so there's no longer a play to undo.
+  // Live game only — the replay overlay doesn't offer take-backs, so there's
+  // no replay branch here to keep in step.
+  retractCard(socket) {
+    if (!this.game || this.gamePhase !== "playing") return;
+
+    const last = this.game.currentTrick[this.game.currentTrick.length - 1];
+    if (!last || last.playerId !== socket.userId) return;
+
+    const undone = this.game.retractLastPlay(socket.userId, last.isDummy);
+    if (!undone) return;
+
+    const seq = this.logEvent("retract", {
+      userId: socket.userId,
+      card: undone.card,
+      isDummy: undone.isDummy,
+    }).seq;
+
+    this.io.to(this.id).emit("cardRetracted", {
+      playerId: socket.userId,
+      card: undone.card,
+      isDummy: undone.isDummy,
+      exposed: this.game.exposed,
+      seq,
+    });
+    this.io.to(this.id).emit("updateCurrentPlayer", {
+      playerId: undone.playerId,
+      isDummy: undone.isDummy,
+    });
+    this.persist();
   }
 
   // ---- "I've got the rest": a player claims all remaining tricks. Only
@@ -708,9 +923,12 @@ class Room {
 
   // ---- round end: result, then ready / review / replay negotiation ----
 
-  finishRound() {
+  // `forcedBidderMadeBid` is set only when the hand ended by agreement rather
+  // than by being played out — see resignRound.
+  finishRound(forcedBidderMadeBid = null) {
     const bidDescription = this.game.currentBid.bid;
-    const { bidderMadeBid, bidderId, otherId, bidderDelta, otherDelta } = this.game.scoreRound();
+    const { bidderMadeBid, bidderId, otherId, bidderDelta, otherDelta } =
+      this.game.scoreRound(forcedBidderMadeBid);
     const bidderPlayer = this.game.players.find((p) => p.id === bidderId);
     const otherPlayer = this.game.players.find((p) => p.id === otherId);
 
@@ -721,13 +939,19 @@ class Room {
       otherDelta,
       scores: Object.fromEntries(this.game.players.map((p) => [p.id, p.score])),
     });
+    // Totals as well as the swing: scoreRound has already applied the deltas,
+    // so these are where each player stands after the hand. The round-end
+    // screen would otherwise have only the change to show, and the running
+    // totals it can see elsewhere are a round out of date by then.
     this.lastRoundResult = {
       bid: bidDescription,
       bidderName: bidderPlayer.name,
       bidderMadeBid,
       bidderDelta,
+      bidderScore: bidderPlayer.score,
       otherName: otherPlayer.name,
       otherDelta,
+      otherScore: otherPlayer.score,
     };
     this.io.to(this.id).emit("roundResult", this.lastRoundResult);
     this.scoreHistory.push({
@@ -735,8 +959,14 @@ class Room {
       scores: this.game.players.map((p) => ({ name: p.name, score: p.score })),
     });
 
-    const bidderWonGame = bidderMadeBid && bidderPlayer.score > 500 && bidderPlayer.score > otherPlayer.score;
-    const bidderLostGame = !bidderMadeBid && bidderPlayer.score < -500;
+    // Both bounds are inclusive: the game is to 500, so landing exactly on it
+    // wins, and exactly -500 goes out the back door. They used to be strict,
+    // which meant an exact ±500 carried on playing — and disagreed with the
+    // game-over screen, which has always called -500 or worse a back door.
+    // Only a bidder can end it either way: the other player never loses points.
+    const bidderWonGame =
+      bidderMadeBid && bidderPlayer.score >= 500 && bidderPlayer.score > otherPlayer.score;
+    const bidderLostGame = !bidderMadeBid && bidderPlayer.score <= -500;
 
     if (bidderWonGame || bidderLostGame) {
       const winner = bidderWonGame ? bidderPlayer : otherPlayer;
@@ -752,7 +982,10 @@ class Room {
       // screen uses, so "Review last hand" / "Replay last hand" work from
       // the game-over screen too — there's just no "ready" concept here.
       this.roundEnd = { readyUserIds: new Set(), proposal: null };
-      this.persist();
+      // The record is read back out of the database, so it can only be sent
+      // once this game's own result is in there — hence waiting on persist
+      // rather than emitting it alongside gameOver.
+      this.persist().then(() => this.emitMatchRecord());
       return;
     }
 
@@ -768,6 +1001,11 @@ class Room {
       proposal: this.roundEnd.proposal
         ? { ...this.roundEnd.proposal, fromName: this.nameOf(this.roundEnd.proposal.fromUserId) }
         : null,
+      // The round-end screen charts score by round, and the round that just
+      // finished is the interesting one. Clients otherwise only receive
+      // scoreHistory at gameStart/gameResumed/gameOver, so without this the
+      // chart would sit one whole round behind — and be empty after round 1.
+      scoreHistory: this.scoreHistory,
     };
   }
 

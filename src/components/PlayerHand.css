@@ -1,95 +1,79 @@
 .player-hand {
-  position: relative;
-  height: 120px;
-  margin-bottom: 20px;
-  width: 100%;
-}
-
-.cards {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  align-items: flex-end;
   justify-content: center;
+  padding-bottom: 4px;
 }
 
-.suit-group {
+.hand-suit-group {
   display: flex;
-  margin-right: 20px;
+  align-items: flex-end;
 }
 
-.suit-group:last-child {
-  margin-right: 0;
+/* Suit groups get a small gap between them so the runs stay legible, while the
+   cards inside a run overlap. */
+.hand-suit-group + .hand-suit-group {
+  margin-left: 14px;
 }
 
-.card {
-  width: 60px;
-  height: 90px;
-  margin: 0 2px;
-  padding: 5px;
-  font-size: 16px;
-  background-color: white;
-  border-radius: 5px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transition: transform 0.1s;
-  overflow: hidden;
+/* Cards overlap by 38% of their width. That's a touch tighter than reads best
+   in isolation, but it's what keeps a ten-card hand inside the board once the
+   pile gutter is taken out — at the narrowest width where the side panels are
+   still shown, a looser fan runs off the end. The index corner stays fully
+   visible either way. */
+.player-hand .hand-card {
+  --card-w: var(--card-hand, 100px);
+  margin-left: calc(var(--card-w) * -0.38);
+  transform-origin: 50% 132%;
 }
 
-.card:not(:disabled) {
-  cursor: pointer;
+.hand-suit-group .hand-card:first-child {
+  margin-left: 0;
 }
 
-.card:disabled {
-  cursor: not-allowed;
+/* Hovering a card raises it clear of its neighbours on both sides. */
+.player-hand .hand-card:hover {
+  z-index: 40;
 }
 
-.card:not(:disabled):hover {
-  transform: translateY(-10px);
-  z-index: 10;
+/* ---- the deal ---- */
+
+/* Each card flies in from above the centre of the hand — where the dealer's
+   stock would sit — and settles into its place in the fan. The keyframe ends
+   on `none` rather than a written-out transform so the card lands on whatever
+   rotate/lift .pc already gives it, and the two never have to agree. */
+@keyframes deal-card-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--deal-dx, 0px), -190px) rotate(-8deg) scale(0.82);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.card.red {
-  color: red;
+.player-hand .hand-card.dealing {
+  animation: deal-card-in 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation-delay: var(--deal-delay, 0ms);
 }
 
-.card.black {
-  color: black;
+/* A card mid-flight shouldn't lift on hover or take a click. */
+.player-hand .hand-card.dealing:hover {
+  transform: none;
 }
 
-.card-value {
-  font-size: 18px;
-  font-weight: bold;
-  text-align: left;
-  padding-left: 5px;
-}
+/* The whole thing is decoration; anyone who has asked for less motion gets the
+   hand straight away, still face up. */
+@media (prefers-reduced-motion: reduce) {
+  .player-hand .hand-card.dealing {
+    animation: none;
+  }
 
-.card-suit {
-  font-size: 24px;
-  text-align: center;
-}
-
-.card.joker .card-value {
-  font-size: 14px;
-  text-align: center;
-  padding-left: 0;
-}
-
-.joker-image {
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-
-.left-bower-indicator {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 10px;
-  font-weight: bold;
-  background-color: rgba(255, 255, 255, 0.7);
-  padding: 1px 3px;
-  border-radius: 3px;
+  .player-hand .hand-card.dealing .pc-side {
+    transition: none;
+  }
 }

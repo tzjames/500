@@ -68,6 +68,7 @@ class Game500 {
     // the rotation continues from there in this same fixed order.
     this.seats = null;
     this.currentSeatIndex = 0;
+    this.exposed = {};
   }
 
   // In Misère/Open Misère the bidder plays only their own hand — no dummy —
@@ -174,6 +175,7 @@ class Game500 {
     this.kitty = null;
     this.seats = null;
     this.currentSeatIndex = 0;
+    this.exposed = {};
     this.dealCards();
     return {
       players: this.players.map((p) => ({
@@ -254,7 +256,61 @@ class Game500 {
     }
     this.currentTrick.push(play);
     this.playedCards.push(play);
+    // Leaving the hand for real ends any exposure it was carrying.
+    this.unexpose(playerId, isDummy, playedCard);
     return { success: true };
+  }
+
+  // ---- taking a card back ----
+
+  // Cards that were played and then taken back. The opponent has seen them, so
+  // they stay face up in that player's hand from the other side of the table
+  // until they're played for real. Keyed "<playerId>|hand" / "<playerId>|dummy".
+  exposedKey(playerId, isDummy) {
+    return `${playerId}|${isDummy ? "dummy" : "hand"}`;
+  }
+
+  exposedCards(playerId, isDummy) {
+    return this.exposed[this.exposedKey(playerId, isDummy)] || [];
+  }
+
+  unexpose(playerId, isDummy, card) {
+    const key = this.exposedKey(playerId, isDummy);
+    const list = this.exposed[key];
+    if (!list) return;
+    const i = list.findIndex((c) => c.suit === card.suit && c.value === card.value);
+    if (i !== -1) list.splice(i, 1);
+    if (list.length === 0) delete this.exposed[key];
+  }
+
+  // Take back the card you just played. Only the most recent play can go back,
+  // and only by whoever made it — which is exactly the "nobody has played
+  // after you" rule, since plays are strictly sequential. Returns the undone
+  // play, or null if there's nothing this player may take back.
+  retractLastPlay(playerId, isDummy) {
+    const last = this.currentTrick[this.currentTrick.length - 1];
+    if (!last || last.playerId !== playerId || last.isDummy !== isDummy) return null;
+
+    this.currentTrick.pop();
+    // playedCards is the round-long record; the last entry is this same play.
+    if (this.playedCards[this.playedCards.length - 1] === last) this.playedCards.pop();
+
+    const player = this.players.find((p) => p.id === playerId);
+    player[isDummy ? "dummyHand" : "hand"].push(last.card);
+
+    const key = this.exposedKey(playerId, isDummy);
+    if (!this.exposed[key]) this.exposed[key] = [];
+    if (!this.exposed[key].some((c) => c.suit === last.card.suit && c.value === last.card.value)) {
+      this.exposed[key].push(last.card);
+    }
+
+    // Hand the turn back to the seat that played it.
+    const seatIndex = this.seats
+      ? this.seats.findIndex((s) => s.playerId === playerId && s.isDummy === isDummy)
+      : -1;
+    if (seatIndex !== -1) this.currentSeatIndex = seatIndex;
+    this.currentPlayer = playerId;
+    return last;
   }
 
   resolveTrick() {
@@ -282,8 +338,23 @@ class Game500 {
       if (winningSeatIndex !== -1) this.currentSeatIndex = winningSeatIndex;
     }
 
+    // Hand the resolved trick back along with the winner: the room keeps it as
+    // `lastTrick` for the "Last trick" panel, which would otherwise have
+    // nothing to show once currentTrick is cleared on the next line.
+    const plays = this.currentTrick.map((p) => ({
+      playerId: p.playerId,
+      isDummy: p.isDummy,
+      card: p.card,
+    }));
+
     this.currentTrick = [];
-    return { playerId: winningPlay.playerId, isDummy: winningPlay.isDummy };
+    return {
+      playerId: winningPlay.playerId,
+      isDummy: winningPlay.isDummy,
+      plays,
+      winningCard: winningPlay.card,
+      leadSuit,
+    };
   }
 
   isRoundOver() {
@@ -306,13 +377,17 @@ class Game500 {
   // hand+dummy tricks as their bid promised (0 for Misere/Open Misere) to
   // score the full bid value; otherwise they lose that value. The other
   // player always scores 10 points per trick, win or lose.
-  scoreRound() {
+  // `forcedBidderMadeBid` settles the contract without counting tricks, for a
+  // hand that ended by agreement rather than by being played out — see
+  // resignRound in room.js. Left null, the tricks decide as usual.
+  scoreRound(forcedBidderMadeBid = null) {
     const bid = this.currentBid;
     const bidder = this.players.find((p) => p.id === bid.player);
     const other = this.players.find((p) => p.id !== bid.player);
 
     const isMisere = bid.bid.includes("Misere");
-    const bidderMadeBid = checkBidMade(bid, bidder.tricksWon);
+    const bidderMadeBid =
+      forcedBidderMadeBid === null ? checkBidMade(bid, bidder.tricksWon) : forcedBidderMadeBid;
 
     const bidderDelta = bidderMadeBid ? bid.points : -bid.points;
     const otherDelta = isMisere ? 0 : other.tricksWon * 10;
