@@ -100,7 +100,8 @@ function BiddingInterface({
         </p>
         {currentBid && (
           <p className="side-note">
-            Bid to beat: {renderBid(currentBid.bid)} · {currentBid.points}
+            {nameFor(currentBid.player)} bid {renderBid(currentBid.bid)} for{" "}
+            {currentBid.points}
           </p>
         )}
         {history}
@@ -126,17 +127,19 @@ function BiddingInterface({
             {selected ? `${selected.points} points` : "Pick a contract"}
           </p>
         </div>
+        {/* Named rather than a bare "bid to beat": when it's your turn the
+            first thing you want is what they went, and whose bid it is was
+            only findable in the history at the foot of the panel. */}
         <div className="bid-to-beat">
-          <p className="panel-heading">Bid to beat</p>
-          <p className="bid-to-beat-value">
-            {currentBid ? (
-              <>
-                {renderBid(currentBid.bid)} · {currentBid.points}
-              </>
-            ) : (
-              "Open"
-            )}
+          <p className="panel-heading">
+            {currentBid ? `${nameFor(currentBid.player)} bid` : "Bid to beat"}
           </p>
+          <p className="bid-to-beat-value serif">
+            {currentBid ? renderBid(currentBid.bid) : "Open"}
+          </p>
+          {currentBid && (
+            <p className="bid-to-beat-pts">{currentBid.points} points</p>
+          )}
         </div>
       </div>
 
