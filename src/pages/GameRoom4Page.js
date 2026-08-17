@@ -53,6 +53,11 @@ function GameRoom4Page() {
   const [flyToSeat, setFlyToSeat] = useState(null);
   const trickTokenRef = useRef(0);
   const liveTokenRef = useRef(null);
+  // A one-off line from the server ("Everyone passed — redealing.", "X had
+  // the rest…") — true news the moment it arrives, stale a few seconds later.
+  // Cleared by the next deal too, so a message about the auction that just
+  // ended can't outlive it and read as news about the hand you're now bidding.
+  const noticeTimerRef = useRef(null);
 
   // The deal: `{ revealed }` while the cards fly in and turn over, null the rest
   // of the time. Keyed on the round and redeal count so a redeal re-runs it.
@@ -73,7 +78,11 @@ function GameRoom4Page() {
     socket.on("g4:joinRejected", ({ message }) => setRejected(message));
     socket.on("joinRejected", ({ message }) => setRejected(message));
     socket.on("g4:invalidPlay", ({ message }) => setInvalid(message));
-    socket.on("g4:notice", ({ text }) => setNotice(text));
+    socket.on("g4:notice", ({ text }) => {
+      clearTimeout(noticeTimerRef.current);
+      setNotice(text);
+      noticeTimerRef.current = setTimeout(() => setNotice(""), 5000);
+    });
     socket.on("g4:replayResult", (result) => setReplayResult(result));
     socket.on("g4:rematchStarted", ({ gameId: next }) => navigate(`/game/${next}`));
 
@@ -97,6 +106,7 @@ function GameRoom4Page() {
     return () => {
       socket.emit("leaveRoom", { gameId });
       socket.off("connect", join);
+      clearTimeout(noticeTimerRef.current);
       [
         "g4:state",
         "g4:joinRejected",
