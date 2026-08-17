@@ -194,6 +194,9 @@ class Game500Four {
     // for trick points rather than redealing.
     this.noContract = false;
     this.currentTrick = [];
+    // Every card played this round, in order. The robot reads it to work out
+    // what's still out there, and it's what the round review is built from.
+    this.playedCards = [];
     this.currentSeat = 0;
     this.auction = null;
   }
@@ -265,6 +268,7 @@ class Game500Four {
     this.trumpSuit = null;
     this.noContract = false;
     this.currentTrick = [];
+    this.playedCards = [];
     this.players.forEach((p) => {
       p.hand = [];
       p.tricksWon = 0;
@@ -456,6 +460,31 @@ class Game500Four {
     return getEffectiveSuit(leadPlay.card, this.trumpSuit);
   }
 
+  // Every card this seat is allowed to play right now. The same rules playCard
+  // enforces, expressed as a list rather than a verdict — the robot picks from
+  // it, so the two can't drift apart into a robot that makes illegal plays.
+  legalPlays(seat) {
+    const player = this.players[seat];
+    if (this.currentTrick.length === 0) {
+      const strictJoker = !this.trumpSuit && !this.options.jokerLeadAnytime;
+      return player.hand.filter(
+        (card) => !(strictJoker && card.suit === "Joker" && player.hand.length > 1)
+      );
+    }
+
+    const leadSuit = this.getLeadSuit(this.currentTrick[0]);
+    const following = player.hand.filter(
+      (card) => getEffectiveSuit(card, this.trumpSuit) === leadSuit
+    );
+    if (following.length > 0) return following;
+
+    if (!this.trumpSuit && isNoTricksBid(this.currentBid?.bid)) {
+      const joker = player.hand.find((card) => card.suit === "Joker");
+      if (joker) return [joker];
+    }
+    return [...player.hand];
+  }
+
   playCard(seat, card, nominatedSuit) {
     const player = this.players[seat];
     const index = player.hand.findIndex((c) => c.suit === card.suit && c.value === card.value);
@@ -498,6 +527,7 @@ class Game500Four {
     const play = { seat, playerId: player.id, card: played };
     if (isLeading && played.suit === "Joker" && noTrumps) play.nominatedSuit = nominatedSuit;
     this.currentTrick.push(play);
+    this.playedCards.push(play);
     return { success: true, play };
   }
 
