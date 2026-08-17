@@ -370,12 +370,20 @@ function GameRoom4Page() {
 
   if (state.phase === "gameOver" && state.winner) {
     const iWon = state.winner.playerIds?.includes(playerId);
-    const reasonText =
+    // Going out the back door is the LOSING side's fate, not the winner's — it
+    // needs the other team's name (or, if you're the one who went out, your
+    // partner's name and "you", rather than the bare team-name string, which
+    // would otherwise repeat your own name back at you).
+    const loserTeam = 1 - state.winner.team;
+    const partner = state.seats?.find((s) => s.team === state.you?.team && s.userId !== playerId);
+    const subtext =
       state.winner.reason === "backDoor"
-        ? "out the back door at −500"
+        ? iWon
+          ? `${state.teamNames?.[loserTeam]} went out the back door`
+          : `${partner ? `${partner.name} and you` : "Your side"} went out the back door`
         : state.winner.reason === "pointSpread"
-        ? "on the point spread"
-        : `with ${state.winner.score} points`;
+        ? `${state.winner.name} won on the point spread`
+        : `${state.winner.name} won with ${state.winner.score} points`;
     const proposal = state.roundEnd?.proposal;
 
     return (
@@ -384,9 +392,7 @@ function GameRoom4Page() {
         <div className="game-over-card">
           <p className="overline">Game over</p>
           <h1>{iWon ? "You win" : "Better luck next time"}</h1>
-          <p className="game-over-subtext">
-            {state.winner.name} {reasonText}
-          </p>
+          <p className="game-over-subtext">{subtext}</p>
           {state.friendly && (
             <p className="friendly-pill game-over-friendly">Friendly — nobody's Elo moved</p>
           )}
