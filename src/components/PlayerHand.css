@@ -35,3 +35,45 @@
 .player-hand .hand-card:hover {
   z-index: 40;
 }
+
+/* ---- the deal ---- */
+
+/* Each card flies in from above the centre of the hand — where the dealer's
+   stock would sit — and settles into its place in the fan. The keyframe ends
+   on `none` rather than a written-out transform so the card lands on whatever
+   rotate/lift .pc already gives it, and the two never have to agree. */
+@keyframes deal-card-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--deal-dx, 0px), -190px) rotate(-8deg) scale(0.82);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.player-hand .hand-card.dealing {
+  animation: deal-card-in 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation-delay: var(--deal-delay, 0ms);
+}
+
+/* A card mid-flight shouldn't lift on hover or take a click. */
+.player-hand .hand-card.dealing:hover {
+  transform: none;
+}
+
+/* The whole thing is decoration; anyone who has asked for less motion gets the
+   hand straight away, still face up. */
+@media (prefers-reduced-motion: reduce) {
+  .player-hand .hand-card.dealing {
+    animation: none;
+  }
+
+  .player-hand .hand-card.dealing .pc-side {
+    transition: none;
+  }
+}

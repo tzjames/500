@@ -44,6 +44,7 @@ function GameTable({
   isYourTurn = false,
   exposed = {},
   onRetract,
+  deal = null,
   compact = false,
 }) {
   const deck = getDeck(deckId);
@@ -188,6 +189,7 @@ function GameTable({
           trumpSuit={trumpSuit}
           isCurrentPlayer={isCurrentPlayerHandTurn}
           deckId={deckId}
+          deal={deal}
         />
       </div>
     </div>

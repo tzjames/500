@@ -75,6 +75,12 @@ function GameRoomPage() {
   // The other player has seen them, so they stay face up in that hand until
   // they're played for real.
   const [exposed, setExposed] = useState({});
+  // The deal: null except in the moment after a hand is dealt, when it runs
+  // `{ revealed: false }` while the cards fly in face down, then
+  // `{ revealed: true }` as they turn over. Purely presentational — the server
+  // has already sent the whole hand by the time any of it plays.
+  const [deal, setDeal] = useState(null);
+  const dealTimersRef = useRef([]);
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
   const [incomingRematchOffer, setIncomingRematchOffer] = useState(null);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
@@ -106,8 +112,32 @@ function GameRoomPage() {
   // the opponent's hand/dummy until someone happens to refresh the page.
   const lastPlaySeqRef = useRef(null);
 
+  useEffect(() => () => dealTimersRef.current.forEach(clearTimeout), []);
+
   useEffect(() => {
     if (!socket) return;
+
+    // Runs the deal, and is also how it gets cancelled: each deal clears the
+    // pending timers first, so a redeal landing mid-flight can't leave the
+    // previous one's "reveal" to fire over the new hand.
+    const runDeal = (cardCount) => {
+      dealTimersRef.current.forEach(clearTimeout);
+      // Skipped outright for reduced motion — suppressing just the animation
+      // would leave the cards sitting face down for a second doing nothing,
+      // which is worse than not dealing at all.
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        setDeal(null);
+        return;
+      }
+      const flightEnds = Math.max(0, cardCount - 1) * 60 + 420;
+      setDeal({ revealed: false });
+      dealTimersRef.current = [
+        setTimeout(() => setDeal({ revealed: true }), flightEnds + 120),
+        // Leave deal mode once the last card has finished turning, so the hand
+        // goes back to being ordinary one-sided cards.
+        setTimeout(() => setDeal(null), flightEnds + 120 + (cardCount - 1) * 35 + 480),
+      ];
+    };
 
     const join = () => socket.emit("joinRoom", { gameId });
     if (socket.connected) join();
@@ -155,6 +185,7 @@ function GameRoomPage() {
     });
 
     socket.on("gameStart", (initialState) => {
+      runDeal(initialState.players?.find((p) => p.id === playerId)?.hand?.length || 10);
       setGameState(initialState);
       setCurrentBidder(initialState.currentBidder);
       setBiddingHistory([]);
@@ -305,6 +336,9 @@ function GameRoomPage() {
       setFlyingWinner(null);
       setLastTrick(state.lastTrick || null);
       setExposed(state.exposed || {});
+      // Rejoining mid-round is not a deal — show the hand as it stands.
+      dealTimersRef.current.forEach(clearTimeout);
+      setDeal(null);
       setIsKittyPhase(state.gamePhase === "kitty");
       setRoundNumber(state.roundNumber || 1);
       setRedealCount(state.redealCount || 0);
@@ -1153,11 +1187,12 @@ function GameRoomPage() {
               isYourTurn={
                 gamePhase === "playing" && playerId === currentPlayer && !currentTurnIsDummy
               }
+              deal={deal}
               exposed={exposed}
               onRetract={retractCard}
             />
 
-            {gamePhase === "bidding" && (
+            {gamePhase === "bidding" && !deal && (
               <div className="centered-panel">
                 <BiddingInterface
                   currentBid={gameState.currentBid}

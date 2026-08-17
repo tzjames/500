@@ -22,6 +22,10 @@ function Card({
   badgeTone = "kitty",
   rotate = 0,
   lift = 0,
+  // null (the default) renders a one-sided card, exactly as before. Pass a
+  // boolean to get a two-sided one that turns over: false shows the back, true
+  // shows the face, and CSS animates between them. Only the deal uses this.
+  revealed = null,
   onClick,
   className = "",
   style = {},
@@ -37,9 +41,14 @@ function Card({
     ...style,
   };
 
+  const twoSided = revealed !== null && !faceDown;
+
   const classes = [
     "pc",
-    faceDown ? "pc-back" : "pc-face",
+    // A two-sided card paints its paper on the faces themselves, so the root
+    // must stay transparent — otherwise the front shows through the back.
+    faceDown ? "pc-back" : twoSided ? "pc-two-sided" : "pc-face",
+    twoSided && revealed ? "pc-revealed" : "",
     selected ? "pc-selected" : "",
     disabled ? "pc-disabled" : "",
     onClick && !disabled ? "pc-clickable" : "",
@@ -59,6 +68,12 @@ function Card({
   const handleClick = onClick && !disabled ? () => onClick(card) : undefined;
   const Tag = handleClick ? "button" : "div";
 
+  const face = imageUrl ? (
+    <img className="pc-img" src={imageUrl} alt={label} draggable="false" />
+  ) : (
+    <GlyphFace card={card} />
+  );
+
   return (
     <Tag
       className={classes}
@@ -66,12 +81,15 @@ function Card({
       onClick={handleClick}
       disabled={Tag === "button" ? disabled : undefined}
       type={Tag === "button" ? "button" : undefined}
-      aria-label={label}
+      aria-label={twoSided && !revealed ? "Face-down card" : label}
     >
-      {imageUrl ? (
-        <img className="pc-img" src={imageUrl} alt={label} draggable="false" />
+      {twoSided ? (
+        <>
+          <span className="pc-side pc-side-front">{face}</span>
+          <span className="pc-side pc-side-back" />
+        </>
       ) : (
-        <GlyphFace card={card} />
+        face
       )}
       {badge && <span className={`pc-badge pc-badge-${badgeTone}`}>{badge}</span>}
       {trumpSuit && isLeftBower(card, trumpSuit) && (
