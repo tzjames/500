@@ -809,7 +809,11 @@ function GameRoomPage() {
       return (
         <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
           <div className="table-topbar">
-            <h1 className="table-title">500</h1>
+            <h1 className="table-title">
+            <Link to="/" className="table-home-link" title="Back to your games">
+              500
+            </Link>
+          </h1>
             <ThemePicker
               locationId={locationId}
               deckId={deckId}
@@ -1146,7 +1150,11 @@ function GameRoomPage() {
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed={isDiscarding}>
       <div className="table-topbar">
         <div>
-          <h1 className="table-title">500</h1>
+          <h1 className="table-title">
+            <Link to="/" className="table-home-link" title="Back to your games">
+              500
+            </Link>
+          </h1>
           <p className="table-subtitle">
             {currentPlayerData.name} vs {opponentName}
           </p>
