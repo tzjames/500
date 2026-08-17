@@ -270,6 +270,22 @@ function GameRoom4Page() {
                   ))}
                 </div>
               </div>
+              <label className="ng-check">
+                <input
+                  type="checkbox"
+                  checked={state.friendly}
+                  disabled={state.friendlyForced}
+                  onChange={(e) => emit("g4:setFriendly", { friendly: e.target.checked })}
+                />
+                <span>
+                  <b>Friendly game</b>
+                  <span className="ng-note">
+                    {state.friendlyForced
+                      ? "A robot's seated, which always makes it friendly — nobody's Elo moves."
+                      : "Doesn't affect anyone's Elo rating, win or lose."}
+                  </span>
+                </span>
+              </label>
               <div className="g4-rules">
                 <HouseRulesToggle
                   options={state.options}
@@ -285,7 +301,12 @@ function GameRoom4Page() {
               </div>
             </>
           )}
-          {!state.isHost && <RulesSummary options={state.options} />}
+          {!state.isHost && (
+            <>
+              {state.friendly && <p className="side-note">This is a friendly game — nobody's Elo moves.</p>}
+              <RulesSummary options={state.options} />
+            </>
+          )}
         </div>
       </ThemedTable>
     );
@@ -328,6 +349,7 @@ function GameRoom4Page() {
               pick partners.
             </p>
           )}
+          {state.friendly && <p className="side-note">This is a friendly game — nobody's Elo moves.</p>}
           <RulesSummary options={state.options} />
         </div>
       </ThemedTable>
@@ -355,6 +377,9 @@ function GameRoom4Page() {
           <p className="game-over-subtext">
             {state.winner.name} {reasonText}
           </p>
+          {state.friendly && (
+            <p className="friendly-pill game-over-friendly">Friendly — nobody's Elo moved</p>
+          )}
           <ul className="game-over-scores">
             {[0, 1].map((team) => (
               <li key={team}>

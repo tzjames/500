@@ -90,6 +90,16 @@ function tableLabel(game, userId) {
   return `${game.mode === 4 ? "with" : "vs"} ${others.join(", ")}`;
 }
 
+// Whether a table counts towards Elo — friendly covers both one marked that
+// way and one with a robot seated, so there's nothing more to say than that.
+function RatedBadge({ friendly }) {
+  return friendly ? (
+    <span className="badge-friendly">Friendly</span>
+  ) : (
+    <span className="badge-rated">Rated</span>
+  );
+}
+
 // Live counts along the top: who's about and what they're doing.
 function PresenceStrip({ presence }) {
   const stats = presence || { online: 0, playing: 0, waiting: 0, games: 0 };
@@ -266,6 +276,7 @@ function HomePage() {
                         )}
                       </div>
                       <div className="lobby-side">
+                        <RatedBadge friendly={table.friendly} />
                         <span className="lobby-seats">
                           {table.seatsTaken}/{table.seats}
                         </span>
@@ -318,7 +329,7 @@ function HomePage() {
                         {tableLabel(game, session.user.id)}
                       </span>
                       <span className="game-status">
-                        {statusLabel(game, session.user.id)}
+                        <RatedBadge friendly={game.friendly} /> {statusLabel(game, session.user.id)}
                       </span>
                     </li>
                   );

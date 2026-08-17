@@ -83,13 +83,19 @@ async function lastSettingsForUser(userId, mode) {
   const modeQuery = mode === 4 ? { mode: 4 } : { mode: { $ne: 4 } };
   const doc = await games.findOne(
     { "playerSlots.userId": userId, ...modeQuery },
-    { sort: { createdAt: -1 }, projection: { options: 1, visibility: 1, partnerMode: 1, snapshot: 1 } }
+    { sort: { createdAt: -1 }, projection: { options: 1, visibility: 1, partnerMode: 1, friendly: 1, snapshot: 1 } }
   );
   if (!doc) return null;
   return {
     options: doc.options || null,
     visibility: doc.visibility || null,
     partnerMode: doc.partnerMode || null,
+    // Whatever was true of the last game at the moment it was created — which,
+    // if that one had robots at it, was forced on regardless of what was
+    // ticked. A stale "friendly" default after a one-off practice game is a
+    // minor annoyance next to the alternative of not remembering the setting
+    // at all.
+    friendly: Boolean(doc.friendly),
     gameSettings: doc.snapshot?.gameSettings || null,
   };
 }

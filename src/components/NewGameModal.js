@@ -15,6 +15,7 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
   const [visibility, setVisibility] = useState("private");
   const [partnerMode, setPartnerMode] = useState("choose");
   const [fillWithBots, setFillWithBots] = useState(false);
+  const [friendly, setFriendly] = useState(false);
   const [options, setOptions] = useState(defaultOptions);
   const [showRules, setShowRules] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -27,16 +28,24 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
     if (settings.options) setOptions(withDefaults(settings.options));
     if (settings.visibility) setVisibility(settings.visibility);
     if (settings.partnerMode) setPartnerMode(settings.partnerMode);
+    setFriendly(Boolean(settings.friendly));
   }, [settings]);
+
+  // A robot at the table makes the game friendly regardless of this checkbox
+  // — see isFriendlyGame on the server — so ticking "start against robots"
+  // shows it checked and locked, rather than let the two disagree.
+  const forcedFriendly = mode === 4 && fillWithBots;
 
   const start = () => {
     setStarting(true);
-    onStart({ mode, visibility, partnerMode, fillWithBots, options });
+    onStart({ mode, visibility, partnerMode, fillWithBots, friendly: friendly || forcedFriendly, options });
   };
 
   return (
-    <div className="new-game-overlay" onClick={onCancel}>
-      <div className="new-game-modal" onClick={(e) => e.stopPropagation()}>
+    // Choosing house rules takes real thought, and a stray click on the wash
+    // around the modal shouldn't throw all of that away — only Cancel does.
+    <div className="new-game-overlay">
+      <div className="new-game-modal">
         <h2 className="serif">Start a game</h2>
 
         <fieldset className="ng-field">
@@ -74,6 +83,23 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
             />
           </div>
         </fieldset>
+
+        <label className="ng-check">
+          <input
+            type="checkbox"
+            checked={friendly || forcedFriendly}
+            disabled={forcedFriendly}
+            onChange={(e) => setFriendly(e.target.checked)}
+          />
+          <span>
+            <b>Friendly game</b>
+            <span className="ng-note">
+              {forcedFriendly
+                ? "Playing against robots always makes it friendly — nobody's Elo rating moves."
+                : "Doesn't affect anyone's Elo rating, win or lose."}
+            </span>
+          </span>
+        </label>
 
         {mode === 4 && (
           <>

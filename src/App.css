@@ -261,6 +261,11 @@
   margin: 0 0 18px;
 }
 
+.game-over-friendly {
+  display: inline-block;
+  margin: -10px 0 18px;
+}
+
 .game-over-scores {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

@@ -352,6 +352,7 @@ function GameRoomPage() {
         currentBid: state.currentBid,
         trumpSuit: state.trumpSuit,
         biddingComplete: state.gamePhase !== "bidding",
+        friendly: state.friendly,
       });
       setCurrentBidder(state.currentBidder);
       setBiddingHistory(state.biddingHistory || []);
@@ -1079,6 +1080,9 @@ function GameRoomPage() {
           <p className="overline">Game over</p>
           <h1>{didIWin ? "You win" : "Better luck next time"}</h1>
           <p className="game-over-subtext">{subtext}</p>
+          {gameState.friendly && (
+            <p className="friendly-pill game-over-friendly">Friendly — nobody's Elo moved</p>
+          )}
 
           <ul className="game-over-scores">
             {gameOverInfo.players.map((p) => (
@@ -1215,6 +1219,7 @@ function GameRoomPage() {
             gamePhase={gamePhase}
             dealerIsYou={gameState.dealerId === playerId}
             trumpSuit={gameState.trumpSuit}
+            friendly={gameState.friendly}
             onShowScoreHistory={() => setShowScoreHistory(true)}
             canClaimRest={
               gamePhase === "playing" && playerId === currentPlayer && playedCards.length === 0

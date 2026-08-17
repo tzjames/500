@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const db = require("./db");
 const { Game500Four, availableBids, bidInfo } = require("./game4");
 const { sanitizeOptions } = require("./gameOptions");
+const { isFriendlyGame } = require("./friendly");
 const bot = require("./bot");
 
 // Mirrors of the client's theme registry (src/theme.js) — see room.js, which
@@ -33,6 +34,11 @@ class Room4 {
     this.presence = presence;
     this.mode = 4;
     this.visibility = doc.visibility === "public" ? "public" : "private";
+    // The host's own choice. A robot seated at the table makes the game
+    // friendly regardless — see isFriendly() — so this can go on being false
+    // even after that's happened; nothing reads this field directly except
+    // the toggle control itself.
+    this.friendly = Boolean(doc.friendly);
     this.options = sanitizeOptions(doc.options);
     this.partnerMode = doc.partnerMode === "random" ? "random" : "choose";
     this.hostUserId = doc.hostUserId || doc.playerSlots?.[0]?.userId || null;
@@ -140,6 +146,7 @@ class Room4 {
       status: this.status,
       mode: 4,
       visibility: this.visibility,
+      friendly: this.friendly,
       options: this.options,
       partnerMode: this.partnerMode,
       hostUserId: this.hostUserId,
@@ -194,6 +201,14 @@ class Room4 {
 
   isBotSeat(seat, game = this.game) {
     return Boolean(game?.players[seat]?.isBot);
+  }
+
+  anyBotSeated() {
+    return this.slots.some((s) => s && s.isBot);
+  }
+
+  isFriendly() {
+    return isFriendlyGame({ friendly: this.friendly, playerSlots: this.slots });
   }
 
   teamName(team) {
@@ -771,18 +786,21 @@ class Room4 {
       level,
       tricks: result.biddingTricks,
       made: result.made,
-      // A hand played against robots is practice; the stats page keeps it out of
-      // the record for the same reason a robot game isn't rated.
-      withBots: game.players.some((p) => p.isBot),
+      // A friendly hand — whether marked that way or played with a robot — is
+      // practice; the stats page keeps it out of the record for the same
+      // reason it isn't rated.
+      friendly: this.isFriendly(),
     });
   }
 
   // Ratings and the head-to-head record, once the result is in the database.
   async settleFinishedGame() {
     if (!this.winner) return;
-    const winners = this.winner.playerIds;
-    const losers = this.game.players.filter((p) => !winners.includes(p.id)).map((p) => p.id);
-    await db.applyElo(4, winners, losers, this.id);
+    if (!this.isFriendly()) {
+      const winners = this.winner.playerIds;
+      const losers = this.game.players.filter((p) => !winners.includes(p.id)).map((p) => p.id);
+      await db.applyElo(4, winners, losers, this.id);
+    }
     this.broadcast();
   }
 
@@ -988,6 +1006,10 @@ class Room4 {
       _id: crypto.randomUUID(),
       mode: 4,
       visibility: "private",
+      // Carried over rather than reset: a friendly rematch should stay
+      // friendly, and one with a robot in it (still in playerSlots below) is
+      // caught by isFriendlyGame regardless of what this says.
+      friendly: this.friendly,
       options: this.options,
       // The pairing is settled already, so the new table doesn't stop to ask.
       partnerMode: "random",
@@ -1049,6 +1071,18 @@ class Room4 {
   setVisibility(socket, visibility) {
     if (this.game || socket.userId !== this.hostUserId) return;
     this.visibility = visibility === "public" ? "public" : "private";
+    this.persist();
+    this.broadcast();
+    this.presence?.touch();
+  }
+
+  // Only before the cards are out, and only the host — like visibility. A
+  // robot at the table overrides this to friendly regardless (see
+  // isFriendly()); the client disables its own control in that case rather
+  // than let the host flip a switch that does nothing.
+  setFriendly(socket, friendly) {
+    if (this.game || socket.userId !== this.hostUserId) return;
+    this.friendly = Boolean(friendly);
     this.persist();
     this.broadcast();
     this.presence?.touch();
@@ -1270,6 +1304,8 @@ class Room4 {
       phase: this.phase,
       status: this.status,
       visibility: this.visibility,
+      friendly: this.isFriendly(),
+      friendlyForced: this.anyBotSeated(),
       options: this.options,
       partnerMode: this.partnerMode,
       hostUserId: this.hostUserId,

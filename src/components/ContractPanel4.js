@@ -27,6 +27,7 @@ function ContractPanel4({
     options,
     phase,
     you,
+    friendly,
   } = state;
 
   const bidderSeat = currentBid?.seat;
@@ -48,7 +49,14 @@ function ContractPanel4({
   return (
     <aside className="side-panel">
       <div className="side-panel-head">
-        <span className="overline">Round {roundNumber}</span>
+        <span className="side-panel-head-title">
+          <span className="overline">Round {roundNumber}</span>
+          {friendly && (
+            <span className="friendly-pill" title="This game doesn't affect anyone's Elo rating">
+              Friendly
+            </span>
+          )}
+        </span>
         <button
           className="icon-button"
           onClick={onShowScoreHistory}

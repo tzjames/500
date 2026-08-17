@@ -40,7 +40,7 @@ function fakeSocket(userId, name) {
   };
 }
 
-function newRoom({ options = {}, humans = 1, partnerMode = "random" } = {}) {
+function newRoom({ options = {}, humans = 1, partnerMode = "random", friendly = false } = {}) {
   const io = fakeIo();
   const slots = [];
   for (let i = 0; i < humans; i++) slots.push({ userId: `u${i}`, name: `Player ${i}` });
@@ -53,6 +53,7 @@ function newRoom({ options = {}, humans = 1, partnerMode = "random" } = {}) {
     {
       mode: 4,
       visibility: "public",
+      friendly,
       options,
       partnerMode,
       hostUserId: "u0",
@@ -295,6 +296,91 @@ test("each scored round is recorded, and the finished game is rated", async () =
   assert.equal(mode, 4);
   assert.equal(winners.length, 2);
   assert.equal(losers.length, 2);
+  room.dispose();
+});
+
+test("a table of robots is friendly whether or not anyone asked for that", () => {
+  const { room } = newRoom(); // default: one human, three robots
+  assert.equal(room.friendly, false, "nobody ticked the box");
+  assert.equal(room.isFriendly(), true, "a robot at the table forces it anyway");
+  assert.equal(room.anyBotSeated(), true);
+
+  const host = fakeSocket("u0", "Player 0");
+  room.handleJoin(host);
+  const state = room.stateFor("u0");
+  assert.equal(state.friendly, true);
+  assert.equal(state.friendlyForced, true);
+});
+
+test("an all-human game stays rated unless someone marks it friendly", () => {
+  const { room: rated } = newRoom({ humans: 4, partnerMode: "choose" });
+  assert.equal(rated.isFriendly(), false);
+  assert.equal(rated.stateFor("u0").friendlyForced, false);
+
+  const { room: friendly } = newRoom({ humans: 4, partnerMode: "choose", friendly: true });
+  assert.equal(friendly.isFriendly(), true);
+  assert.equal(friendly.stateFor("u0").friendlyForced, false, "nobody's forcing it, they just asked");
+});
+
+test("only the host can mark a table friendly, and only before it's dealt", () => {
+  const { room } = newRoom({ humans: 4, partnerMode: "choose" });
+  const host = fakeSocket("u0", "Player 0");
+  const other = fakeSocket("u1", "Player 1");
+
+  room.setFriendly(other, true);
+  assert.equal(room.friendly, false, "not the host");
+
+  room.setFriendly(host, true);
+  assert.equal(room.friendly, true);
+
+  room.setFriendly(host, false);
+  assert.equal(room.friendly, false, "toggling back off works too");
+
+  [1, 2, 3].forEach((i) => room.handleJoin(fakeSocket(`u${i}`, `Player ${i}`)));
+  room.choosePartner(host, { random: true });
+  room.setFriendly(host, true);
+  assert.equal(room.friendly, false, "frozen once the cards are out, like the house rules");
+  room.dispose();
+});
+
+test("a friendly game is never rated, even with four humans at real tables", async () => {
+  recorded.rounds.length = 0;
+  recorded.elo.length = 0;
+  const { room } = newRoom({ humans: 4, partnerMode: "choose", friendly: true });
+  const sockets = [0, 1, 2, 3].map((i) => fakeSocket(`u${i}`, `Player ${i}`));
+  sockets.forEach((s) => room.handleJoin(s));
+  room.choosePartner(sockets[0], { random: true });
+  playToTheEnd(room, sockets);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(recorded.elo.length, 0, "a friendly result should never be rated");
+  assert.ok(recorded.rounds.length > 0);
+  assert.ok(
+    recorded.rounds.every((r) => r.friendly === true),
+    "every round should carry the friendly flag"
+  );
+  // The game-over screen reads this straight off the snapshot to show its
+  // "nobody's Elo moved" note.
+  assert.equal(room.phase, "gameOver");
+  assert.equal(room.stateFor("u0").friendly, true);
+  room.dispose();
+});
+
+test("a rematch carries the friendly setting forward", () => {
+  recorded.created.length = 0;
+  const { room } = newRoom({ humans: 2, partnerMode: "choose", friendly: true });
+  const a = fakeSocket("u0", "Player 0");
+  const b = fakeSocket("u1", "Player 1");
+  room.handleJoin(a);
+  room.handleJoin(b);
+  room.choosePartner(a, { partnerUserId: "u1" });
+
+  room.status = "finished";
+  room.rematchOffer(a, { pairing: "same" });
+  room.rematchRespond(b, true);
+
+  assert.equal(recorded.created.length, 1);
+  assert.equal(recorded.created[0].friendly, true);
   room.dispose();
 });
 

@@ -10,6 +10,7 @@ const { RoomManager } = require("./room");
 const Presence = require("./presence");
 const stats = require("./stats");
 const { sanitizeOptions } = require("./gameOptions");
+const { isFriendlyGame } = require("./friendly");
 const bot = require("./bot");
 
 const app = express();
@@ -47,6 +48,7 @@ app.get("/api/games", auth.requireAuth, async (req, res) => {
       mode: g.mode === 4 ? 4 : 2,
       status: g.status,
       visibility: g.visibility || "private",
+      friendly: isFriendlyGame(g),
       playerSlots: g.playerSlots,
       roundNumber: g.roundNumber,
       winner: g.winner,
@@ -72,7 +74,8 @@ app.get("/api/game-defaults", auth.requireAuth, async (req, res) => {
 
 app.get("/api/stats", auth.requireAuth, async (req, res) => {
   const mode = Number(req.query.mode) === 4 ? 4 : 2;
-  res.json(await stats.statsFor(req.user.userId, mode));
+  const includeFriendly = req.query.includeFriendly === "1" || req.query.includeFriendly === "true";
+  res.json(await stats.statsFor(req.user.userId, mode, includeFriendly));
 });
 
 // Win/loss against each opponent, derived from finished games. Not capped the
@@ -83,7 +86,7 @@ app.get("/api/record", auth.requireAuth, async (req, res) => {
 });
 
 app.post("/api/games", auth.requireAuth, async (req, res) => {
-  const { mode: rawMode, visibility, options, partnerMode, fillWithBots } = req.body || {};
+  const { mode: rawMode, visibility, options, partnerMode, fillWithBots, friendly } = req.body || {};
   const mode = Number(rawMode) === 4 ? 4 : 2;
   const host = { userId: req.user.userId, name: req.user.name };
   const seats = mode === 4 ? 4 : 2;
@@ -94,8 +97,9 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
   // rather than chosen in that case: picking between three identical robots
   // isn't a decision worth a screen.
   const seating = fillWithBots ? "random" : partnerMode === "random" ? "random" : "choose";
+  const withBots = mode === 4 && Boolean(fillWithBots);
 
-  if (mode === 4 && fillWithBots) {
+  if (withBots) {
     const taken = [host.name];
     for (let seat = 1; seat < seats; seat++) {
       const name = bot.botName(seat, taken);
@@ -109,6 +113,10 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
     mode,
     visibility: visibility === "public" ? "public" : "private",
     hostUserId: host.userId,
+    // A robot at the table makes it friendly whatever was ticked — see
+    // isFriendlyGame, which every reader of a game document re-derives this
+    // same way rather than trusting a value that could go stale.
+    friendly: Boolean(friendly) || withBots,
     ...(mode === 4 ? { options: sanitizeOptions(options), partnerMode: seating } : {}),
     status: "waiting",
     playerSlots,
@@ -210,6 +218,7 @@ io.on("connection", (socket) => {
   socket.on("g4:rematchRespond", ({ accept }) => room?.rematchRespond?.(socket, accept));
   socket.on("g4:setOptions", ({ options }) => room?.setOptions?.(socket, options));
   socket.on("g4:setVisibility", ({ visibility }) => room?.setVisibility?.(socket, visibility));
+  socket.on("g4:setFriendly", ({ friendly }) => room?.setFriendly?.(socket, friendly));
 
   socket.on("placeBid", (payload) => room?.placeBid(socket, payload));
   socket.on("setGameSettings", (settings) => room?.setGameSettings(socket, settings));

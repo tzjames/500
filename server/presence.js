@@ -1,4 +1,5 @@
 const db = require("./db");
+const { isFriendlyGame } = require("./friendly");
 
 // Who's about, and which public tables are looking for players. Entirely
 // in-memory and derived from live sockets — nothing here is worth persisting,
@@ -85,6 +86,7 @@ class Presence {
           seatsTaken: filled.length,
           seats: doc.mode === 4 ? 4 : 2,
           options: doc.options || null,
+          friendly: isFriendlyGame({ friendly: room ? room.friendly : doc.friendly, playerSlots: slots }),
           createdAt: doc.createdAt,
           present: room ? room.connectedHumans() > 0 : false,
           fresh: now - (doc.createdAt || 0) < 90_000,

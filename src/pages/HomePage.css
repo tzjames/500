@@ -338,6 +338,33 @@
   flex-shrink: 0;
 }
 
+/* Whether a table (or one of your own games) counts towards Elo. Friendly
+   covers both a table someone marked that way and one with a robot at it —
+   the lobby doesn't need to say which. */
+.badge-rated,
+.badge-friendly {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-rated {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border);
+  opacity: 0.6;
+}
+
+.badge-friendly {
+  background: rgba(255, 235, 200, 0.16);
+  border: 1px solid var(--amber-ring);
+  color: var(--amber);
+}
+
 .lobby-seats {
   font-family: var(--serif);
   font-size: 19px;

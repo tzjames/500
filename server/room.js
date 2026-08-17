@@ -3,6 +3,7 @@ const Game500 = require("./gameLogic");
 const { checkBidMade } = Game500;
 const db = require("./db");
 const { Room4 } = require("./room4");
+const { isFriendlyGame } = require("./friendly");
 
 const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
@@ -38,6 +39,10 @@ class Room {
     // need to know whether this game was advertised publicly. persist() sets a
     // fixed list of fields, so the document's own value survives untouched.
     this.visibility = doc.visibility === "public" ? "public" : "private";
+    // Set once at creation and never changed after, like visibility above —
+    // the two-player game has no robots, so there's no "forced" case here and
+    // no waiting-room control to flip it later.
+    this.friendly = Boolean(doc.friendly);
     this.slots = (doc.playerSlots || [null, null]).map((s) => (s ? { ...s, socketId: null } : null));
     this.status = doc.status || "waiting";
     this.roundNumber = doc.roundNumber || 1;
@@ -254,6 +259,10 @@ class Room {
     return this.slots.filter((s) => s && s.socketId).length;
   }
 
+  isFriendly() {
+    return isFriendlyGame({ friendly: this.friendly, playerSlots: this.slots });
+  }
+
   broadcastPlayersUpdate() {
     const connected = this.connectedHumans();
     this.io.to(this.id).emit("playersUpdate", {
@@ -282,6 +291,7 @@ class Room {
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
       redealCount: this.redealCount,
+      friendly: this.isFriendly(),
     };
   }
 
@@ -381,6 +391,7 @@ class Room {
         : null,
       roundResult: this.lastRoundResult,
       redealCount: this.redealCount,
+      friendly: this.isFriendly(),
     });
 
     if (this.gamePhase === "kitty" && this.game.currentBid?.player === socket.userId) {
@@ -984,8 +995,7 @@ class Room {
       level: /^\d/.test(bidDescription) ? Number(bidDescription.split(" ")[0]) : null,
       tricks: bidderPlayer.tricksWon,
       made: bidderMadeBid,
-      // The two-player game has no robots, so every hand of it counts.
-      withBots: false,
+      friendly: this.isFriendly(),
     }).catch((err) => console.error("failed to record round", err));
 
     // Both bounds are inclusive: the game is to 500, so landing exactly on it
@@ -1015,8 +1025,9 @@ class Room {
       // once this game's own result is in there — hence waiting on persist
       // rather than emitting it alongside gameOver.
       const loser = this.game.players.find((p) => p.id !== winner.id);
+      const rate = this.isFriendly() ? () => null : () => db.applyElo(2, [winner.id], [loser.id], this.id);
       this.persist()
-        .then(() => db.applyElo(2, [winner.id], [loser.id], this.id))
+        .then(rate)
         .then(() => this.emitMatchRecord())
         .catch((err) => console.error("failed to settle finished game", err));
       return;
@@ -1214,6 +1225,9 @@ class Room {
     const newGame = await db.createGame({
       _id: crypto.randomUUID(),
       status: "waiting",
+      // Carried over rather than reset: a friendly rematch should stay
+      // friendly.
+      friendly: this.friendly,
       playerSlots: this.slots.map((s) => ({ userId: s.userId, name: s.name })),
       roundNumber: 1,
       scoreHistory: [],

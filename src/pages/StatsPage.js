@@ -46,6 +46,7 @@ function StatsPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState(4);
+  const [includeFriendly, setIncludeFriendly] = useState(false);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
 
@@ -59,13 +60,13 @@ function StatsPage() {
     setStats(null);
     setError("");
     api
-      .getStats(session.token, mode)
+      .getStats(session.token, mode, includeFriendly)
       .then((data) => live && setStats(data))
       .catch((err) => live && setError(err.message));
     return () => {
       live = false;
     };
-  }, [session, mode]);
+  }, [session, mode, includeFriendly]);
 
   if (!session) return null;
 
@@ -109,6 +110,15 @@ function StatsPage() {
           ))}
         </div>
 
+        <label className="stats-friendly-toggle">
+          <input
+            type="checkbox"
+            checked={includeFriendly}
+            onChange={(e) => setIncludeFriendly(e.target.checked)}
+          />
+          Include friendly games
+        </label>
+
         {error && <p className="auth-error">{error}</p>}
         {!stats && !error && <p className="stats-empty">Adding it all up…</p>}
 
@@ -131,17 +141,19 @@ function StatsPage() {
             <p className="stats-note stats-elo-note">
               Elo starts everyone at 1200 and moves with each finished game — by how
               surprising the result was, and, at a table of four, against the average of the
-              two sides.
+              two sides. A friendly game — marked that way, or played with a robot at the
+              table — never moves it, whatever this checkbox is set to.
               {stats.practiceGames > 0 || stats.practiceRounds > 0 ? (
                 <>
                   {" "}
-                  Nothing on this page counts your {stats.practiceGames} game
-                  {stats.practiceGames === 1 ? "" : "s"} against robots
-                  {stats.practiceRounds > 0 && ` (${stats.practiceRounds} contracts)`}: a
-                  record padded by beating robots wouldn&apos;t tell you anything.
+                  You have {stats.practiceGames} friendly game{stats.practiceGames === 1 ? "" : "s"}
+                  {stats.practiceRounds > 0 && ` (${stats.practiceRounds} contracts)`}, which{" "}
+                  {includeFriendly
+                    ? "are folded into the figures below."
+                    : "aren't counted in the figures below — tick the box above to fold them in."}
                 </>
               ) : (
-                " Games with a robot in them aren't counted anywhere on this page."
+                " You don't have any friendly games yet."
               )}
             </p>
 

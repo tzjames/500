@@ -43,4 +43,5 @@ export const getGameMeta = (token, id) => request(`/api/games/${id}/meta`, { tok
 export const getGameDefaults = (token, mode) =>
   request(`/api/game-defaults?mode=${mode}`, { token });
 
-export const getStats = (token, mode) => request(`/api/stats?mode=${mode}`, { token });
+export const getStats = (token, mode, includeFriendly = false) =>
+  request(`/api/stats?mode=${mode}&includeFriendly=${includeFriendly ? "1" : "0"}`, { token });

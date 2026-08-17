@@ -3,6 +3,7 @@
 // tally, so a figure can't drift out of step with the games behind it.
 const db = require("./db");
 const { availableBids } = require("./game4");
+const { isFriendlyGame } = require("./friendly");
 
 // Every bid the four-player game can offer at all, with every optional contract
 // switched on — the bid-by-bid chart wants a fixed set of columns whatever the
@@ -61,22 +62,29 @@ function tally(map, key, label, isWin) {
 
 const byPlayed = (a, b) => b.wins + b.losses - (a.wins + a.losses);
 
-async function statsFor(userId, mode) {
+// A round recorded before this feature existed only has the old `withBots`
+// flag; a friendly one recorded since has `friendly` instead (which covers
+// both a marked-friendly game and a robot one). Either says the same thing.
+const isFriendlyRound = (round) => Boolean(round.friendly ?? round.withBots);
+
+async function statsFor(userId, mode, includeFriendly = false) {
   const [allGames, allRounds, elo] = await Promise.all([
     db.finishedGamesForUser(userId, mode),
     db.roundsBidBy(userId, mode),
     db.eloForUser(userId),
   ]);
 
-  // A table with a robot at it is practice. It's kept out of the record for the
-  // same reason it isn't rated: a win rate padded by beating robots says nothing
-  // about how you do against people. Counted separately rather than silently
-  // dropped, so the page can say what it left out.
-  const hadBots = (game) => (game.playerSlots || []).some((s) => s?.isBot);
-  const games = allGames.filter((game) => !hadBots(game));
-  const bidRounds = allRounds.filter((round) => !round.withBots);
-  const practiceGames = allGames.length - games.length;
-  const practiceRounds = allRounds.length - bidRounds.length;
+  // A friendly game — marked that way, or with a robot at the table — is
+  // practice by default: a win rate padded by beating robots, or by games that
+  // were never meant to count, says nothing about how you actually do. Kept out
+  // of the record unless asked for, and counted separately either way so the
+  // page can say what it left out.
+  const friendlyGames = allGames.filter(isFriendlyGame);
+  const friendlyRounds = allRounds.filter(isFriendlyRound);
+  const games = includeFriendly ? allGames : allGames.filter((game) => !isFriendlyGame(game));
+  const bidRounds = includeFriendly ? allRounds : allRounds.filter((round) => !isFriendlyRound(round));
+  const practiceGames = friendlyGames.length;
+  const practiceRounds = friendlyRounds.length;
 
   let wins = 0;
   // Keyed by the whole table for four players — "with Ada against Bo and Cy" is
@@ -150,6 +158,7 @@ async function statsFor(userId, mode) {
   return {
     mode,
     elo: elo[mode],
+    includeFriendly,
     games: games.length,
     wins,
     losses: games.length - wins,
