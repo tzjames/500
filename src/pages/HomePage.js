@@ -56,6 +56,14 @@ function AuthForm() {
   );
 }
 
+// The game has never settled on a name. One is picked per visit.
+const TAGLINES = [
+  "Two-handed, with dummies",
+  "Five-handed, four-player, two-person, two-handed, five hundred",
+  "Two players, two dummies",
+  "Two-player, two-handed, four-player, five-handed",
+];
+
 function statusLabel(game, userId) {
   if (game.status === "finished") {
     const won = game.winner?.id === userId;
@@ -77,6 +85,11 @@ function HomePage() {
   const [games, setGames] = useState([]);
   const [records, setRecords] = useState([]);
   const [error, setError] = useState("");
+  // Chosen once when the page mounts, not per render — otherwise it would
+  // shuffle every time the games list or the record came back.
+  const [tagline] = useState(
+    () => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]
+  );
 
   // Set when a protected route sent us here to authenticate (see
   // GameRoomPage) — typically an invite link opened by someone without an
@@ -113,7 +126,7 @@ function HomePage() {
       <div className="home-page">
         <header className="home-header">
           <h1 className="serif">500</h1>
-          <p className="home-tagline">Two-handed, with dummies.</p>
+          <p className="home-tagline">{tagline}</p>
         </header>
 
         {!session ? (

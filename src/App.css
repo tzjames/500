@@ -18,6 +18,24 @@
   font-weight: 400;
 }
 
+/* The title doubles as the way out — it was the only screen in the app with no
+   route back to your games short of the browser's back button. */
+.table-home-link {
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.table-home-link:hover {
+  opacity: 0.72;
+}
+
+.table-home-link:focus-visible {
+  outline: 2px solid var(--amber-ring);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .table-subtitle {
   font-size: 11.5px;
   opacity: 0.6;

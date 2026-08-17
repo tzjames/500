@@ -44,10 +44,31 @@
   text-align: right;
 }
 
+/* Set at the same weight as your own selection on the left — the two together
+   are the whole question the panel is asking. */
 .bid-to-beat-value {
   margin: 2px 0 0;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.bid-to-beat-pts {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  opacity: 0.66;
+}
+
+/* A pass is good news for you, so it's coloured rather than left to read as
+   just another absent value. */
+.bid-to-beat.passed .bid-to-beat-value,
+.bid-to-beat.passed .panel-heading {
+  color: var(--amber);
+  opacity: 1;
+}
+
+.bid-to-beat.passed .bid-to-beat-pts {
+  opacity: 0.8;
 }
 
 .bid-outcome {

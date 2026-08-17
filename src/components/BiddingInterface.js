@@ -44,6 +44,16 @@ function BiddingInterface({
   const isCurrentBidder = playerId === currentBidder;
   const floor = currentBid ? currentBid.points : 0;
 
+  // A pass against a standing bid ends the auction, so the only way you ever
+  // see the other player's pass on your own turn is with nothing bid yet —
+  // which means whatever you bid takes the contract unopposed. Worth saying,
+  // because otherwise the panel just reads "Open" and the pass is buried in
+  // the history at the foot.
+  const lastCall = biddingHistory[biddingHistory.length - 1];
+  const theyPassed =
+    !currentBid && lastCall?.bid === "Pass" && lastCall.player !== playerId;
+  const iPassed = lastCall?.bid === "Pass" && lastCall.player === playerId;
+
   const nameFor = (id) =>
     id === playerId ? "You" : players.find((p) => p.id === id)?.name || "They";
 
@@ -98,11 +108,14 @@ function BiddingInterface({
         <p className="bid-outcome serif">
           Waiting for {players.find((p) => p.id === currentBidder)?.name} to bid
         </p>
-        {currentBid && (
+        {currentBid ? (
           <p className="side-note">
-            Bid to beat: {renderBid(currentBid.bid)} · {currentBid.points}
+            {nameFor(currentBid.player)} bid {renderBid(currentBid.bid)} for{" "}
+            {currentBid.points}
           </p>
-        )}
+        ) : iPassed ? (
+          <p className="side-note">You passed — anything they bid takes it.</p>
+        ) : null}
         {history}
       </div>
     );
@@ -126,17 +139,25 @@ function BiddingInterface({
             {selected ? `${selected.points} points` : "Pick a contract"}
           </p>
         </div>
-        <div className="bid-to-beat">
-          <p className="panel-heading">Bid to beat</p>
-          <p className="bid-to-beat-value">
-            {currentBid ? (
-              <>
-                {renderBid(currentBid.bid)} · {currentBid.points}
-              </>
-            ) : (
-              "Open"
-            )}
+        {/* Named rather than a bare "bid to beat": when it's your turn the
+            first thing you want is what they went, and whose bid it is was
+            only findable in the history at the foot of the panel. */}
+        <div className={`bid-to-beat${theyPassed ? " passed" : ""}`}>
+          <p className="panel-heading">
+            {currentBid
+              ? `${nameFor(currentBid.player)} bid`
+              : theyPassed
+              ? `${nameFor(lastCall.player)} passed`
+              : "Bid to beat"}
           </p>
+          <p className="bid-to-beat-value serif">
+            {currentBid ? renderBid(currentBid.bid) : theyPassed ? "Passed" : "Open"}
+          </p>
+          {currentBid ? (
+            <p className="bid-to-beat-pts">{currentBid.points} points</p>
+          ) : theyPassed ? (
+            <p className="bid-to-beat-pts">Any bid takes the contract</p>
+          ) : null}
         </div>
       </div>
 
