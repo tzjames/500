@@ -22,7 +22,8 @@ function TrickPile({ count = 0, owner, className = "" }) {
         ))}
       </span>
       <span className="trick-pile-count" aria-hidden="true">
-        {owner} <b>{count}</b>
+        <span className="trick-pile-owner">{owner}</span>
+        <b>{count}</b>
       </span>
     </div>
   );

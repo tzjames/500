@@ -1,8 +1,16 @@
+/* The pile's size is expressed as custom properties rather than a transform on
+   the whole component. Scaling the component scaled its caption too, which is
+   what made the name and count unreadable — at the narrow breakpoint the label
+   was rendering at about five pixels. Now only the stack changes size and the
+   caption stays legible wherever the pile sits. */
 .trick-pile {
+  --pile-w: 66px;
+  --pile-h: 94px;
+  --pile-step: 5px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 /* The stack grows upward from a fixed base, so the caption below it stays put
@@ -10,12 +18,12 @@
 .trick-stack {
   position: relative;
   display: block;
-  width: 66px;
-  height: 94px;
+  width: var(--pile-w);
+  height: var(--pile-h);
 }
 
 .trick-stack.empty {
-  height: 40px;
+  height: calc(var(--pile-h) * 0.42);
   border: 1.5px dashed rgba(255, 255, 255, 0.28);
   border-radius: 6px;
 }
@@ -23,9 +31,9 @@
 .trick-block {
   position: absolute;
   left: 0;
-  bottom: calc(var(--step) * 5px);
-  width: 66px;
-  height: 94px;
+  bottom: calc(var(--step) * var(--pile-step));
+  width: var(--pile-w);
+  height: var(--pile-h);
   border-radius: 5px;
   background: var(--card-back-image, none), var(--card-back);
   background-size: cover;
@@ -38,28 +46,42 @@
 }
 
 /* Alternating tricks lie across the stack, width and height swapped, so the
-   pile's silhouette steps rather than reading as one thick slab. */
+   pile's silhouette steps rather than reading as one thick slab. The offsets
+   are half the difference between the two dimensions, which is what keeps a
+   crosswise block centred on the one below it at any size. */
 .trick-block.crosswise {
-  width: 94px;
-  height: 66px;
-  left: -14px;
-  bottom: calc(var(--step) * 5px + 14px);
+  width: var(--pile-h);
+  height: var(--pile-w);
+  left: calc((var(--pile-w) - var(--pile-h)) / 2);
+  bottom: calc(var(--step) * var(--pile-step) + (var(--pile-h) - var(--pile-w)) / 2);
   transform: rotate(1.6deg);
 }
 
 .trick-pile-count {
-  padding: 2px 9px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 11px;
   border-radius: 999px;
-  background: rgba(10, 14, 17, 0.66);
+  background: rgba(10, 14, 17, 0.72);
   border: 1px solid var(--panel-border);
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   white-space: nowrap;
+}
+
+/* A long name is clipped rather than allowed to stretch the pill: these sit at
+   the edges of the felt, and a wide one would push the board sideways. */
+.trick-pile-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 11ch;
 }
 
 .trick-pile-count b {
   font-family: var(--serif);
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 400;
-  margin-left: 3px;
 }

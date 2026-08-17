@@ -19,8 +19,9 @@
   --card-fan: clamp(28px, 3.2vw, 46px);
   /* Strip along the board's bottom-right kept clear of your hand, so your
      trick pile always has somewhere to sit beside the cards rather than on
-     top of them. Wide enough for the pile plus its inset at every size. */
-  --pile-gutter: clamp(64px, 6vw, 88px);
+     top of them. Wide enough for the pile and its caption plus the pile's
+     inset at every size. */
+  --pile-gutter: clamp(78px, 6.4vw, 96px);
 }
 
 .game-table {
@@ -268,33 +269,30 @@
 
 /* ---- trick piles ---- */
 
-/* The two piles are deliberately different sizes: the opponent's tricks lie at
-   the far side of the table, so they read smaller, and yours sit near you at
-   15% more. Everything else on the felt is foreshortened by the tilted plane
-   behind it; these are the one pair of objects that has to say it themselves. */
+/* The two piles are deliberately different card sizes: the opponent's tricks
+   lie at the far side of the table, so they read smaller, and yours sit near
+   you at 15% more. Everything else on the felt is foreshortened by the tilted
+   plane behind it; these are the one pair of objects that has to say it
+   themselves. Only the cards shrink — the caption underneath is set from
+   TrickPile.css and stays the same size in both, because a name and a trick
+   count have to be readable wherever they sit. */
 .pile-seated {
-  transform: scale(0.68);
-}
-
-/* Anchored at its foot, so scaling grows it downward toward you rather than up
-   into the opponent's cards. */
-.pile-floating {
-  transform: scale(0.78);
-  transform-origin: bottom center;
-}
-
-/* The opponent's pile is in flow at the foot of their seat, offset left of the
-   fan's centre so the two read as separate objects. The negative margins undo
-   the gap and footprint the scale leaves behind. */
-.pile-seated {
+  --pile-w: 45px;
+  --pile-h: 64px;
+  --pile-step: 3.4px;
   align-self: center;
   /* Right margin pushes it left of the fan's centre. The top margin clears the
      fan: its cards are 3D-rotated, so they paint well below the box flow
      reserved for them, and the overhang grows with card size — hence a margin
-     derived from --card-fan rather than a fixed number. The negative bottom
-     reclaims the empty space scale() leaves inside the layout box. */
-  margin: calc(var(--card-fan) * 0.9 + 6px) 26% -14px 0;
+     derived from --card-fan rather than a fixed number. */
+  margin: calc(var(--card-fan) * 0.9 + 6px) 26% 0 0;
   z-index: 2;
+}
+
+.pile-floating {
+  --pile-w: 51px;
+  --pile-h: 73px;
+  --pile-step: 3.9px;
 }
 
 /* Yours has no seat to hang off — your hand is the full width of the table's
@@ -339,9 +337,13 @@
   --card-played: clamp(46px, 5vw, 74px);
 }
 
+/* Narrow windows: the cards come down but the caption doesn't, since reading
+   the count is the whole point of the pile. */
 @media (max-width: 1100px) {
   .pile-seated,
   .pile-floating {
-    transform: scale(0.52);
+    --pile-w: 34px;
+    --pile-h: 49px;
+    --pile-step: 2.6px;
   }
 }
