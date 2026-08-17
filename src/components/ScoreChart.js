@@ -18,8 +18,19 @@ function ScoreChart({
   const [hoveredRound, setHoveredRound] = useState(null);
 
   const padding = { left: 46, right: 12, top: 12, bottom: 28 };
-  const maxRound = Math.max(1, ...scoreHistory.map((h) => h.round));
-  const allScores = scoreHistory.flatMap((h) => h.scores.map((s) => s.score));
+
+  // Everyone starts on nothing, so the series begin at a round 0 of zeroes.
+  // Added here rather than stored: it's true of every game, so recording it
+  // would just be a row of zeroes in front of every scoreHistory. It also
+  // means one finished round draws a line rather than a lone dot.
+  const start = {
+    round: 0,
+    scores: players.map((p) => ({ name: p.name, score: 0 })),
+  };
+  const points = [start, ...scoreHistory];
+
+  const maxRound = Math.max(1, ...points.map((h) => h.round));
+  const allScores = points.flatMap((h) => h.scores.map((s) => s.score));
 
   // Range rounded out to whole hundreds so the ticks land evenly. 500 is the
   // target score, so the axis always shows at least 0–500 — the distance left
@@ -28,10 +39,9 @@ function ScoreChart({
   const maxScore = Math.max(500, Math.ceil(Math.max(0, ...allScores) / 100) * 100);
   const span = maxScore - minScore || 100;
 
+  // The axis runs from round 0 at the left edge to the last round at the right.
   const xScale = (round) =>
-    padding.left +
-    ((round - 1) / Math.max(1, maxRound - 1)) *
-      (width - padding.left - padding.right);
+    padding.left + (round / maxRound) * (width - padding.left - padding.right);
   const yScale = (score) =>
     height -
     padding.bottom -
@@ -42,14 +52,14 @@ function ScoreChart({
   const yTicks = [minScore, Math.round((minScore + maxScore) / 2), maxScore];
 
   const seriesFor = (name) =>
-    scoreHistory
+    points
       .map((h) => {
         const entry = h.scores.find((s) => s.name === name);
         return entry ? { round: h.round, score: entry.score } : null;
       })
       .filter(Boolean);
 
-  const hovered = scoreHistory.find((h) => h.round === hoveredRound);
+  const hovered = points.find((h) => h.round === hoveredRound);
 
   return (
     <div className="score-chart">
@@ -97,7 +107,7 @@ function ScoreChart({
             </g>
           ))}
 
-          {scoreHistory.map((h) => (
+          {points.map((h) => (
             <text
               key={h.round}
               x={xScale(h.round)}
@@ -106,13 +116,13 @@ function ScoreChart({
               fontSize="10.5"
               fill="rgba(244,241,234,.5)"
             >
-              {h.round}
+              {h.round === 0 ? "start" : h.round}
             </text>
           ))}
 
           {players.map((player, i) => {
-            const points = seriesFor(player.name);
-            const d = points
+            const series = seriesFor(player.name);
+            const d = series
               .map(
                 (p, index) =>
                   `${index === 0 ? "M" : "L"} ${xScale(p.round)} ${yScale(p.score)}`
@@ -121,7 +131,7 @@ function ScoreChart({
             const color = SERIES_COLORS[i % SERIES_COLORS.length];
             return (
               <g key={player.name}>
-                {points.length > 1 && (
+                {series.length > 1 && (
                   <path
                     d={d}
                     fill="none"
@@ -130,7 +140,7 @@ function ScoreChart({
                     strokeLinejoin="round"
                   />
                 )}
-                {points.map((p) => (
+                {series.map((p) => (
                   <circle
                     key={p.round}
                     cx={xScale(p.round)}
@@ -158,7 +168,7 @@ function ScoreChart({
               top: Math.min(...hovered.scores.map((s) => yScale(s.score))),
             }}
           >
-            <strong>Round {hovered.round}</strong>
+            <strong>{hovered.round === 0 ? "Start" : `Round ${hovered.round}`}</strong>
             {hovered.scores.map((s) => (
               <div key={s.name}>
                 {s.name}: {s.score}
