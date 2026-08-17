@@ -1,0 +1,152 @@
+{
+  "_comment": "House rules for the four-player game, drawn from the variants listed at https://en.wikipedia.org/wiki/500_(card_game). Data only: labels and defaults live here so the picker on the home page and the validator in server/gameOptions.js can never disagree about what an option is called or what it defaults to. The two-player game predates this and keeps its own settings.",
+  "groups": [
+    { "id": "terminology", "label": "Terminology" },
+    { "id": "bidding", "label": "Bidding" },
+    { "id": "contracts", "label": "Extra contracts" },
+    { "id": "play", "label": "Play" },
+    { "id": "scoring", "label": "Scoring and winning" }
+  ],
+  "options": [
+    {
+      "id": "misereName",
+      "group": "terminology",
+      "type": "choice",
+      "label": "Name for the no-tricks bid",
+      "default": "misere",
+      "choices": [
+        { "value": "misere", "label": "Misère" },
+        { "value": "nullo", "label": "Nullo" }
+      ],
+      "help": "Some tables call it Nullo. Naming only — the contract plays the same either way."
+    },
+    {
+      "id": "misereAnytime",
+      "group": "bidding",
+      "type": "bool",
+      "label": "Misère biddable at any time",
+      "default": false,
+      "help": "Standard play only lets Misère in once someone has bid at the seven level. Turn this on for unrestricted bidding."
+    },
+    {
+      "id": "bidAfterPass",
+      "group": "bidding",
+      "type": "bool",
+      "label": "You may bid again after passing",
+      "default": false,
+      "help": "Standard play puts you out of the auction for good once you pass."
+    },
+    {
+      "id": "splitTheColours",
+      "group": "bidding",
+      "type": "bool",
+      "label": "Split the colours",
+      "default": false,
+      "help": "The special contracts outbid the black suits at their level but not the red ones: Misère beats 7♠ and 7♣ but not 7♦ or 7♥, Open Misère beats 8♠/8♣, Hi-Lo beats 9♠/9♣, Double Nullo beats 10♠/10♣."
+    },
+    {
+      "id": "allPassNoTrump",
+      "group": "bidding",
+      "type": "bool",
+      "label": "Play the hand if everyone passes",
+      "default": false,
+      "help": "Instead of redealing, the hand is played at no trumps with nobody on a contract and every trick worth ten to whoever takes it."
+    },
+    {
+      "id": "openMisere",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Open Misère",
+      "default": true,
+      "help": "Worth 500. Your hand goes face up after the first trick."
+    },
+    {
+      "id": "blindMisere",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Blind Misère",
+      "default": false,
+      "help": "Worth 1000, and only as your first call of the auction — properly it's bid before you look at your hand, so it runs on trust here."
+    },
+    {
+      "id": "hiLo",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Hi-Lo (Even Stevens)",
+      "default": false,
+      "help": "Worth 350. Win exactly five tricks — no more, no fewer. Your partner folds."
+    },
+    {
+      "id": "doubleNullo",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Double Nullo (Grand Nullo)",
+      "default": false,
+      "help": "Worth 500. Both partners play, and neither may win a trick."
+    },
+    {
+      "id": "jokerLeadAnytime",
+      "group": "play",
+      "type": "bool",
+      "label": "Joker may be led at no trumps",
+      "default": true,
+      "help": "In a no-trump or Misère contract, leading the Joker and nominating a suit is allowed even when you could follow. Turn this off and the Joker can only be thrown when you're void."
+    },
+    {
+      "id": "j5",
+      "group": "play",
+      "type": "bool",
+      "label": "J5 — jacks high at no trumps",
+      "default": false,
+      "help": "In a no-trump contract each jack outranks the ace of its own suit."
+    },
+    {
+      "id": "trickPoints",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Ten points a trick for the defenders",
+      "default": true,
+      "help": "Turn this off and only a won contract scores anything."
+    },
+    {
+      "id": "slamBonus",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Slam bonus",
+      "default": true,
+      "help": "Take all ten tricks on a contract worth less than 250 and score 250 instead."
+    },
+    {
+      "id": "mustBidToWin",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Must bid to win",
+      "default": false,
+      "help": "Passing 500 on trick points alone isn't enough — the winning hand has to be a made contract."
+    },
+    {
+      "id": "backDoor",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Out the back door at −500",
+      "default": true,
+      "help": "A team down to −500 or worse loses the game there and then."
+    },
+    {
+      "id": "pointSpread",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Point spread ends the game",
+      "default": false,
+      "help": "Once one team is negative and the gap between the teams reaches 500, the team in front wins."
+    },
+    {
+      "id": "ralphing",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Ralphing",
+      "default": false,
+      "help": "Go down by more than three tricks and you're barred from bidding on the next hand. Your partner still may."
+    }
+  ]
+}
