@@ -186,7 +186,9 @@ class Room {
         : null,
       game: this.serializeGame(),
     };
-    db.saveGame(this.id, {
+    // Returned so callers that need the write to have landed can wait on it —
+    // the head-to-head after a game over has to include the game just won.
+    return db.saveGame(this.id, {
       status: this.status,
       playerSlots: this.slots.map((s) => (s ? { userId: s.userId, name: s.name } : null)),
       roundNumber: this.roundNumber,
@@ -198,6 +200,26 @@ class Room {
   }
 
   // ---- small helpers ----
+
+  // Wins each way between these two players across every finished game,
+  // including the one just decided. Best-effort: a failure here costs the
+  // game-over screen a line, and shouldn't take the room down with it.
+  async emitMatchRecord() {
+    const [a, b] = this.slots;
+    if (!a || !b) return;
+    try {
+      const { wins, played } = await db.headToHead(a.userId, b.userId);
+      this.io.to(this.id).emit("matchRecord", {
+        played,
+        players: [
+          { id: a.userId, name: a.name, wins: wins[a.userId] || 0 },
+          { id: b.userId, name: b.name, wins: wins[b.userId] || 0 },
+        ],
+      });
+    } catch (err) {
+      console.error("head-to-head lookup failed", err);
+    }
+  }
 
   nameOf(userId) {
     return (
@@ -953,7 +975,10 @@ class Room {
       // screen uses, so "Review last hand" / "Replay last hand" work from
       // the game-over screen too — there's just no "ready" concept here.
       this.roundEnd = { readyUserIds: new Set(), proposal: null };
-      this.persist();
+      // The record is read back out of the database, so it can only be sent
+      // once this game's own result is in there — hence waiting on persist
+      // rather than emitting it alongside gameOver.
+      this.persist().then(() => this.emitMatchRecord());
       return;
     }
 

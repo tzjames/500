@@ -49,6 +49,13 @@ app.get("/api/games", auth.requireAuth, async (req, res) => {
   );
 });
 
+// Win/loss against each opponent, derived from finished games. Not capped the
+// way /api/games is — a record that only counted your last twenty games would
+// be worse than none.
+app.get("/api/record", auth.requireAuth, async (req, res) => {
+  res.json(await db.recordsForUser(req.user.userId));
+});
+
 app.post("/api/games", auth.requireAuth, async (req, res) => {
   const game = await db.createGame({
     _id: crypto.randomUUID(),

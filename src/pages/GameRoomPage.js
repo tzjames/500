@@ -17,6 +17,27 @@ import Confetti from "../components/Confetti";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "../App.css";
 
+// "That's 4–2 to Grace" under the final scores. Counts every finished game
+// between the two players, this one included.
+function MatchRecordLine({ record, playerId }) {
+  const me = record.players.find((p) => p.id === playerId);
+  const them = record.players.find((p) => p.id !== playerId);
+  if (!me || !them || record.played < 2) return null;
+
+  const tally =
+    me.wins === them.wins
+      ? `all square at ${me.wins}–${them.wins}`
+      : me.wins > them.wins
+      ? `${me.wins}–${them.wins} to you`
+      : `${them.wins}–${me.wins} to ${them.name}`;
+
+  return (
+    <p className="match-record">
+      {record.played} games played · {tally}
+    </p>
+  );
+}
+
 function GameRoomPage() {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
@@ -66,6 +87,9 @@ function GameRoomPage() {
   const [scoreHistory, setScoreHistory] = useState([]);
   const [showScoreHistory, setShowScoreHistory] = useState(false);
   const [gameOverInfo, setGameOverInfo] = useState(null);
+  // Wins each way across every finished game between these two, sent just
+  // after a game over once the result has been written.
+  const [matchRecord, setMatchRecord] = useState(null);
   const [roundResult, setRoundResult] = useState(null);
   const [roundEndInfo, setRoundEndInfo] = useState(null);
   const [reviewData, setReviewData] = useState(null);
@@ -369,6 +393,8 @@ function GameRoomPage() {
       setWaitingForClaimResponse(Boolean(claim && claim.fromPlayerId === playerId));
     });
 
+    socket.on("matchRecord", (record) => setMatchRecord(record));
+
     socket.on("gameOver", (info) => {
       setGameOverInfo(info);
       setScoreHistory(info.scoreHistory || []);
@@ -569,6 +595,7 @@ function GameRoomPage() {
         "invalidPlay",
         "gameResumed",
         "gameOver",
+        "matchRecord",
         "roundResigned",
         "roundResult",
         "roundEndState",
@@ -1058,6 +1085,8 @@ function GameRoomPage() {
               </li>
             ))}
           </ul>
+
+          {matchRecord && <MatchRecordLine record={matchRecord} playerId={playerId} />}
 
           {proposalIsIncoming ? (
             <div className="round-end-proposal">

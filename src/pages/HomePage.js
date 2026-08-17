@@ -75,6 +75,7 @@ function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [games, setGames] = useState([]);
+  const [records, setRecords] = useState([]);
   const [error, setError] = useState("");
 
   // Set when a protected route sent us here to authenticate (see
@@ -92,6 +93,12 @@ function HomePage() {
       .listGames(session.token)
       .then(setGames)
       .catch((err) => setError(err.message));
+    // The record is a nicety — if it fails, the page is still usable, so it
+    // doesn't get to set the page-level error.
+    api
+      .getRecord(session.token)
+      .then(setRecords)
+      .catch(() => setRecords([]));
   }, [session]);
 
   const handleNewGame = async () => {
@@ -134,6 +141,24 @@ function HomePage() {
               Start a new game
             </button>
             {error && <p className="auth-error">{error}</p>}
+
+            {records.length > 0 && (
+              <>
+                <h2 className="home-section overline">Record</h2>
+                <ul className="record-list">
+                  {records.map((r) => (
+                    <li key={r.opponentId}>
+                      <span className="record-opponent">vs {r.opponentName}</span>
+                      <span className="record-tally">
+                        <b>{r.wins}</b>
+                        <span className="record-dash">–</span>
+                        <b>{r.losses}</b>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
 
             <h2 className="home-section overline">Your games</h2>
             {games.length === 0 ? (

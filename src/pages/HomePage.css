@@ -139,6 +139,49 @@
   opacity: 0.6;
 }
 
+/* Win–loss against each opponent. Counts finished games only, so it stays
+   empty until a match has actually been won. */
+.record-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+  font-size: 13px;
+}
+
+.record-opponent {
+  font-weight: 700;
+}
+
+.record-tally {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--serif);
+  font-size: 20px;
+}
+
+.record-tally b {
+  font-weight: 400;
+}
+
+.record-dash {
+  opacity: 0.45;
+}
+
 .game-list {
   list-style: none;
   padding: 0;
