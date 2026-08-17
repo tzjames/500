@@ -24,6 +24,11 @@ function ContractPanel({
   waitingForClaimResponse,
   claimStatusMessage,
   onClaimRest,
+  canResign,
+  canRedeal,
+  offerPending,
+  onOfferResign,
+  onOfferRedeal,
 }) {
   const bidLabel = currentBid?.bid;
   const [level, suit] = bidLabel ? bidLabel.split(" ") : [];
@@ -126,6 +131,36 @@ function ContractPanel({
         <p className="side-note">Waiting for {opponentName} to respond…</p>
       )}
       {claimStatusMessage && <p className="side-note">{claimStatusMessage}</p>}
+
+      {/* Both need the other player to agree, so they read as offers. Resign
+          settles the hand against you; a redeal throws it away unscored. */}
+      {(canResign || canRedeal) && (
+        <>
+          <div className="panel-divider" />
+          <div className="concede-buttons">
+            {canResign && (
+              <button
+                className="btn-ghost concede-button"
+                onClick={onOfferResign}
+                disabled={offerPending}
+                title="Give up this hand — the contract is settled against you"
+              >
+                Offer to resign
+              </button>
+            )}
+            {canRedeal && (
+              <button
+                className="btn-ghost concede-button"
+                onClick={onOfferRedeal}
+                disabled={offerPending}
+                title="Throw this hand in and deal again, scoring nothing"
+              >
+                Offer a redeal
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </aside>
   );
 }

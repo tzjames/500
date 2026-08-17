@@ -377,13 +377,17 @@ class Game500 {
   // hand+dummy tricks as their bid promised (0 for Misere/Open Misere) to
   // score the full bid value; otherwise they lose that value. The other
   // player always scores 10 points per trick, win or lose.
-  scoreRound() {
+  // `forcedBidderMadeBid` settles the contract without counting tricks, for a
+  // hand that ended by agreement rather than by being played out — see
+  // resignRound in room.js. Left null, the tricks decide as usual.
+  scoreRound(forcedBidderMadeBid = null) {
     const bid = this.currentBid;
     const bidder = this.players.find((p) => p.id === bid.player);
     const other = this.players.find((p) => p.id !== bid.player);
 
     const isMisere = bid.bid.includes("Misere");
-    const bidderMadeBid = checkBidMade(bid, bidder.tricksWon);
+    const bidderMadeBid =
+      forcedBidderMadeBid === null ? checkBidMade(bid, bidder.tricksWon) : forcedBidderMadeBid;
 
     const bidderDelta = bidderMadeBid ? bid.points : -bid.points;
     const otherDelta = isMisere ? 0 : other.tricksWon * 10;

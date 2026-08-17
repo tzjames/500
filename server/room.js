@@ -450,7 +450,10 @@ class Room {
     this.persist();
   }
 
-  redealAllPassed() {
+  // Deal the same round again with the same dealer, because it never counted:
+  // either everyone passed, or both players agreed to abandon it. `logType`
+  // records which, so the review can tell them apart.
+  redealAllPassed(logType = "allPassed") {
     const dealerIndex = this.game.players.findIndex((p) => p.isDealer);
     const dealData = this.game.redeal(dealerIndex);
     this.currentBidder = this.game.players.find((p) => p.id !== dealData.dealerId).id;
@@ -464,7 +467,7 @@ class Room {
     this.redealCount += 1;
     this.gamePhase = "bidding";
 
-    this.logEvent("allPassed", {});
+    this.logEvent(logType, {});
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
     this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
     this.io.to(this.id).emit("updateGamePhase", "bidding");
@@ -574,14 +577,78 @@ class Room {
     });
   }
 
+  // Give up the hand. Offered from the play screen by either player: the
+  // bidder conceding they can't make it, or the other player conceding they
+  // can't stop it. Needs the opponent to agree, like every other offer here.
+  offerResign(socket) {
+    if (!this.game || this.gamePhase !== "playing" || !this.game.currentBid) return;
+    if (this.pendingOffer || this.pendingClaim) return;
+    this.pendingOffer = { type: "resign", fromPlayerId: socket.userId };
+    this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {
+      type: "resign",
+      fromName: this.nameOf(socket.userId),
+    });
+  }
+
+  // Throw the hand in and deal it again, scoring nothing. Available for the
+  // whole of a live round — a hand can be worth abandoning before a bid as
+  // easily as after one.
+  offerRedeal(socket) {
+    if (!this.game || !["bidding", "kitty", "playing"].includes(this.gamePhase)) return;
+    if (this.pendingOffer || this.pendingClaim) return;
+    this.pendingOffer = { type: "redeal", fromPlayerId: socket.userId };
+    this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {
+      type: "redeal",
+      fromName: this.nameOf(socket.userId),
+    });
+  }
+
+  // The contract is settled against whoever gave up: the bidder resigning
+  // fails it, the other player resigning concedes it. Trick counts are left
+  // as they stand, so the non-bidder's ten-a-trick still reflects what they
+  // actually won. Deciding it this way rather than by awarding the remaining
+  // tricks is what makes it work for Misère too, where the bidder wants none.
+  resignRound(resignerId) {
+    const bidderId = this.game.currentBid.player;
+    this.game.players.forEach((p) => {
+      p.hand = [];
+      p.dummyHand = [];
+    });
+    this.game.currentTrick = [];
+    this.logEvent("resign", { userId: resignerId });
+    this.io.to(this.id).emit("roundResigned", {
+      byName: this.nameOf(resignerId),
+      byId: resignerId,
+    });
+    this.finishRound(resignerId !== bidderId);
+  }
+
   respondToOffer(socket, accept) {
     if (!this.game || !this.pendingOffer || socket.userId === this.pendingOffer.fromPlayerId) return;
     const offer = this.pendingOffer;
     this.pendingOffer = null;
 
     if (accept) {
+      if (offer.type === "resign") {
+        this.resignRound(offer.fromPlayerId);
+        return;
+      }
+      if (offer.type === "redeal") {
+        this.redealAllPassed("redealAgreed");
+        return;
+      }
       this.io.to(this.id).emit("allPlayersPassed");
       this.redealAllPassed();
+      return;
+    }
+
+    // Only the two bidding offers get a "don't ask again" flag; resign and
+    // redeal can be offered as often as you like.
+    if (offer.type === "resign" || offer.type === "redeal") {
+      this.emitToUser(offer.fromPlayerId, "offerDeclined", {
+        byName: this.nameOf(socket.userId),
+        offerType: offer.type,
+      });
       return;
     }
 
@@ -820,9 +887,12 @@ class Room {
 
   // ---- round end: result, then ready / review / replay negotiation ----
 
-  finishRound() {
+  // `forcedBidderMadeBid` is set only when the hand ended by agreement rather
+  // than by being played out — see resignRound.
+  finishRound(forcedBidderMadeBid = null) {
     const bidDescription = this.game.currentBid.bid;
-    const { bidderMadeBid, bidderId, otherId, bidderDelta, otherDelta } = this.game.scoreRound();
+    const { bidderMadeBid, bidderId, otherId, bidderDelta, otherDelta } =
+      this.game.scoreRound(forcedBidderMadeBid);
     const bidderPlayer = this.game.players.find((p) => p.id === bidderId);
     const otherPlayer = this.game.players.find((p) => p.id === otherId);
 

@@ -369,6 +369,15 @@ function GameRoomPage() {
       setScoreHistory(info.scoreHistory || []);
     });
 
+    // A hand given up rather than played out. The round-end modal follows
+    // right behind this; the note just says why it ended.
+    socket.on("roundResigned", ({ byName, byId }) => {
+      setWaitingForOfferResponse(false);
+      setOfferStatusMessage(
+        byId === playerId ? "You gave up the hand." : `${byName} gave up the hand.`
+      );
+    });
+
     socket.on("roundResult", (result) => setRoundResult(result));
     // Broadcast room-wide whenever the game (re-)enters roundEnd/gameOver —
     // including right after the review controller clicks "Back to round" —
@@ -555,6 +564,7 @@ function GameRoomPage() {
         "invalidPlay",
         "gameResumed",
         "gameOver",
+        "roundResigned",
         "roundResult",
         "roundEndState",
         "reviewStart",
@@ -621,6 +631,18 @@ function GameRoomPage() {
 
   const handleOfferRetroactivePass = () => {
     socket.emit("offerRetroactivePass");
+    setOfferStatusMessage("");
+    setWaitingForOfferResponse(true);
+  };
+
+  const handleOfferResign = () => {
+    socket.emit("offerResign");
+    setOfferStatusMessage("");
+    setWaitingForOfferResponse(true);
+  };
+
+  const handleOfferRedeal = () => {
+    socket.emit("offerRedeal");
     setOfferStatusMessage("");
     setWaitingForOfferResponse(true);
   };
@@ -1159,6 +1181,11 @@ function GameRoomPage() {
             waitingForClaimResponse={waitingForClaimResponse}
             claimStatusMessage={claimStatusMessage}
             onClaimRest={handleClaimRest}
+            canResign={gamePhase === "playing" && Boolean(gameState.currentBid)}
+            canRedeal={["bidding", "kitty", "playing"].includes(gamePhase)}
+            offerPending={waitingForOfferResponse}
+            onOfferResign={handleOfferResign}
+            onOfferRedeal={handleOfferRedeal}
           />
 
           <div className="board-center">

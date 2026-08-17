@@ -9,6 +9,10 @@ function OfferModal({ type, fromName, onRespond, scoped }) {
       ? `${fromName} has offered you a retroactive pass. Do you accept?`
       : type === "claimRest"
       ? `${fromName} claims they've got the rest of the tricks. Do you agree?`
+      : type === "resign"
+      ? `${fromName} wants to give up this hand — the contract would be settled against them and the round scored. Do you agree?`
+      : type === "redeal"
+      ? `${fromName} wants to throw this hand in and deal again. Nothing would be scored. Do you agree?`
       : `${fromName} wants a rematch! Accept?`;
 
   return (

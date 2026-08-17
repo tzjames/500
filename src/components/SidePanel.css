@@ -85,6 +85,26 @@
   font-size: 12.5px;
 }
 
+.concede-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Quieter than the claim button — these end the hand, so they shouldn't be the
+   first thing your eye lands on. */
+.concede-button {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+.concede-button:hover:not(:disabled) {
+  opacity: 1;
+}
+
 /* ---- last trick ---- */
 
 .side-panel-right .panel-heading {
