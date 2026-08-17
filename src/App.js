@@ -2,7 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth";
 import HomePage from "./pages/HomePage";
-import GameRoomPage from "./pages/GameRoomPage";
+import GamePage from "./pages/GamePage";
 import "./App.css";
 
 function App() {
@@ -11,7 +11,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/game/:id" element={<GameRoomPage />} />
+          <Route path="/game/:id" element={<GamePage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

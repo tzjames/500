@@ -1,0 +1,317 @@
+/* The four-player board. Sits inside ThemedTable's untilted overlay, like the
+   two-player one, and scales with the viewport rather than a fixed layout.
+   Card sizes are declared here rather than borrowed from GameTable.css so this
+   board stands on its own — the two games are laid out differently and nothing
+   good comes of them sharing a size scale.
+
+   The sizes are a little smaller than the two-player board's: there are four
+   fans of ten to fit round the same felt rather than two, and the north seat is
+   a real player's fan rather than a face-up dummy. */
+
+.table4 {
+  --card-hand: clamp(52px, 6.6vw, 104px);
+  --card-fan4: clamp(24px, 2.8vw, 40px);
+  --card-played4: clamp(48px, 5.4vw, 82px);
+  /* Kept clear of your hand on the bottom right so your own trick pile has
+     somewhere to sit beside the cards rather than on top of them. */
+  --pile-gutter4: clamp(78px, 6.4vw, 96px);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ---- seats ---- */
+
+.seat4 {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 3;
+}
+
+.seat4-top {
+  top: 1%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+}
+
+/* Clear of the bottom edge by more than the fan's deepest drop, and inset on
+   the right by the pile gutter so the hand is centred in what's left rather
+   than running into your own trick pile. */
+.seat4-bottom {
+  bottom: 22px;
+  left: 0;
+  right: var(--pile-gutter4);
+}
+
+/* No width cap on the side seats: they shrink-wrap their fan. A cap doesn't
+   clip a 3D-rotated fan, it just lets the cards spill out of the box and push
+   the overlay's scroll width past the viewport. */
+.seat4-left {
+  left: 1%;
+  top: 44%;
+  transform: translateY(-50%);
+  align-items: flex-start;
+}
+
+.seat4-right {
+  right: 1%;
+  top: 44%;
+  transform: translateY(-50%);
+  align-items: flex-end;
+}
+
+/* A revealed hand is far wider than a fan of backs, so it gets a cap and
+   scrolls within itself rather than reaching across the felt. */
+.seat4-revealed {
+  max-width: 28%;
+}
+
+.seat4-revealed .revealed4 {
+  overflow-x: auto;
+}
+
+.seat4-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.seat4-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 244, 225, 0.93);
+  color: var(--ink-dark);
+  font-family: var(--serif);
+  font-size: 16px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+
+.seat4-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(10, 14, 17, 0.55);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Ringed when it's that seat's turn, so you can see whose move it is without
+   reading the status line. */
+.seat4-active .seat4-name {
+  box-shadow: 0 0 0 2px var(--amber-ring);
+}
+
+.seat4-tag {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.seat4-folded {
+  margin: 8px 0;
+  font-size: 11.5px;
+  opacity: 0.55;
+  font-style: italic;
+}
+
+/* ---- fans of card backs ---- */
+
+.fan4 {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 6px;
+}
+
+/* The overlap has to be a fraction of the card, not a percentage — a
+   percentage margin resolves against the containing block, which here is the
+   whole seat, and splays the fan into the next county. */
+.fan4 .fan4-card {
+  --card-w: var(--card-fan4);
+  margin-left: calc(var(--card-fan4) * -0.46);
+  transform-origin: 50% 118%;
+}
+
+.fan4 .fan4-card:first-child {
+  margin-left: 0;
+}
+
+/* The side fans tilt away from the viewer so they read as held rather than
+   laid out. Mirrored left to right; the far seat faces you square on. */
+.fan4-left {
+  transform: perspective(500px) rotateY(53deg) rotateZ(-10deg);
+}
+
+.fan4-right {
+  transform: perspective(500px) rotateY(-53deg) rotateZ(10deg);
+}
+
+.fan4-top {
+  transform: perspective(700px) rotateX(24deg);
+}
+
+/* ---- revealed hands (Open Misère) ---- */
+
+.revealed4 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.revealed4-row {
+  display: flex;
+  gap: 2px;
+}
+
+/* ---- the trick well ---- */
+
+.trick4-well {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  width: min(400px, 32vw);
+  height: min(290px, 29vh);
+  z-index: 2;
+}
+
+/* All four anchors share one coordinate system, so a card moving out to the
+   winner is a plain interpolation rather than a swap between mismatched edge
+   properties. */
+.played4 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: top 0.6s ease-in, left 0.6s ease-in, transform 0.6s ease-in,
+    opacity 0.6s ease-in;
+}
+
+.played4 .pc {
+  --card-w: var(--card-played4);
+  box-shadow: var(--shadow-played);
+}
+
+/* Each card anchors by the single edge facing the well's edge, with the
+   perpendicular axis centred, so the gap to the edge is the same on all four
+   sides whatever the card size. */
+.played4-bottom {
+  top: 95%;
+  left: 50%;
+  transform: translate(-50%, -100%) rotate(2deg);
+}
+
+.played4-top {
+  top: 5%;
+  left: 50%;
+  transform: translate(-50%, 0%) rotate(-3deg);
+}
+
+.played4-left {
+  top: 50%;
+  left: 5%;
+  transform: translate(0%, -50%) rotate(5deg);
+}
+
+.played4-right {
+  top: 50%;
+  left: 95%;
+  transform: translate(-100%, -50%) rotate(-6deg);
+}
+
+.played4.flying {
+  opacity: 0;
+}
+
+/* The suit a led Joker was called into — everyone has to follow it, so it needs
+   saying on the card itself. */
+.played4-nominated {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 14, 17, 0.84);
+  border: 1px solid var(--panel-border);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* ---- trick piles ---- */
+
+/* One per seat. The three across the table read smaller, as they would from
+   where you're sitting; only the cards shrink, since a name and a count have to
+   stay readable wherever they are (see TrickPile.css). */
+.pile4-seated {
+  --pile-w: 40px;
+  --pile-h: 57px;
+  --pile-step: 3px;
+  align-self: center;
+  /* The top margin clears the fan above: its cards are 3D-rotated, so they
+     paint well below the box flow reserved for them, and the overhang grows
+     with card size. */
+  margin-top: calc(var(--card-fan4) * 0.8 + 4px);
+  z-index: 2;
+}
+
+/* The far seat's fan is flat rather than edge-on, so it needs less clearance,
+   and the pile goes beside the fan rather than under it to stay out of the
+   trick well. */
+.seat4-top .pile4-seated {
+  margin: -6px 0 0 0;
+}
+
+/* Yours has no seat box to hang off — your hand spans the whole bottom edge —
+   so it floats on the cloth in the near corner, inside the gutter the hand
+   leaves free. */
+.pile4-mine {
+  --pile-w: 48px;
+  --pile-h: 69px;
+  --pile-step: 3.7px;
+  position: absolute;
+  right: 6px;
+  bottom: 18px;
+  z-index: 2;
+}
+
+@media (max-width: 1100px) {
+  .pile4-seated,
+  .pile4-mine {
+    --pile-w: 32px;
+    --pile-h: 46px;
+    --pile-step: 2.4px;
+  }
+}
+
+/* ---- status pill ---- */
+
+/* Clears the hand: the hand's tallest point is one card height (1.4× its width)
+   above its 22px offset, so this sits a little above that. */
+.table4-status {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--card-hand) * 1.4 + 40px);
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: 92%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table4-status.your-turn {
+  box-shadow: 0 0 0 2px var(--amber-ring);
+}

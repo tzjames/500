@@ -32,4 +32,13 @@ export const listGames = (token) => request("/api/games", { token });
 
 export const getRecord = (token) => request("/api/record", { token });
 
-export const createGame = (token) => request("/api/games", { method: "POST", token });
+// `setup` carries the table size, whether it's listed publicly, the house
+// rules, how partners are picked and whether to fill the empty seats with
+// robots. A bare call still makes a two-player game, as it always did.
+export const createGame = (token, setup = {}) =>
+  request("/api/games", { method: "POST", token, body: setup });
+
+export const getGameMeta = (token, id) => request(`/api/games/${id}/meta`, { token });
+
+export const getGameDefaults = (token, mode) =>
+  request(`/api/game-defaults?mode=${mode}`, { token });

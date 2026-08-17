@@ -64,26 +64,33 @@ class Presence {
   }
 
   // Public tables that haven't started yet, with the seats they still need.
+  // Only tables somebody is actually sitting at: a game created and then
+  // abandoned before its page even connected would otherwise sit in the lobby
+  // forever advertising a host who isn't there. The freshly-created ones get a
+  // grace window so a host's own table doesn't flicker out from under them
+  // between the create call and the socket joining.
   async openTables() {
     const docs = await db.listPublicWaitingGames();
+    const now = Date.now();
     return docs
       .map((doc) => {
         const room = this.roomManager?.rooms.get(doc._id);
         const slots = room ? room.slots : doc.playerSlots || [];
-        const seats = doc.mode === 4 ? 4 : 2;
-        const taken = slots.filter(Boolean).length;
+        const filled = slots.filter(Boolean);
         return {
           id: doc._id,
           mode: doc.mode === 4 ? 4 : 2,
-          hostName: (slots.find(Boolean) || {}).name || "Someone",
-          players: slots.filter(Boolean).map((s) => ({ name: s.name, isBot: Boolean(s.isBot) })),
-          seatsTaken: taken,
-          seats,
+          hostName: (filled[0] || {}).name || "Someone",
+          players: filled.map((s) => ({ name: s.name, isBot: Boolean(s.isBot) })),
+          seatsTaken: filled.length,
+          seats: doc.mode === 4 ? 4 : 2,
           options: doc.options || null,
           createdAt: doc.createdAt,
+          present: room ? room.connectedHumans() > 0 : false,
+          fresh: now - (doc.createdAt || 0) < 90_000,
         };
       })
-      .filter((table) => table.seatsTaken < table.seats);
+      .filter((table) => table.seatsTaken < table.seats && (table.present || table.fresh));
   }
 
   // Anyone watching the home page gets the counts and the open tables. Sent to

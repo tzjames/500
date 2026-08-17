@@ -84,7 +84,11 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
   const playerSlots = [host, ...Array(seats - 1).fill(null)];
 
   // Starting against robots fills the empty seats now, so the table is complete
-  // the moment the host walks in and the game deals itself.
+  // the moment the host walks in and the game deals itself. Partners are drawn
+  // rather than chosen in that case: picking between three identical robots
+  // isn't a decision worth a screen.
+  const seating = fillWithBots ? "random" : partnerMode === "random" ? "random" : "choose";
+
   if (mode === 4 && fillWithBots) {
     const taken = [host.name];
     for (let seat = 1; seat < seats; seat++) {
@@ -99,9 +103,7 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
     mode,
     visibility: visibility === "public" ? "public" : "private",
     hostUserId: host.userId,
-    ...(mode === 4
-      ? { options: sanitizeOptions(options), partnerMode: partnerMode === "random" ? "random" : "choose" }
-      : {}),
+    ...(mode === 4 ? { options: sanitizeOptions(options), partnerMode: seating } : {}),
     status: "waiting",
     playerSlots,
     roundNumber: 1,

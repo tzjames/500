@@ -2,7 +2,9 @@ const { MongoClient } = require("mongodb");
 
 const MONGO_URI =
   process.env.MONGO_URI || "mongodb://root:password@localhost:27017/?authSource=admin";
-const DB_NAME = "card-game-500";
+// Overridable so a throwaway database can be pointed at for a smoke test
+// without touching the real one.
+const DB_NAME = process.env.MONGO_DB || "card-game-500";
 
 let users = null;
 let games = null;

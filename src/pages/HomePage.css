@@ -222,3 +222,123 @@
   opacity: 0.66;
   text-align: right;
 }
+
+/* Marks a four-player game in a list that's mostly two-player ones. */
+.game-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 7px;
+  border-radius: 5px;
+  background: rgba(255, 235, 200, 0.2);
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 400;
+  vertical-align: -3px;
+}
+
+/* ---- who's about ---- */
+
+.presence-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+/* Panel fill rather than the faint surface the lists use: these sit high on the
+   page, right over the brightest part of the backdrop photograph, and a 5%
+   white wash disappears into it. */
+.presence-strip li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 9px 4px 8px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  text-align: center;
+}
+
+.presence-strip b {
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.presence-strip span {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* ---- the lobby ---- */
+
+.lobby-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+}
+
+.lobby-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lobby-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lobby-players,
+.lobby-rules {
+  font-size: 11px;
+  opacity: 0.62;
+  line-height: 1.4;
+}
+
+.lobby-rules {
+  color: var(--amber);
+  opacity: 0.75;
+}
+
+.lobby-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.lobby-seats {
+  font-family: var(--serif);
+  font-size: 19px;
+  opacity: 0.8;
+}
+
+.lobby-join {
+  padding: 8px 18px;
+  font-size: 12.5px;
+}

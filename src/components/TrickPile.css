@@ -77,7 +77,7 @@
 .trick-pile-owner {
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 11ch;
+  max-width: 15ch;
 }
 
 .trick-pile-count b {
