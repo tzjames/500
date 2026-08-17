@@ -16,6 +16,23 @@ function renderBid(bid) {
   );
 }
 
+// Where a player now stands, and what this hand did to get them there —
+// "Ada 340 (+100)". Rounds finished before totals were recorded have no
+// `total`, so those fall back to showing the swing on its own.
+function ResultBox({ name, total, delta }) {
+  return (
+    <div className={`round-result-box${delta >= 0 ? " up" : " down"}`}>
+      <span className="round-result-name">{name}</span>
+      <span className="round-result-figures">
+        {total !== undefined && <b className="round-result-total serif">{total}</b>}
+        <span className="round-result-delta serif">
+          {total !== undefined ? `(${formatDelta(delta)})` : formatDelta(delta)}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 // End of hand: the result, the two score swings, and where that leaves the
 // game. The score chart is inline here rather than only behind the 📈 button —
 // the moment you most want to see the shape of the game is right after a swing.
@@ -30,8 +47,16 @@ function RoundEndModal({
   players = [],
   roundNumber,
 }) {
-  const { bid, bidderName, bidderMadeBid, bidderDelta, otherName, otherDelta } =
-    result;
+  const {
+    bid,
+    bidderName,
+    bidderMadeBid,
+    bidderDelta,
+    bidderScore,
+    otherName,
+    otherDelta,
+    otherScore,
+  } = result;
   const iAmReady = roundEndInfo.readyUserIds.includes(playerId);
   const proposal = roundEndInfo.proposal;
   const proposalIsMine = proposal?.fromUserId === playerId;
@@ -49,18 +74,8 @@ function RoundEndModal({
         </h2>
 
         <div className="round-result-boxes">
-          <div className={`round-result-box${bidderDelta >= 0 ? " up" : " down"}`}>
-            <span className="round-result-name">{bidderName}</span>
-            <span className="round-result-delta serif">
-              {formatDelta(bidderDelta)}
-            </span>
-          </div>
-          <div className={`round-result-box${otherDelta >= 0 ? " up" : " down"}`}>
-            <span className="round-result-name">{otherName}</span>
-            <span className="round-result-delta serif">
-              {formatDelta(otherDelta)}
-            </span>
-          </div>
+          <ResultBox name={bidderName} total={bidderScore} delta={bidderDelta} />
+          <ResultBox name={otherName} total={otherScore} delta={otherDelta} />
         </div>
 
         {scoreHistory.length > 0 && players.length > 0 && (

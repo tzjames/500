@@ -939,13 +939,19 @@ class Room {
       otherDelta,
       scores: Object.fromEntries(this.game.players.map((p) => [p.id, p.score])),
     });
+    // Totals as well as the swing: scoreRound has already applied the deltas,
+    // so these are where each player stands after the hand. The round-end
+    // screen would otherwise have only the change to show, and the running
+    // totals it can see elsewhere are a round out of date by then.
     this.lastRoundResult = {
       bid: bidDescription,
       bidderName: bidderPlayer.name,
       bidderMadeBid,
       bidderDelta,
+      bidderScore: bidderPlayer.score,
       otherName: otherPlayer.name,
       otherDelta,
+      otherScore: otherPlayer.score,
     };
     this.io.to(this.id).emit("roundResult", this.lastRoundResult);
     this.scoreHistory.push({

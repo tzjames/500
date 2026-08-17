@@ -61,8 +61,22 @@
   font-weight: 700;
 }
 
-.round-result-delta {
+/* The total is the headline; the swing that produced it sits beside it,
+   smaller, and carries the colour. */
+.round-result-figures {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.round-result-total {
   font-size: 32px;
+  font-weight: 400;
+}
+
+.round-result-delta {
+  font-size: 17px;
   white-space: nowrap;
 }
 
