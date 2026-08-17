@@ -354,9 +354,14 @@ function GameRoomPage() {
       if (state.gameSettings) setGameSettings(state.gameSettings);
       setOfferPassDeclined(state.offerPassDeclined || false);
       setOfferRetroactivePassDeclined(state.offerRetroactivePassDeclined || false);
-      setPendingOfferReceived(null);
+      // An offer outstanding when you reconnect is restored rather than lost:
+      // the recipient gets the prompt back, the sender goes back to waiting.
+      const offer = state.pendingOffer;
+      setPendingOfferReceived(
+        offer && offer.fromPlayerId !== playerId ? { type: offer.type, fromName: offer.fromName } : null
+      );
+      setWaitingForOfferResponse(Boolean(offer && offer.fromPlayerId === playerId));
       setOfferStatusMessage("");
-      setWaitingForOfferResponse(false);
       setClaimStatusMessage("");
       setRevealedClaimerId(state.revealedClaimerId || null);
       const claim = state.pendingClaim;

@@ -337,6 +337,16 @@ class Room {
       pendingClaim: this.pendingClaim
         ? { fromPlayerId: this.pendingClaim.fromPlayerId, fromName: this.nameOf(this.pendingClaim.fromPlayerId) }
         : null,
+      // Resent on reconnect, like the claim above. It used to be dropped here,
+      // which meant a recipient who reloaded lost the prompt for good while the
+      // server went on believing an offer was outstanding.
+      pendingOffer: this.pendingOffer
+        ? {
+            type: this.pendingOffer.type,
+            fromPlayerId: this.pendingOffer.fromPlayerId,
+            fromName: this.nameOf(this.pendingOffer.fromPlayerId),
+          }
+        : null,
       roundResult: this.lastRoundResult,
       redealCount: this.redealCount,
     });
@@ -414,6 +424,7 @@ class Room {
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
     this.pendingClaim = null;
+    this.pendingOffer = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
     this.lastTrick = null;
@@ -438,6 +449,7 @@ class Room {
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
     this.pendingClaim = null;
+    this.pendingOffer = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
     this.lastTrick = null;
@@ -461,6 +473,7 @@ class Room {
     this.offerPassDeclined = false;
     this.offerRetroactivePassDeclined = false;
     this.pendingClaim = null;
+    this.pendingOffer = null;
     this.revealedClaimerId = null;
     this.lastRoundResult = null;
     this.lastTrick = null;
@@ -582,7 +595,7 @@ class Room {
   // can't stop it. Needs the opponent to agree, like every other offer here.
   offerResign(socket) {
     if (!this.game || this.gamePhase !== "playing" || !this.game.currentBid) return;
-    if (this.pendingOffer || this.pendingClaim) return;
+    if (this.pendingClaim) return;
     this.pendingOffer = { type: "resign", fromPlayerId: socket.userId };
     this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {
       type: "resign",
@@ -595,7 +608,7 @@ class Room {
   // easily as after one.
   offerRedeal(socket) {
     if (!this.game || !["bidding", "kitty", "playing"].includes(this.gamePhase)) return;
-    if (this.pendingOffer || this.pendingClaim) return;
+    if (this.pendingClaim) return;
     this.pendingOffer = { type: "redeal", fromPlayerId: socket.userId };
     this.emitToUser(this.otherPlayerId(socket.userId), "offerReceived", {
       type: "redeal",
