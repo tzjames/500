@@ -59,6 +59,18 @@
   opacity: 0.66;
 }
 
+/* A pass is good news for you, so it's coloured rather than left to read as
+   just another absent value. */
+.bid-to-beat.passed .bid-to-beat-value,
+.bid-to-beat.passed .panel-heading {
+  color: var(--amber);
+  opacity: 1;
+}
+
+.bid-to-beat.passed .bid-to-beat-pts {
+  opacity: 0.8;
+}
+
 .bid-outcome {
   font-size: 21px;
   margin: 6px 0 0;
