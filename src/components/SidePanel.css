@@ -19,6 +19,29 @@
   gap: 8px;
 }
 
+.side-panel-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* A game that doesn't move anyone's Elo — either marked that way on purpose or
+   played with a robot at the table. Amber rather than the usual pill styling,
+   so it reads as a status rather than another button. */
+.friendly-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 235, 200, 0.16);
+  border: 1px solid var(--amber-ring);
+  color: var(--amber);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .side-note {
   margin: 6px 0 0;
   font-size: 11.5px;

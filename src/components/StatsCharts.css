@@ -1,0 +1,153 @@
+/* ---- the bid-by-bid record ---- */
+
+.bidrec-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.bidrec-specials {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.bidrec-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 4px 6px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: var(--surface-faint);
+  text-align: center;
+  overflow: hidden;
+}
+
+/* A bid you've never bought stays flat, so the shaded cells are the ones your
+   eye goes to. */
+.bidrec-cell.empty {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+.bidrec-bid {
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.bidrec-cell.special .bidrec-bid {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.bidrec-rate {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.bidrec-count {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.bidrec-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.bidrec-scale {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(200, 60, 55, 0.86),
+    rgba(200, 60, 55, 0.14) 42%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(46, 160, 90, 0.14) 58%,
+    rgba(46, 160, 90, 0.86)
+  );
+}
+
+/* ---- how close your contracts came ---- */
+
+.accuracy-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 168px;
+}
+
+.accuracy-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 4px;
+}
+
+.accuracy-value {
+  font-size: 10px;
+  opacity: 0.7;
+  height: 12px;
+}
+
+.accuracy-bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 5px 5px 0 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Exactly what you bid is the bar you want to be tall, so it's the one with the
+   colour; short of the contract is the one that cost you points. */
+.accuracy-col.exact .accuracy-bar {
+  background: var(--amber);
+}
+
+.accuracy-col.short .accuracy-bar {
+  background: rgba(200, 60, 55, 0.62);
+}
+
+.accuracy-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
+.accuracy-col.exact .accuracy-label {
+  opacity: 0.95;
+  font-weight: 700;
+}
+
+.stats-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.6;
+}
+
+.stats-empty {
+  margin: 0;
+  padding: 18px 0;
+  font-size: 12.5px;
+  opacity: 0.6;
+  text-align: center;
+}

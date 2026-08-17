@@ -17,8 +17,14 @@ function PlayerHand({
   // table one after another, then turn over together. `deal` is null at every
   // other time, which is what keeps the cards one-sided and un-animated.
   deal = null,
+  // The cards the rules currently allow, when the caller knows. Left null the
+  // whole hand is playable on your turn, which is how the two-player game has
+  // always worked — it checks legality on the server and reports back.
+  playable = null,
 }) {
   const deck = getDeck(deckId);
+  const isPlayable = (card) =>
+    !playable || playable.some((c) => c.suit === card.suit && c.value === card.value);
   const groups = groupHand(hand, trumpSuit);
   const cards = groups.flat();
   const total = cards.length;
@@ -44,6 +50,7 @@ function PlayerHand({
                   "--reveal-delay": `${flatIndex * 35}ms`,
                 }
               : {};
+            const canPlay = isCurrentPlayer && isPlayable(card);
             return (
               <Card
                 key={`${card.suit}-${card.value}-${indexInGroup}`}
@@ -53,13 +60,13 @@ function PlayerHand({
                 width={null}
                 rotate={offset * 2.1}
                 lift={-Math.abs(offset) * 4}
-                disabled={!isCurrentPlayer}
-                onClick={isCurrentPlayer ? onPlayCard : undefined}
+                disabled={!canPlay}
+                onClick={canPlay ? onPlayCard : undefined}
                 revealed={deal ? deal.revealed : null}
                 style={dealVars}
                 className={`hand-card ${cardColor(card.suit)}${
                   deal ? " dealing" : ""
-                }`}
+                }${isCurrentPlayer && !canPlay ? " unplayable" : ""}`}
               />
             );
           })}

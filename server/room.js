@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const Game500 = require("./gameLogic");
 const { checkBidMade } = Game500;
 const db = require("./db");
+const { Room4 } = require("./room4");
+const { isFriendlyGame } = require("./friendly");
 
 const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
@@ -32,6 +34,15 @@ class Room {
   constructor(id, io, doc) {
     this.id = id;
     this.io = io;
+    this.mode = 2;
+    // Only read, never written here: the lobby and the abandoned-table sweep
+    // need to know whether this game was advertised publicly. persist() sets a
+    // fixed list of fields, so the document's own value survives untouched.
+    this.visibility = doc.visibility === "public" ? "public" : "private";
+    // Set once at creation and never changed after, like visibility above —
+    // the two-player game has no robots, so there's no "forced" case here and
+    // no waiting-room control to flip it later.
+    this.friendly = Boolean(doc.friendly);
     this.slots = (doc.playerSlots || [null, null]).map((s) => (s ? { ...s, socketId: null } : null));
     this.status = doc.status || "waiting";
     this.roundNumber = doc.roundNumber || 1;
@@ -244,8 +255,16 @@ class Room {
     return entry;
   }
 
+  connectedHumans() {
+    return this.slots.filter((s) => s && s.socketId).length;
+  }
+
+  isFriendly() {
+    return isFriendlyGame({ friendly: this.friendly, playerSlots: this.slots });
+  }
+
   broadcastPlayersUpdate() {
-    const connected = this.slots.filter((s) => s && s.socketId).length;
+    const connected = this.connectedHumans();
     this.io.to(this.id).emit("playersUpdate", {
       count: connected,
       players: this.slots.filter(Boolean).map((s) => ({ name: s.name })),
@@ -272,6 +291,7 @@ class Room {
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
       redealCount: this.redealCount,
+      friendly: this.isFriendly(),
     };
   }
 
@@ -371,6 +391,7 @@ class Room {
         : null,
       roundResult: this.lastRoundResult,
       redealCount: this.redealCount,
+      friendly: this.isFriendly(),
     });
 
     if (this.gamePhase === "kitty" && this.game.currentBid?.player === socket.userId) {
@@ -959,6 +980,24 @@ class Room {
       scores: this.game.players.map((p) => ({ name: p.name, score: p.score })),
     });
 
+    // One row per scored round, for the stats page. Best-effort: the hand is
+    // over either way, and a statistics write shouldn't be able to break it.
+    db.recordRound({
+      gameId: this.id,
+      mode: 2,
+      roundNumber: this.roundNumber,
+      at: Date.now(),
+      bidderUserId: bidderId,
+      partnerUserId: null,
+      teamUserIds: [bidderId],
+      bid: bidDescription,
+      points: this.game.currentBid.points,
+      level: /^\d/.test(bidDescription) ? Number(bidDescription.split(" ")[0]) : null,
+      tricks: bidderPlayer.tricksWon,
+      made: bidderMadeBid,
+      friendly: this.isFriendly(),
+    }).catch((err) => console.error("failed to record round", err));
+
     // Both bounds are inclusive: the game is to 500, so landing exactly on it
     // wins, and exactly -500 goes out the back door. They used to be strict,
     // which meant an exact ±500 carried on playing — and disagreed with the
@@ -985,7 +1024,12 @@ class Room {
       // The record is read back out of the database, so it can only be sent
       // once this game's own result is in there — hence waiting on persist
       // rather than emitting it alongside gameOver.
-      this.persist().then(() => this.emitMatchRecord());
+      const loser = this.game.players.find((p) => p.id !== winner.id);
+      const rate = this.isFriendly() ? () => null : () => db.applyElo(2, [winner.id], [loser.id], this.id);
+      this.persist()
+        .then(rate)
+        .then(() => this.emitMatchRecord())
+        .catch((err) => console.error("failed to settle finished game", err));
       return;
     }
 
@@ -1181,6 +1225,9 @@ class Room {
     const newGame = await db.createGame({
       _id: crypto.randomUUID(),
       status: "waiting",
+      // Carried over rather than reset: a friendly rematch should stay
+      // friendly.
+      friendly: this.friendly,
       playerSlots: this.slots.map((s) => ({ userId: s.userId, name: s.name })),
       roundNumber: 1,
       scoreHistory: [],
@@ -1194,19 +1241,66 @@ class Room {
   }
 }
 
+// A public table nobody is sitting at gets this long to come back — enough for
+// a page reload not to bin the game the host just made.
+const ABANDONED_TABLE_GRACE = 60_000;
+
 class RoomManager {
-  constructor(io) {
+  constructor(io, presence) {
     this.io = io;
+    this.presence = presence;
     this.rooms = new Map();
+    this.cleanupTimers = new Map();
   }
 
   async getOrCreate(gameId) {
     if (this.rooms.has(gameId)) return this.rooms.get(gameId);
     const doc = await db.getGame(gameId);
     if (!doc) throw new Error("Game not found");
-    const room = new Room(gameId, this.io, doc);
+    const room =
+      doc.mode === 4
+        ? new Room4(gameId, this.io, doc, this.presence)
+        : new Room(gameId, this.io, doc);
     this.rooms.set(gameId, room);
     return room;
+  }
+
+  // A table advertised in the lobby that everyone has walked away from before a
+  // card was dealt is just clutter, so it's deleted. Private games are left
+  // alone whatever happens: their whole point is an invite link that still
+  // works when the other player gets round to opening it.
+  scheduleCleanupIfAbandoned(room) {
+    const abandoned =
+      room.visibility === "public" &&
+      room.status === "waiting" &&
+      !room.game &&
+      room.connectedHumans() === 0;
+    if (!abandoned) {
+      const timer = this.cleanupTimers.get(room.id);
+      if (timer) {
+        clearTimeout(timer);
+        this.cleanupTimers.delete(room.id);
+      }
+      return;
+    }
+    if (this.cleanupTimers.has(room.id)) return;
+    this.cleanupTimers.set(
+      room.id,
+      setTimeout(() => this.deleteIfStillAbandoned(room), ABANDONED_TABLE_GRACE)
+    );
+  }
+
+  async deleteIfStillAbandoned(room) {
+    this.cleanupTimers.delete(room.id);
+    if (room.game || room.connectedHumans() > 0 || room.status !== "waiting") return;
+    room.dispose?.();
+    this.rooms.delete(room.id);
+    try {
+      await db.deleteGame(room.id);
+    } catch (err) {
+      console.error("failed to delete abandoned game", room.id, err);
+    }
+    this.presence?.touch();
   }
 }
 

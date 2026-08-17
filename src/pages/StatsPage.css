@@ -1,0 +1,145 @@
+/* Wider than the home page: the bid grid is five columns of readable cells and a
+   520px column squeezes them into nothing. */
+.stats-page {
+  width: min(680px, 100%);
+  margin: 0 auto;
+  padding: 5vh 0 8vh;
+}
+
+.stats-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-header h1 {
+  font-size: clamp(32px, 5vw, 46px);
+  font-weight: 400;
+  line-height: 1;
+  margin: 0;
+}
+
+.stats-subtitle {
+  margin: 6px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.stats-back {
+  flex-shrink: 0;
+  padding: 8px 18px;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.stats-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.stats-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.stats-tab.on {
+  background: rgba(255, 235, 200, 0.2);
+  font-weight: 700;
+}
+
+.stats-friendly-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+/* ---- headline figures ---- */
+
+.stat-figures {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.stat-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 12px 6px 10px;
+  border-radius: 12px;
+  /* Dense rather than the lighter panel fill the home page uses: this page is
+     mostly numbers and small type, and it has to read over the brightest part
+     of a backdrop photograph. */
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  text-align: center;
+}
+
+.stat-figure b {
+  font-size: 27px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.stat-figure-label {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.stat-figure-note {
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.5;
+}
+
+.stats-elo-note {
+  margin-top: 10px;
+}
+
+.stats-panel {
+  padding: 16px 18px;
+  border-radius: 14px;
+  /* Dense rather than the lighter panel fill the home page uses: this page is
+     mostly numbers and small type, and it has to read over the brightest part
+     of a backdrop photograph. */
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@media (max-width: 560px) {
+  .stat-figures {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

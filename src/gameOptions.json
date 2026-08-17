@@ -1,0 +1,195 @@
+{
+  "_comment": "House rules for the four-player game, drawn from the variants listed at https://en.wikipedia.org/wiki/500_(card_game). Data only: labels, defaults and the long-form explanation behind each info button live here so the picker on the home page and the validator in server/gameOptions.js can never disagree about what an option is called or what it defaults to. The two-player game predates this and keeps its own settings.",
+  "groups": [
+    {
+      "id": "terminology",
+      "label": "Terminology"
+    },
+    {
+      "id": "bidding",
+      "label": "Bidding"
+    },
+    {
+      "id": "contracts",
+      "label": "Extra contracts"
+    },
+    {
+      "id": "play",
+      "label": "Play"
+    },
+    {
+      "id": "scoring",
+      "label": "Scoring and winning"
+    }
+  ],
+  "options": [
+    {
+      "id": "misereName",
+      "group": "terminology",
+      "type": "choice",
+      "label": "Name for the no-tricks bid",
+      "default": "misere",
+      "choices": [
+        {
+          "value": "misere",
+          "label": "Misère"
+        },
+        {
+          "value": "nullo",
+          "label": "Nullo"
+        }
+      ],
+      "help": "Some tables call it Nullo. Naming only — the contract plays the same either way.",
+      "detail": "The contract where you undertake to win no tricks at all is Misère in most of the world and Nullo in a lot of Australian and American households. This setting only changes what the table calls it: the bid is worth 250 either way, it sits between 8♠ and 8♣ in the auction either way, and your partner folds either way. Open Misère becomes Open Nullo, Blind Misère becomes Blind Nullo, and so on."
+    },
+    {
+      "id": "misereAnytime",
+      "group": "bidding",
+      "type": "bool",
+      "label": "Misère biddable at any time",
+      "default": false,
+      "help": "Standard play only lets Misère in once someone has bid at the seven level. Turn this on for unrestricted bidding.",
+      "detail": "Standard 500 holds Misère back until the auction has reached the seven level — somebody has to have bid 7♠ or higher before anyone may call it. The reason is that Misère is worth 250, which slots in between 8♠ and 8♣, and letting it be opened cold means a hand of rubbish can buy the contract before the good hands have had a chance to speak. Switch this on and Misère can be called at any point, including as the opening bid. This is what the rules call unrestricted bidding."
+    },
+    {
+      "id": "bidAfterPass",
+      "group": "bidding",
+      "type": "bool",
+      "label": "You may bid again after passing",
+      "default": false,
+      "help": "Standard play puts you out of the auction for good once you pass.",
+      "detail": "Normally a pass is final: once you have passed you take no further part in that auction, even if the bidding goes round again. With this on, a pass only ends your turn — if somebody else bids after you, you get another chance when it comes back round. The auction still ends the moment everyone except the high bidder has passed since the last bid, so this can't keep a hand going forever; it just stops a cautious early pass from locking you out of a contract you would have wanted at a higher level."
+    },
+    {
+      "id": "splitTheColours",
+      "group": "bidding",
+      "type": "bool",
+      "label": "Split the colours",
+      "default": false,
+      "help": "The special contracts outbid the black suits at their level but not the red ones.",
+      "detail": "The special contracts normally sit at the point in the auction their score puts them: Misère between 8♠ and 8♣, Open Misère between 10♦ and 10♥. Splitting the colours moves them all down to the middle of a level instead, so each one beats the two black suits at its level but not the two red ones. Misère beats 7♠ and 7♣ but not 7♦ or 7♥; Open Misère beats 8♠ and 8♣; Hi-Lo beats 9♠ and 9♣; Double Nullo beats 10♠ and 10♣. What each contract scores doesn't change — only where it sits in the bidding."
+    },
+    {
+      "id": "allPassNoTrump",
+      "group": "bidding",
+      "type": "bool",
+      "label": "Play the hand if everyone passes",
+      "default": false,
+      "help": "Instead of redealing, the hand is played at no trumps with nobody on a contract.",
+      "detail": "When all four players pass, the usual answer is to throw the hand in and deal again. The alternative is to play it out anyway: no trumps, nobody on a contract, and every trick worth ten points to whichever side takes it. Nobody can lose points on such a hand, and the kitty is simply not used. It keeps a run of bad deals moving and gives the defenders something to play for, at the cost of some fairly aimless hands."
+    },
+    {
+      "id": "openMisere",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Open Misère",
+      "default": true,
+      "help": "Worth 500. Your hand goes face up after the first trick.",
+      "offLabel": "No Open Misère",
+      "detail": "Open Misère — also called Lay Down Misère — is a Misère played with your cards on the table. You still have to win no tricks at all, but after the first trick has been played your whole hand is turned face up for the defenders to see, so they can work out exactly how to throw a trick at you. It is worth 500 and can be bid at any time, sitting between 10♦ and 10♥. Your partner folds, as in any Misère. It needs a hand that genuinely cannot be forced to win anything."
+    },
+    {
+      "id": "blindMisere",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Blind Misère",
+      "default": false,
+      "help": "Worth 1000, declared before you look at your hand.",
+      "detail": "Blind Misère is a Misère bid before you have seen a single card, which is why it is worth 1000 — more than any other contract. With this on, the round-end screen gains a box you can tick to say you intend to go blind on the next hand. Tick it and your cards stay face down when they are dealt. When the auction reaches you, you are asked whether you still want it: say yes and the bid is made blind; say no and your hand is turned over and you bid normally, having given away that you had it in mind. Your partner folds, as in any Misère."
+    },
+    {
+      "id": "hiLo",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Hi-Lo (Even Stevens)",
+      "default": false,
+      "help": "Worth 350. Win exactly five tricks — no more, no fewer.",
+      "detail": "Hi-Lo, also called 5 and 5 or Even Stevens, is a contract to win exactly five of the ten tricks. Five is the target, not a floor: six tricks fails it just as four does, which makes it a harder hand to judge than it sounds — you have to be able to win tricks on demand and lose them on demand. It is worth 350 and sits between 9♠ and 9♣. Your partner folds and takes no part, so the five have to come from your hand alone."
+    },
+    {
+      "id": "doubleNullo",
+      "group": "contracts",
+      "type": "bool",
+      "label": "Double Nullo (Grand Nullo)",
+      "default": false,
+      "help": "Worth 500. Both partners play, and neither may win a trick.",
+      "detail": "Double Nullo — Grand Nullo, or Granola — is a Misère for the partnership: both of you play, and neither of you may win a single trick. It is worth 500. Because it needs two safe hands rather than one, the partners get to help each other: after the bidder has taken the kitty and discarded, each of them chooses five cards to pass across the table, and they change hands at the same time. You can't refuse what you are sent, only choose what you send, so the exchange is about voiding your own dangerous suits and hoping your partner does the same."
+    },
+    {
+      "id": "jokerLeadAnytime",
+      "group": "play",
+      "type": "bool",
+      "label": "Joker may be led at no trumps",
+      "default": true,
+      "help": "In a no-trump or Misère contract, leading the Joker and nominating a suit is allowed even when you could follow.",
+      "offLabel": "Joker only when void",
+      "detail": "With no trump suit in the contract, the Joker has no suit of its own and the question is when you are allowed to use it. The common rule, and the one this defaults to, is that you may lead it whenever you like and name the suit everyone else must follow — a powerful play, since you take the trick and choose what gets led. The stricter rule is that the Joker may only ever appear when you cannot follow the suit that was led, which turns it from a weapon into an awkward card you have to find a home for. Following suit is unaffected either way: void in the led suit, the Joker always wins."
+    },
+    {
+      "id": "j5",
+      "group": "play",
+      "type": "bool",
+      "label": "J5 — jacks high at no trumps",
+      "default": false,
+      "help": "In a no-trump contract each jack outranks the ace of its own suit.",
+      "detail": "In a no-trump contract there are no bowers, so the jacks are ordinary middling cards. J5 promotes them: each jack becomes the highest card of its own suit, above the ace. It only applies to no-trump contracts — including Misère and its relations — because in a suit contract the two jacks are already the right and left bower. The effect is to make the jacks worth guarding and the aces worth rather less than they look."
+    },
+    {
+      "id": "trickPoints",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Ten points a trick for the defenders",
+      "default": true,
+      "help": "Turn this off and only a won contract scores anything.",
+      "offLabel": "No trick points",
+      "detail": "Normally the side that didn't bid scores ten points for every trick it takes, whether or not the contract was made — so a hand where the bidders scrape home 6♠ for 40 can still hand the defenders 40. Switch this off and only contracts score: a made bid is worth its value, a broken one costs its value, and tricks on their own are worth nothing. Games take longer and the bidding matters more. No-tricks contracts already score nothing for the defenders whatever this is set to."
+    },
+    {
+      "id": "slamBonus",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Slam bonus",
+      "default": true,
+      "help": "Take all ten tricks on a contract worth less than 250 and score 250 instead.",
+      "offLabel": "No slam bonus",
+      "detail": "A partnership that takes all ten tricks has done something worth more than the 40 points a 6♠ contract pays for it. The slam bonus pays a minimum of 250 for a clean sweep, so an underbid hand that runs the table isn't punished for the modest bid. It only lifts contracts already worth less than 250 — a made 9♥ still scores its own 400 — and it only applies to trick contracts, since taking all ten is the last thing a Misère bidder wants."
+    },
+    {
+      "id": "mustBidToWin",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Must bid to win",
+      "default": false,
+      "help": "Passing 500 on trick points alone isn't enough — the winning hand has to be a made contract.",
+      "detail": "An Australian variation. Normally a side that crosses 500 wins however it got there, including on ten-a-trick defending. With this on, the hand that takes you past 500 has to be a contract you bid and made — creep past the line on trick points and you keep playing until you actually win a bid. It stops a game being won by a partnership that never risked anything, and it can leave a side sitting on 520 for several hands."
+    },
+    {
+      "id": "backDoor",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Out the back door at −500",
+      "default": true,
+      "help": "A team down to −500 or worse loses the game there and then.",
+      "offLabel": "No back door",
+      "detail": "Going out the back door, or out backwards: a partnership whose score falls to −500 or below loses the game immediately, however well the other side is or isn't doing. It is the standard rule, and it is the reason a run of ambitious broken contracts is genuinely dangerous rather than merely expensive. Switch it off and there is no floor at all — a side can go arbitrarily far below zero and still win from there."
+    },
+    {
+      "id": "pointSpread",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Point spread ends the game",
+      "default": false,
+      "help": "Once one side is negative and the gap between the sides reaches 500, the side in front wins.",
+      "detail": "A mercy rule. When one partnership has a negative score and the gap between the two sides has reached 500 or more, the game is over and the side in front takes it — no need to grind out the rest of the way to the target. Both sides positive is just a big lead and doesn't end anything. It sits alongside the back door rather than replacing it, and it mostly matters in games where one side has bid badly and often."
+    },
+    {
+      "id": "ralphing",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Ralphing",
+      "default": false,
+      "help": "Go down by more than three tricks and you're barred from bidding on the next hand.",
+      "detail": "A penalty for wild bidding. A bidder who finishes more than three tricks short of their contract has been Ralphed, and may not bid at all on the next hand — the auction simply skips them. It is the player who took the kitty who is barred, not their partner, so the partnership can still buy the next contract if the other one has the hand for it. For a no-tricks contract the equivalent is winning three tricks or more. On top of losing the contract's value, of course."
+    }
+  ]
+}

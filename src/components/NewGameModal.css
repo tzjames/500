@@ -1,0 +1,196 @@
+.new-game-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 10, 12, 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5vh 16px;
+  overflow-y: auto;
+  z-index: 1500;
+}
+
+.new-game-modal {
+  width: min(520px, 100%);
+  padding: 26px 28px 22px;
+  border-radius: 20px;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-result);
+}
+
+.new-game-modal h2 {
+  font-size: 28px;
+  font-weight: 400;
+  margin: 0 0 18px;
+}
+
+.ng-field {
+  border: none;
+  padding: 0;
+  margin: 0 0 18px;
+}
+
+.ng-field legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.ng-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ng-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-faint);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ng-choice:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ng-choice.on {
+  border-color: var(--amber-ring);
+  background: rgba(255, 235, 200, 0.14);
+}
+
+.ng-note {
+  display: block;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0.62;
+  font-weight: 400;
+}
+
+.ng-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+  font-size: 13px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.ng-check input {
+  margin-top: 2px;
+}
+
+.ng-rules-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-faint);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ng-rules-count {
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.ng-rules {
+  margin-top: 12px;
+  padding: 4px 2px 0;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.ng-rules-group {
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.ng-rules-group > .overline {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.ng-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.ng-rule input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.ng-rule-label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.ng-rule-choice {
+  flex-direction: column;
+  gap: 6px;
+  cursor: default;
+}
+
+.ng-rule-segments {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+
+.ng-segment {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ng-segment.on {
+  background: rgba(255, 235, 200, 0.2);
+  font-weight: 700;
+}
+
+.ng-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.ng-actions .btn-primary,
+.ng-actions .btn-ghost {
+  flex: 1;
+}

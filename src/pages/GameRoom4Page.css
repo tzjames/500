@@ -1,0 +1,260 @@
+/* Screens the four-player room has that the two-player one doesn't: the table
+   filling up, and picking partners. The board itself is styled by
+   GameTable4.css, and everything shared (panels, buttons, the kitty screen)
+   comes from App.css and theme.css. */
+
+.g4-waiting {
+  max-width: 460px;
+  text-align: center;
+}
+
+.g4-full-width {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.g4-seat-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.g4-seat-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--surface-faint);
+  border: 1px solid var(--panel-border);
+  font-size: 13px;
+}
+
+.g4-seat-list li.empty {
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.g4-empty-seat {
+  font-style: italic;
+  font-size: 12px;
+}
+
+.g4-tag {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.g4-visibility {
+  margin-top: 16px;
+  text-align: left;
+}
+
+.g4-visibility .overline {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.g4-segments,
+.g4-partner-choices {
+  display: flex;
+  gap: 6px;
+}
+
+.g4-segments {
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  gap: 0;
+}
+
+.g4-segment {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.g4-segment.on {
+  background: rgba(255, 235, 200, 0.2);
+  font-weight: 700;
+}
+
+.g4-partner-choices {
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 12px 0 4px;
+}
+
+.g4-partner-choices .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 13px;
+}
+
+.g4-rules {
+  margin-top: 16px;
+  text-align: left;
+}
+
+.g4-rules-summary {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--panel-border);
+}
+
+/* Declaring a blind bid on the round-end screen. Set apart from the buttons
+   below it: it commits you to something on the *next* hand, which is a
+   different kind of decision from "ready when you are". */
+.round-end-blind {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 235, 200, 0.09);
+  border: 1px dashed var(--amber-ring);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.round-end-blind input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.round-end-blind-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.45;
+  opacity: 0.68;
+}
+
+/* Things the table should know that aren't anybody's mistake — a claim agreed,
+   a redeal, five cards changing hands. The red invalid-play styling was
+   overstating all of them. */
+.g4-notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--positive-fill);
+  border: 1px solid var(--positive-border);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Centred on the game-over card, where everything else is centred too. */
+.g4-rematch-pairing {
+  width: min(300px, 100%);
+  margin: 0 auto 16px;
+  text-align: center;
+}
+
+/* ---- the replay overlay ---- */
+
+.g4-replay-panel {
+  position: relative;
+  width: 96vw;
+  height: 94vh;
+  padding: 14px 18px 16px;
+  border-radius: 20px;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-result);
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.g4-replay-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+.g4-replay-banner {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.g4-replay-leave {
+  padding: 5px 14px;
+  font-size: 11.5px;
+}
+
+/* ---- passing five cards across (Double Nullo) ---- */
+
+.g4-exchange {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-height: 0;
+  text-align: center;
+}
+
+/* ---- blind bidding ---- */
+
+/* The hand you haven't looked at: a fan of backs where your cards would be. */
+.g4-blind-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+}
+
+.g4-blind-hand .pc {
+  --card-w: var(--card-hand);
+  margin-left: calc(var(--card-w) * -0.38);
+}
+
+.g4-blind-hand .pc:first-child {
+  margin-left: 0;
+}
+
+/* Each partnership's score with the two names under it, so you can tell at a
+   glance which pair is which. */
+.team-block + .team-block {
+  margin-top: 10px;
+}
+
+.team-names {
+  margin-top: 1px;
+  font-size: 10.5px;
+  opacity: 0.55;
+}
+
+/* Up to five special contracts can be in play at once, so their row wraps
+   rather than staying in the two-across pair the two-player panel needs. */
+.bid-misere-row-wide {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}

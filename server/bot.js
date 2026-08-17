@@ -1,0 +1,420 @@
+// A robot to fill an empty seat. It plays by rules of thumb rather than search:
+// count your winners before bidding, draw trumps when you're declarer, lead
+// aces and cover your partner when you're defending, duck everything when
+// you're on a Misère. Nothing here learns anything — it just shouldn't embarrass
+// itself, and it must never try an illegal call or play.
+const {
+  RANKS,
+  REAL_SUITS,
+  BID_SUITS,
+  LEFT_BOWER_SUIT,
+  availableBids,
+  bidInfo,
+  getCardRank,
+  getEffectiveSuit,
+  isNoTricksBid,
+} = require("./game4");
+
+const rankOf = (card) => RANKS.indexOf(card.value);
+const isJoker = (card) => card.suit === "Joker";
+const key = (card) => `${card.value}${card.suit}`;
+
+const countsAsTrump = (card, trump) =>
+  isJoker(card) || card.suit === trump || (card.value === "J" && card.suit === LEFT_BOWER_SUIT[trump]);
+
+// ---- bidding ----
+
+// Roughly how many tricks this hand takes with a given suit as trumps. Whole
+// tricks for the certainties, fractions for the cards that usually come home —
+// it only has to be good enough to pick a level and a suit.
+function expectedTricks(hand, trump) {
+  const trumps = hand.filter((card) => countsAsTrump(card, trump));
+  let tricks = 0;
+
+  if (trumps.some(isJoker)) tricks += 1;
+  if (trumps.some((card) => card.value === "J" && card.suit === trump)) tricks += 1;
+  if (trumps.some((card) => card.value === "J" && card.suit === LEFT_BOWER_SUIT[trump])) tricks += 0.9;
+  if (trumps.some((card) => card.value === "A" && card.suit === trump)) tricks += 0.9;
+  if (trumps.some((card) => card.value === "K" && card.suit === trump)) tricks += 0.6;
+  if (trumps.some((card) => card.value === "Q" && card.suit === trump)) tricks += 0.35;
+  // Length itself wins tricks once the other hands are out of trumps.
+  tricks += Math.max(0, trumps.length - 4) * 0.6;
+
+  for (const suit of REAL_SUITS) {
+    if (suit === trump) continue;
+    const cards = hand.filter((card) => card.suit === suit && !countsAsTrump(card, trump));
+    if (cards.some((card) => card.value === "A")) tricks += 0.8;
+    if (cards.some((card) => card.value === "K") && cards.length >= 2) tricks += 0.35;
+    // Short side suits are ruffing chances, but only with trumps to ruff with.
+    if (cards.length <= 1 && trumps.length >= 5) tricks += 0.3;
+  }
+
+  return tricks;
+}
+
+// No trumps has no bowers and no ruffs — it lives on aces and long guarded
+// suits, so it's counted separately rather than squeezed into the above.
+function expectedTricksNoTrumps(hand, options) {
+  let tricks = hand.some(isJoker) ? 1 : 0;
+  for (const suit of REAL_SUITS) {
+    const cards = hand.filter((card) => card.suit === suit).sort((a, b) => rankOf(b) - rankOf(a));
+    // Under J5 the jack is the suit's top card, so it's the one that counts.
+    const top = options.j5 ? "J" : "A";
+    if (cards.some((card) => card.value === top)) tricks += 0.85;
+    if (cards.some((card) => card.value === "K") && cards.length >= 2) tricks += 0.4;
+    if (cards.some((card) => card.value === "Q") && cards.length >= 3) tricks += 0.2;
+    tricks += Math.max(0, cards.length - 4) * 0.4;
+  }
+  return tricks;
+}
+
+// How likely this hand is to be forced to take a trick. Low is good: a Misère
+// hand wants no Joker, no high cards, and a low card in every suit it holds.
+function misereRisk(hand) {
+  let risk = hand.some(isJoker) ? 6 : 0;
+  for (const suit of REAL_SUITS) {
+    const cards = hand.filter((card) => card.suit === suit).sort((a, b) => rankOf(a) - rankOf(b));
+    if (cards.length === 0) continue;
+    risk += cards.filter((card) => ["J", "Q", "K", "A"].includes(card.value)).length * 2;
+    risk += cards.filter((card) => card.value === "10").length;
+    risk += cards.filter((card) => card.value === "9").length * 0.5;
+    // A suit whose lowest card is high is the one you get thrown in on.
+    if (rankOf(cards[0]) >= RANKS.indexOf("8")) risk += 1;
+    // Length without low cards is dangerous; length with them is a hiding place.
+    if (cards.length >= 4 && rankOf(cards[0]) >= RANKS.indexOf("7")) risk += 1;
+  }
+  return risk;
+}
+
+// The robot's call. Returns a bid string, or "Pass".
+function chooseBid(game, seat) {
+  const hand = game.players[seat].hand;
+  const options = game.options;
+  const auction = game.auction;
+  const floor = auction.highBid ? auction.highBid.rank : 0;
+  const legal = availableBids(options).filter(
+    (bid) => game.bidLegality(seat, bid.bid).ok && bid.rank > floor
+  );
+  if (legal.length === 0) return "Pass";
+
+  // A bid is for the partnership's tricks, so the count has to allow for the
+  // hand across the table. An unseen hand is worth about two and a half tricks
+  // on average — pitch this much lower and the robot passes on almost
+  // everything, which leaves a table of them redealing all night.
+  const PARTNER_HELP = 3.2;
+  const estimates = {};
+  for (const suit of BID_SUITS) {
+    estimates[suit] =
+      (suit === "NT" ? expectedTricksNoTrumps(hand, options) : expectedTricks(hand, suit)) +
+      PARTNER_HELP;
+  }
+
+  const risk = misereRisk(hand);
+  const suitBids = [];
+  const specialBids = [];
+
+  for (const bid of legal) {
+    if (bid.special) {
+      // Only the plain no-tricks contracts are worth attempting on a rule of
+      // thumb; the exotic ones need judgement the robot hasn't got.
+      if (bid.bid === "Misere" && risk <= 3) specialBids.push(bid);
+      if (bid.bid === "Open Misere" && risk === 0) specialBids.push(bid);
+      continue;
+    }
+    // Half a trick of margin, because the count above is optimistic about
+    // kings and length and this is the difference between 400 and −400.
+    if (bid.level + 0.5 <= estimates[bid.suit]) suitBids.push(bid);
+  }
+
+  // The best trick contract is the most valuable one the hand supports; the
+  // best no-tricks contract is the cheapest, since going higher there buys no
+  // extra safety. Between the two, take the points.
+  const bestSuit = suitBids.sort((a, b) => b.points - a.points || a.rank - b.rank)[0];
+  const bestSpecial = specialBids.sort((a, b) => a.rank - b.rank)[0];
+
+  if (!bestSuit && !bestSpecial) return "Pass";
+  if (!bestSuit) return bestSpecial.bid;
+  if (!bestSpecial) return bestSuit.bid;
+  return bestSpecial.points > bestSuit.points ? bestSpecial.bid : bestSuit.bid;
+}
+
+// ---- the kitty ----
+
+// The three to throw back. With a trump contract that means keeping every
+// trump and every ace and shedding the shortest side suits, so a void is left
+// behind to ruff into; on a no-tricks contract it means throwing the top cards.
+function chooseDiscard(game, seat) {
+  const hand = [...game.players[seat].hand];
+  const trump = game.trumpSuit;
+  const avoiding = isNoTricksBid(game.currentBid?.bid);
+
+  const lengths = Object.fromEntries(
+    REAL_SUITS.map((suit) => [suit, hand.filter((card) => card.suit === suit).length])
+  );
+
+  const sorted = [...hand].sort((a, b) => {
+    if (avoiding) {
+      // Highest first: the Joker, then aces down.
+      if (isJoker(a) !== isJoker(b)) return isJoker(a) ? -1 : 1;
+      return rankOf(b) - rankOf(a);
+    }
+    const aKeep = countsAsTrump(a, trump) || a.value === "A";
+    const bKeep = countsAsTrump(b, trump) || b.value === "A";
+    if (aKeep !== bKeep) return aKeep ? 1 : -1;
+    // Then out of the shortest suit, lowest card first.
+    if (lengths[a.suit] !== lengths[b.suit]) return lengths[a.suit] - lengths[b.suit];
+    return rankOf(a) - rankOf(b);
+  });
+
+  const discarded = sorted.slice(0, 3);
+  return hand.filter((card) => !discarded.some((d) => key(d) === key(card)));
+}
+
+// Double Nullo's five cards to send across the table. Both partners have to
+// take no tricks, so shifting a high card to your partner doesn't make it safe —
+// what helps is voiding a suit, since a suit you can't follow is a suit you
+// can't be thrown the lead in. Shortest suits go first, highest card first
+// within them.
+function choosePass(game, seat) {
+  const hand = [...game.players[seat].hand];
+  const lengths = Object.fromEntries(
+    REAL_SUITS.map((suit) => [suit, hand.filter((card) => card.suit === suit).length])
+  );
+  return [...hand]
+    .sort((a, b) => {
+      if (isJoker(a) !== isJoker(b)) return isJoker(a) ? -1 : 1;
+      if (lengths[a.suit] !== lengths[b.suit]) return lengths[a.suit] - lengths[b.suit];
+      return rankOf(b) - rankOf(a);
+    })
+    .slice(0, 5);
+}
+
+// ---- play ----
+
+// Cards that are still unaccounted for from this seat's point of view: the
+// whole pack, less what it holds and what has hit the table. The three cards
+// the bidder buried are counted as still out, which only ever makes the robot
+// a shade more cautious than it needs to be.
+function unseenCards(game, seat) {
+  const seen = new Set([
+    ...game.players[seat].hand.map(key),
+    ...game.playedCards.map((play) => key(play.card)),
+    ...game.currentTrick.map((play) => key(play.card)),
+  ]);
+  const deck = [];
+  for (const suit of REAL_SUITS) {
+    for (const value of RANKS) {
+      if ((suit === "♠" || suit === "♣") && value === "4") continue;
+      if (!seen.has(`${value}${suit}`)) deck.push({ suit, value });
+    }
+  }
+  if (!seen.has("JokerJoker")) deck.push({ suit: "Joker", value: "Joker" });
+  return deck;
+}
+
+// Would anything still out there beat this card, on a trick led in its own suit?
+function isTopRemaining(game, seat, card) {
+  const leadSuit = getEffectiveSuit(card, game.trumpSuit) || card.suit;
+  const mine = getCardRank(card, game.trumpSuit, leadSuit, game.options);
+  return !unseenCards(game, seat).some(
+    (other) => getCardRank(other, game.trumpSuit, leadSuit, game.options) > mine
+  );
+}
+
+// Who is winning the trick as it stands, and by how much.
+function trickLeader(game) {
+  if (game.currentTrick.length === 0) return null;
+  const leadSuit = game.getLeadSuit(game.currentTrick[0]);
+  let best = game.currentTrick[0];
+  let bestRank = getCardRank(best.card, game.trumpSuit, leadSuit, game.options);
+  for (const play of game.currentTrick.slice(1)) {
+    const rank = getCardRank(play.card, game.trumpSuit, leadSuit, game.options);
+    if (rank > bestRank) {
+      bestRank = rank;
+      best = play;
+    }
+  }
+  return { play: best, rank: bestRank, leadSuit };
+}
+
+// Is this seat trying to avoid tricks altogether? True for the Misère bidder
+// and for both partners on a Double Nullo, and for a Hi-Lo bidder who has
+// already banked their five.
+function isAvoidingTricks(game, seat) {
+  const spec = game.contractSpec();
+  if (!spec) return false;
+  const bidderSeat = game.currentBid.seat;
+  const onContract =
+    seat === bidderSeat || (spec.bothPartners && seat === game.partnerOf(bidderSeat));
+  if (!onContract) return false;
+  if (spec.exact) return game.players[bidderSeat].tricksWon >= spec.target;
+  return true;
+}
+
+const lowest = (cards, game) =>
+  [...cards].sort(
+    (a, b) =>
+      getCardRank(a, game.trumpSuit, a.suit, game.options) -
+      getCardRank(b, game.trumpSuit, b.suit, game.options)
+  )[0];
+
+const highest = (cards, game) =>
+  [...cards].sort(
+    (a, b) =>
+      getCardRank(b, game.trumpSuit, b.suit, game.options) -
+      getCardRank(a, game.trumpSuit, a.suit, game.options)
+  )[0];
+
+function chooseLead(game, seat, legal) {
+  const avoiding = isAvoidingTricks(game, seat);
+  if (avoiding) return { card: lowest(legal, game) };
+
+  const trump = game.trumpSuit;
+  const onContract =
+    game.currentBid && game.teamOf(seat) === game.teamOf(game.currentBid.seat);
+
+  // Declaring side with trumps: pull the opponents' trumps out while you still
+  // hold the top of the suit, which is the whole of basic 500 declarer play.
+  if (onContract && trump) {
+    const trumps = legal.filter((card) => countsAsTrump(card, trump));
+    const opponentsHoldTrumps = unseenCards(game, seat).some((card) => countsAsTrump(card, trump));
+    // Worth doing off the top of the suit, or off length — a losing trump lead
+    // from five still strips the defenders and clears the way for the rest.
+    if (opponentsHoldTrumps && trumps.length > 0) {
+      const top = highest(trumps, game);
+      if (trumps.length >= 4 || isTopRemaining(game, seat, top)) return { card: top };
+    }
+  }
+
+  // Otherwise cash anything that can't be beaten.
+  const winners = legal.filter((card) => !isJoker(card) && isTopRemaining(game, seat, card));
+  if (winners.length > 0) return { card: highest(winners, game) };
+
+  // Nothing to cash: lead low out of the longest side suit and keep the honours
+  // for later.
+  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
+  const pool = sideSuits.length > 0 ? sideSuits : legal;
+  const byLength = {};
+  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
+  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
+  const fromLongest = pool.filter((card) => card.suit === longest);
+  const card = lowest(fromLongest.length > 0 ? fromLongest : pool, game);
+
+  // Leading the Joker at no trumps means naming a suit; name the one it's
+  // longest in so the lead stays useful.
+  if (isJoker(card)) return { card, nominatedSuit: nominateSuit(game, seat) };
+  return { card };
+}
+
+function nominateSuit(game, seat) {
+  const hand = game.players[seat].hand;
+  const counts = REAL_SUITS.map((suit) => ({
+    suit,
+    count: hand.filter((card) => card.suit === suit).length,
+  }));
+  counts.sort((a, b) => b.count - a.count);
+  return counts[0].suit;
+}
+
+function chooseFollow(game, seat, legal) {
+  const leader = trickLeader(game);
+  const avoiding = isAvoidingTricks(game, seat);
+  const beats = legal.filter(
+    (card) => getCardRank(card, game.trumpSuit, leader.leadSuit, game.options) > leader.rank
+  );
+
+  if (avoiding) {
+    // Get as high as possible without taking it; if everything wins, lose as
+    // little material as possible.
+    const losers = legal.filter((card) => !beats.includes(card));
+    return { card: losers.length > 0 ? highest(losers, game) : lowest(legal, game) };
+  }
+
+  const partnerSeat = game.partnerOf(seat);
+  const partnerWinning =
+    !game.players[partnerSeat].folded && leader.play.seat === partnerSeat;
+  const isLast = game.currentTrick.length === game.activeSeats().length - 1;
+
+  // Partner has it: don't spend a card beating your own side.
+  if (partnerWinning) return { card: lowest(legal, game) };
+
+  if (beats.length > 0) {
+    // Take it with the cheapest card that does the job. Playing last, that's
+    // simply the cheapest winner; earlier, the same card also keeps the
+    // honours back for the tricks still to come.
+    const cheapest = lowest(beats, game);
+    const worthIt = isLast || beats.length === legal.length || !isJoker(cheapest);
+    if (worthIt) return { card: cheapest };
+  }
+
+  return { card: lowest(legal, game) };
+}
+
+// Does the robot believe an opponent who says they've got the rest? It asks the
+// only question that matters: do I hold a card that nothing still out there can
+// beat? The claimer's own hand is among what's still out there, so a card that
+// survives this test really is a trick — and if there isn't one, there's nothing
+// to be gained by making them play it out.
+function acceptsClaim(game, seat) {
+  return !game.players[seat].hand.some((card) => isTopRemaining(game, seat, card));
+}
+
+// The robot's card, as { card, nominatedSuit? }. Always one of legalPlays, so
+// the server's own validation never has cause to reject it.
+function choosePlay(game, seat) {
+  const legal = game.legalPlays(seat);
+  if (legal.length === 0) return null;
+  if (legal.length === 1) {
+    const card = legal[0];
+    return isJoker(card) && !game.trumpSuit && game.currentTrick.length === 0
+      ? { card, nominatedSuit: nominateSuit(game, seat) }
+      : { card };
+  }
+
+  const choice =
+    game.currentTrick.length === 0
+      ? chooseLead(game, seat, legal)
+      : chooseFollow(game, seat, legal);
+
+  // Belt and braces: a lead of the Joker at no trumps is rejected outright
+  // without a nomination, so never hand one back missing it.
+  if (
+    isJoker(choice.card) &&
+    !game.trumpSuit &&
+    game.currentTrick.length === 0 &&
+    !choice.nominatedSuit
+  ) {
+    choice.nominatedSuit = nominateSuit(game, seat);
+  }
+  return choice;
+}
+
+// Bot names, so a table of robots doesn't read as four blanks.
+const BOT_NAMES = [
+  "Ada (robot)",
+  "Boole (robot)",
+  "Curie (robot)",
+  "Dijkstra (robot)",
+  "Euler (robot)",
+  "Fermat (robot)",
+];
+
+function botName(index, taken = []) {
+  const free = BOT_NAMES.filter((name) => !taken.includes(name));
+  const pool = free.length > 0 ? free : BOT_NAMES;
+  return pool[index % pool.length];
+}
+
+module.exports = {
+  chooseBid,
+  chooseDiscard,
+  choosePass,
+  choosePlay,
+  acceptsClaim,
+  expectedTricks,
+  expectedTricksNoTrumps,
+  misereRisk,
+  botName,
+  BOT_NAMES,
+  bidInfo,
+};

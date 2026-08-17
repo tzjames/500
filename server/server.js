@@ -7,6 +7,11 @@ const path = require("path");
 const db = require("./db");
 const auth = require("./auth");
 const { RoomManager } = require("./room");
+const Presence = require("./presence");
+const stats = require("./stats");
+const { sanitizeOptions } = require("./gameOptions");
+const { isFriendlyGame } = require("./friendly");
+const bot = require("./bot");
 
 const app = express();
 app.use(cors());
@@ -40,13 +45,37 @@ app.get("/api/games", auth.requireAuth, async (req, res) => {
   res.json(
     games.map((g) => ({
       id: g._id,
+      mode: g.mode === 4 ? 4 : 2,
       status: g.status,
+      visibility: g.visibility || "private",
+      friendly: isFriendlyGame(g),
       playerSlots: g.playerSlots,
       roundNumber: g.roundNumber,
       winner: g.winner,
       updatedAt: g.updatedAt,
     }))
   );
+});
+
+// Just enough to know which room screen to render — the game itself arrives
+// over the socket once that screen has joined.
+app.get("/api/games/:id/meta", auth.requireAuth, async (req, res) => {
+  const game = await db.getGame(req.params.id);
+  if (!game) return res.status(404).json({ error: "That game doesn't exist." });
+  res.json({ id: game._id, mode: game.mode === 4 ? 4 : 2, status: game.status });
+});
+
+// What this player chose last time at this size of table, so the new-game
+// screen opens on their house rules rather than the defaults.
+app.get("/api/game-defaults", auth.requireAuth, async (req, res) => {
+  const mode = Number(req.query.mode) === 4 ? 4 : 2;
+  res.json((await db.lastSettingsForUser(req.user.userId, mode)) || {});
+});
+
+app.get("/api/stats", auth.requireAuth, async (req, res) => {
+  const mode = Number(req.query.mode) === 4 ? 4 : 2;
+  const includeFriendly = req.query.includeFriendly === "1" || req.query.includeFriendly === "true";
+  res.json(await stats.statsFor(req.user.userId, mode, includeFriendly));
 });
 
 // Win/loss against each opponent, derived from finished games. Not capped the
@@ -57,10 +86,40 @@ app.get("/api/record", auth.requireAuth, async (req, res) => {
 });
 
 app.post("/api/games", auth.requireAuth, async (req, res) => {
+  const { mode: rawMode, visibility, options, partnerMode, fillWithBots, friendly } = req.body || {};
+  const mode = Number(rawMode) === 4 ? 4 : 2;
+  const host = { userId: req.user.userId, name: req.user.name };
+  const seats = mode === 4 ? 4 : 2;
+  const playerSlots = [host, ...Array(seats - 1).fill(null)];
+
+  // Starting against robots fills the empty seats now, so the table is complete
+  // the moment the host walks in and the game deals itself. Partners are drawn
+  // rather than chosen in that case: picking between three identical robots
+  // isn't a decision worth a screen.
+  const seating = fillWithBots ? "random" : partnerMode === "random" ? "random" : "choose";
+  const withBots = mode === 4 && Boolean(fillWithBots);
+
+  if (withBots) {
+    const taken = [host.name];
+    for (let seat = 1; seat < seats; seat++) {
+      const name = bot.botName(seat, taken);
+      taken.push(name);
+      playerSlots[seat] = { userId: `bot:${crypto.randomUUID()}`, name, isBot: true };
+    }
+  }
+
   const game = await db.createGame({
     _id: crypto.randomUUID(),
+    mode,
+    visibility: visibility === "public" ? "public" : "private",
+    hostUserId: host.userId,
+    // A robot at the table makes it friendly whatever was ticked — see
+    // isFriendlyGame, which every reader of a game document re-derives this
+    // same way rather than trusting a value that could go stale.
+    friendly: Boolean(friendly) || withBots,
+    ...(mode === 4 ? { options: sanitizeOptions(options), partnerMode: seating } : {}),
     status: "waiting",
-    playerSlots: [{ userId: req.user.userId, name: req.user.name }, null],
+    playerSlots,
     roundNumber: 1,
     scoreHistory: [],
     winner: null,
@@ -69,7 +128,8 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-  res.json({ id: game._id });
+  presence.touch();
+  res.json({ id: game._id, mode });
 });
 
 // Serve static files from the React app
@@ -91,31 +151,74 @@ const io = socketIo(server, {
 });
 io.use(auth.socketAuth);
 
-const roomManager = new RoomManager(io);
+const presence = new Presence(io);
+const roomManager = new RoomManager(io, presence);
+presence.roomManager = roomManager;
 
 const PORT = process.env.PORT || 5001;
 
 io.on("connection", (socket) => {
   let room = null;
+  presence.add(socket);
+
+  // Leaving a room, whether by navigating away or by dropping the connection.
+  const leave = () => {
+    if (!room) return;
+    const left = room;
+    socket.leave(left.id);
+    left.handleDisconnect(socket);
+    roomManager.scheduleCleanupIfAbandoned(left);
+    room = null;
+    presence.setGame(socket, null);
+  };
 
   socket.on("joinRoom", async ({ gameId }) => {
     try {
       room = await roomManager.getOrCreate(gameId);
     } catch (err) {
       socket.emit("joinRejected", { message: "That game doesn't exist." });
+      socket.emit("g4:joinRejected", { message: "That game doesn't exist." });
       return;
     }
     room.handleJoin(socket);
+    presence.setGame(socket, gameId);
   });
 
   // Navigating away from a room (without disconnecting the socket, e.g. back
   // to the home page) shouldn't leave this player looking "connected" there.
-  socket.on("leaveRoom", () => {
-    if (!room) return;
-    socket.leave(room.id);
-    room.handleDisconnect(socket);
-    room = null;
+  socket.on("leaveRoom", leave);
+
+  // The home page watches the lobby: who's about, and which public tables are
+  // short of players.
+  socket.on("lobby:subscribe", () => {
+    socket.join("lobby");
+    presence.sendTo(socket).catch((err) => console.error("lobby send failed", err));
   });
+  socket.on("lobby:unsubscribe", () => socket.leave("lobby"));
+
+  // ---- four-player game ----
+
+  socket.on("g4:addBots", () => room?.addBots?.(socket));
+  socket.on("g4:choosePartner", (payload) => room?.choosePartner?.(socket, payload || {}));
+  socket.on("g4:bid", (payload) => room?.placeBid?.(socket, payload || {}));
+  socket.on("g4:declineBlind", () => room?.declineBlind?.(socket));
+  socket.on("g4:discard", (payload) => room?.discard?.(socket, payload || {}));
+  socket.on("g4:pass", (payload) => room?.passCards?.(socket, payload || {}));
+  socket.on("g4:play", (payload) => room?.playCard?.(socket, payload || {}));
+  socket.on("g4:claimRest", () => room?.claimRest?.(socket));
+  socket.on("g4:respondToClaim", ({ accept }) => room?.respondToClaim?.(socket, accept));
+  socket.on("g4:ready", () => room?.readyForNextRound?.(socket));
+  socket.on("g4:setBlindIntent", ({ on }) => room?.setBlindIntent?.(socket, on));
+  socket.on("g4:propose", ({ type }) => room?.propose?.(socket, type));
+  socket.on("g4:respondToProposal", ({ accept }) => room?.respondToProposal?.(socket, accept));
+  socket.on("g4:reviewStep", ({ index }) => room?.reviewStep?.(socket, index));
+  socket.on("g4:reviewDone", () => room?.reviewDone?.(socket));
+  socket.on("g4:endReplay", () => room?.endReplay?.(socket));
+  socket.on("g4:rematchOffer", (payload) => room?.rematchOffer?.(socket, payload || {}));
+  socket.on("g4:rematchRespond", ({ accept }) => room?.rematchRespond?.(socket, accept));
+  socket.on("g4:setOptions", ({ options }) => room?.setOptions?.(socket, options));
+  socket.on("g4:setVisibility", ({ visibility }) => room?.setVisibility?.(socket, visibility));
+  socket.on("g4:setFriendly", ({ friendly }) => room?.setFriendly?.(socket, friendly));
 
   socket.on("placeBid", (payload) => room?.placeBid(socket, payload));
   socket.on("setGameSettings", (settings) => room?.setGameSettings(socket, settings));
@@ -137,7 +240,10 @@ io.on("connection", (socket) => {
   socket.on("claimRest", () => room?.claimRest(socket));
   socket.on("respondToClaim", ({ accept }) => room?.respondToClaim(socket, accept));
 
-  socket.on("disconnect", () => room?.handleDisconnect(socket));
+  socket.on("disconnect", () => {
+    leave();
+    presence.remove(socket);
+  });
 });
 
 async function init() {

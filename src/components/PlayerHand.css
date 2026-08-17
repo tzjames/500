@@ -36,6 +36,14 @@
   z-index: 40;
 }
 
+/* Your turn, but this card isn't one you're allowed to play — you have to
+   follow suit. Dimmed rather than hidden: you still need to see the whole hand
+   to know what you're keeping. */
+.player-hand .hand-card.unplayable {
+  opacity: 0.42;
+  filter: saturate(0.5);
+}
+
 /* ---- the deal ---- */
 
 /* Each card flies in from above the centre of the hand — where the dealer's

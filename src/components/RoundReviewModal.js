@@ -4,7 +4,21 @@ import { getDeck } from "../theme";
 import { SUIT_ORDER as suitOrder, VALUE_ORDER as valueOrder, cardColor } from "../cards";
 import "./RoundReviewModal.css";
 
-const STEP_TYPES = ["kittyDealt", "discard", "dummyDealt", "play", "retract", "trick", "result"];
+// Shared by both sizes of game: the four-player room logs the same shapes,
+// keyed by userId, so the only entries here it never emits are the two-player
+// ones (dummyDealt, retract) and the only one the two-player room never emits
+// is the four-player Double Nullo exchange (pass).
+const STEP_TYPES = [
+  "kittyDealt",
+  "discard",
+  "dummyDealt",
+  "pass",
+  "play",
+  "retract",
+  "trick",
+  "claimRestAccepted",
+  "result",
+];
 
 function sameCard(a, b) {
   return a.suit === b.suit && a.value === b.value;
@@ -23,13 +37,15 @@ function sortCards(cards) {
 // index, no server round-trip needed.
 function buildFrame(dealEntry, steps, index) {
   const frame = {
-    hands: { ...dealEntry.hands },
+    hands: { ...(dealEntry?.hands || {}) },
     dummyHands: {},
     kitty: [],
     discarded: null,
+    passed: null,
     trick: [],
     tricksWon: {},
     lastTrickWinner: null,
+    claimedBy: null,
     result: null,
   };
   for (let i = 0; i <= index; i++) {
@@ -49,6 +65,16 @@ function buildFrame(dealEntry, steps, index) {
         // it happens — dummy hands are dealt immediately afterward, so that's
         // the natural point to stop showing it for the rest of the round.
         frame.discarded = null;
+        break;
+      // Double Nullo's exchange: five cards each way between the partners. Both
+      // hands are logged as they ended up, so this is a straight replacement.
+      case "pass":
+        frame.passed = e.sent;
+        frame.hands = { ...frame.hands, ...e.handsAfter };
+        frame.discarded = null;
+        break;
+      case "claimRestAccepted":
+        frame.claimedBy = e.claimerId;
         break;
       case "play": {
         const key = e.isDummy ? "dummyHands" : "hands";
@@ -98,6 +124,15 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
   const steps = useMemo(() => log.filter((e) => STEP_TYPES.includes(e.type)), [log]);
   const clampedIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
   const frame = useMemo(() => buildFrame(dealEntry, steps, clampedIndex), [dealEntry, steps, clampedIndex]);
+  // The trick area is height-reserved for the whole rest of the round once play
+  // has started, so the modal doesn't resize each time a trick resolves and it
+  // briefly goes empty. The two-player game reaches that point when the dummy
+  // hands are dealt; the four-player game has no dummies, so it needs the
+  // first card played as the signal instead.
+  const playStarted = useMemo(
+    () => steps.slice(0, clampedIndex + 1).some((e) => e.type === "play"),
+    [steps, clampedIndex]
+  );
 
   const nameOf = (userId) => players.find((p) => p.id === userId)?.name || "Unknown";
 
@@ -116,7 +151,9 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
     </div>
   );
 
-  if (!dealEntry || !bidWonEntry) {
+  // A hand nobody bid on has no bidWon entry but is still worth walking
+  // through when it was played out, so only the deal is required.
+  if (!dealEntry) {
     return (
       <div className="round-review-overlay">
         <div className="round-review-modal">
@@ -133,8 +170,14 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
         <div className="review-scroll-area">
           <h2>Reviewing Round {round}</h2>
           <p className="review-bid-line">
-            {nameOf(bidWonEntry.userId)} bid {bidWonEntry.bid} ({bidWonEntry.points} pts) — Trump:{" "}
-            {bidWonEntry.trumpSuit || "None"}
+            {bidWonEntry ? (
+              <>
+                {nameOf(bidWonEntry.userId)} bid {bidWonEntry.bid} ({bidWonEntry.points} pts) — Trump:{" "}
+                {bidWonEntry.trumpSuit || "None"}
+              </>
+            ) : (
+              "Nobody bid — played out at no trumps"
+            )}
           </p>
 
           <div className="review-players">
@@ -162,14 +205,21 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
               {renderHand(frame.kitty)}
             </div>
           )}
-          {frame.discarded && (
+          {frame.discarded && bidWonEntry && (
             <div className="review-kitty">
               <p className="review-hand-label">{nameOf(bidWonEntry.userId)} discarded</p>
               {renderHand(frame.discarded)}
             </div>
           )}
+          {frame.passed &&
+            Object.entries(frame.passed).map(([userId, cards]) => (
+              <div key={userId} className="review-kitty">
+                <p className="review-hand-label">{nameOf(userId)} passed across</p>
+                {renderHand(cards)}
+              </div>
+            ))}
 
-          {Object.keys(frame.dummyHands).length > 0 && (
+          {(Object.keys(frame.dummyHands).length > 0 || playStarted) && (
             // Rendered (and height-reserved, via CSS) for the whole rest of the
             // round once play has started — not just while a trick happens to
             // have cards on it — so the modal doesn't resize every time a trick
@@ -198,7 +248,12 @@ function RoundReviewModal({ round, log, players, stepIndex, isController, contro
             </div>
           )}
 
-          {frame.result && (
+          {frame.claimedBy && (
+            <p className="review-result">
+              {nameOf(frame.claimedBy)} claimed the rest and it was agreed.
+            </p>
+          )}
+          {frame.result && frame.result.bidderId && (
             <p className="review-result">
               {nameOf(frame.result.bidderId)} {frame.result.bidderMadeBid ? "made" : "missed"} the bid.
             </p>

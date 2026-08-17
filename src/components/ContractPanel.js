@@ -19,6 +19,7 @@ function ContractPanel({
   gamePhase,
   dealerIsYou,
   trumpSuit,
+  friendly,
   onShowScoreHistory,
   canClaimRest,
   waitingForClaimResponse,
@@ -49,7 +50,14 @@ function ContractPanel({
   return (
     <aside className="side-panel">
       <div className="side-panel-head">
-        <span className="overline">Round {roundNumber}</span>
+        <span className="side-panel-head-title">
+          <span className="overline">Round {roundNumber}</span>
+          {friendly && (
+            <span className="friendly-pill" title="This game doesn't affect anyone's Elo rating">
+              Friendly
+            </span>
+          )}
+        </span>
         <button
           className="icon-button"
           onClick={onShowScoreHistory}
