@@ -318,7 +318,7 @@
 .table-status {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--card-hand) * 1.4 + 44px);
+  bottom: calc(var(--card-hand) * var(--card-ratio, 1.4) + 44px);
   transform: translateX(-50%);
   z-index: 4;
 }

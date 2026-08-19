@@ -1,11 +1,13 @@
-/* Every card sizes off --card-w; height follows the deck's 0.714 aspect so all
-   art stays in proportion at every call site. */
+/* Every card sizes off --card-w; height follows the deck's own aspect (see
+   --card-ratio) so each pack's art stays in proportion at every call site. */
 
 .pc {
   position: relative;
   flex: 0 0 auto;
   width: var(--card-w, 100px);
-  aspect-ratio: 1000 / 1400;
+  /* Height per unit width comes from the deck — packs aren't all the same
+     shape. See `ratio` in theme.js. */
+  aspect-ratio: 1 / var(--card-ratio, 1.4);
   border-radius: calc(var(--card-w, 100px) * 0.09);
   padding: 0;
   border: none;

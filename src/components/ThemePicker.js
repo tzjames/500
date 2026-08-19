@@ -1,7 +1,7 @@
 import React from "react";
 import {
   LOCATIONS,
-  DECKS,
+  decksFor,
   getLocation,
   getFeltMode,
   nextFeltMode,
@@ -23,7 +23,16 @@ const GROUPS = LOCATIONS.reduce((acc, location) => {
 // Location and deck pickers. Both settings are room-wide: picking either one
 // emits through the same server-synced `gameSettings` channel the offer-pass
 // toggles already use, so the change lands on both players' tables at once.
-function ThemePicker({ locationId, deckId, feltId, onChange, compact = false }) {
+function ThemePicker({
+  locationId,
+  deckId,
+  feltId,
+  onChange,
+  // Who's seated. Some packs belong to particular people and are only
+  // offered when the room is exactly them — see deckAllowed in theme.js.
+  playerNames = [],
+  compact = false,
+}) {
   const location = getLocation(locationId);
   const felt = getFeltMode(feltId);
 
@@ -65,7 +74,7 @@ function ThemePicker({ locationId, deckId, feltId, onChange, compact = false }) 
           onChange={(e) => onChange({ deck: e.target.value })}
           aria-label="Card deck"
         >
-          {DECKS.map((d) => (
+          {decksFor(playerNames).map((d) => (
             <option key={d.id} value={d.id} title={d.blurb}>
               {d.name}
             </option>

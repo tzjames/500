@@ -15,7 +15,7 @@ import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
 import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
-import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
+import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
 import "../App.css";
 import "./GameRoom4Page.css";
 
@@ -193,8 +193,9 @@ function GameRoom4Page() {
   };
 
   const locationId = state?.gameSettings?.location || DEFAULT_LOCATION;
-  const deckId = state?.gameSettings?.deck || DEFAULT_DECK;
   const feltId = state?.gameSettings?.felt || DEFAULT_FELT;
+  const playerNames = (state?.seats || []).filter(Boolean).map((s) => s.name);
+  const deckId = resolveDeckId(state?.gameSettings?.deck || DEFAULT_DECK, playerNames);
 
   if (!session) return null;
 
@@ -235,6 +236,7 @@ function GameRoom4Page() {
         locationId={locationId}
         deckId={deckId}
         feltId={feltId}
+        playerNames={playerNames}
         onChange={handleSetGameSettings}
         compact
       />

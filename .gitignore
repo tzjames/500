@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# card art source bundles — the converted packs live in public/cards/
+*.zip
