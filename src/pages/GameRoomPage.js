@@ -18,6 +18,10 @@ import Confetti from "../components/Confetti";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
 import "../App.css";
 
+// A finished trick sits on the table for a beat, then flies to the winner.
+const TRICK_LINGER_MS = 2000;
+const TRICK_FLY_MS = 600;
+
 // "That's 4–2 to Grace" under the final scores. Counts every finished game
 // between the two players, this one included.
 function MatchRecordLine({ record, playerId }) {
@@ -109,6 +113,7 @@ function GameRoomPage() {
   // has already sent the whole hand by the time any of it plays.
   const [deal, setDeal] = useState(null);
   const dealTimersRef = useRef([]);
+  const roundEndTimersRef = useRef([]);
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
   const [incomingRematchOffer, setIncomingRematchOffer] = useState(null);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
@@ -140,7 +145,13 @@ function GameRoomPage() {
   // the opponent's hand/dummy until someone happens to refresh the page.
   const lastPlaySeqRef = useRef(null);
 
-  useEffect(() => () => dealTimersRef.current.forEach(clearTimeout), []);
+  useEffect(
+    () => () => {
+      dealTimersRef.current.forEach(clearTimeout);
+      roundEndTimersRef.current.forEach(clearTimeout);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!socket) return;
@@ -165,6 +176,21 @@ function GameRoomPage() {
         // goes back to being ordinary one-sided cards.
         setTimeout(() => setDeal(null), flightEnds + 120 + (cardCount - 1) * 35 + 480),
       ];
+    };
+
+    // The trick that ends a hand should be watchable before the result screen
+    // covers it. pendingClearTokenRef is non-null exactly while a resolved
+    // trick is still on the table, which is also how we tell a hand decided by
+    // a trick from one ended by a claim or a resignation — those have nothing
+    // to watch, so they shouldn't wait at all.
+    const afterDecidingTrick = (show) => {
+      if (pendingClearTokenRef.current === null) {
+        show();
+        return;
+      }
+      roundEndTimersRef.current.push(
+        setTimeout(show, TRICK_LINGER_MS + TRICK_FLY_MS)
+      );
     };
 
     const join = () => socket.emit("joinRoom", { gameId });
@@ -234,6 +260,7 @@ function GameRoomPage() {
       setRedealCount(initialState.redealCount || 0);
       setScoreHistory(initialState.scoreHistory || []);
       setGameOverInfo(null);
+      roundEndTimersRef.current.forEach(clearTimeout);
       setRoundResult(null);
       setRoundEndInfo(null);
       setReviewData(null);
@@ -373,6 +400,7 @@ function GameRoomPage() {
       setRedealCount(state.redealCount || 0);
       setScoreHistory(state.scoreHistory || []);
       setGameOverInfo(null);
+      roundEndTimersRef.current.forEach(clearTimeout);
       setRoundResult(state.roundResult || null);
       setRoundEndInfo(null);
       setReviewData(null);
@@ -401,8 +429,10 @@ function GameRoomPage() {
     socket.on("matchRecord", (record) => setMatchRecord(record));
 
     socket.on("gameOver", (info) => {
-      setGameOverInfo(info);
-      setScoreHistory(info.scoreHistory || []);
+      afterDecidingTrick(() => {
+        setGameOverInfo(info);
+        setScoreHistory(info.scoreHistory || []);
+      });
     });
 
     // A hand given up rather than played out. The round-end modal follows
@@ -414,7 +444,7 @@ function GameRoomPage() {
       );
     });
 
-    socket.on("roundResult", (result) => setRoundResult(result));
+    socket.on("roundResult", (result) => afterDecidingTrick(() => setRoundResult(result)));
     // Broadcast room-wide whenever the game (re-)enters roundEnd/gameOver —
     // including right after the review controller clicks "Back to round" —
     // so this also clears reviewData for the other player, who otherwise had
@@ -454,8 +484,8 @@ function GameRoomPage() {
             setPlayedCards([]);
             setFlyingWinner(null);
           }
-        }, 600);
-      }, 2000);
+        }, TRICK_FLY_MS);
+      }, TRICK_LINGER_MS);
     });
 
     socket.on("updateCurrentPlayer", ({ playerId: newCurrentPlayer, isDummy }) => {

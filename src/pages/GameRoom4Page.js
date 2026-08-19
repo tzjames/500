@@ -26,6 +26,10 @@ const SUITS = ["♠", "♣", "♥", "♦"];
 // stitching together patches. The only local state is the things that are about
 // timing or intent rather than truth: the deal, the beat a finished trick spends
 // on the table, and what you've picked up but not yet committed to.
+// A finished trick sits on the table for a beat, then flies to the winner.
+const TRICK_LINGER_MS = 1900;
+const TRICK_FLY_MS = 600;
+
 function GameRoom4Page() {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
@@ -58,6 +62,11 @@ function GameRoom4Page() {
   // Cleared by the next deal too, so a message about the auction that just
   // ended can't outlive it and read as news about the hand you're now bidding.
   const noticeTimerRef = useRef(null);
+  // True while the hand-deciding trick is still playing out. This page renders
+  // from one pushed state object, so the hold gates the end screens rather than
+  // the state itself — the table stays up, showing the trick that decided it.
+  const [endHeld, setEndHeld] = useState(false);
+  const endHoldTimerRef = useRef(null);
 
   // The deal: `{ revealed }` while the cards fly in and turn over, null the rest
   // of the time. Keyed on the round and redeal count so a redeal re-runs it.
@@ -74,7 +83,21 @@ function GameRoom4Page() {
     if (socket.connected) join();
     socket.on("connect", join);
 
-    socket.on("g4:state", setState);
+    socket.on("g4:state", (next) => {
+      const ending = next.phase === "roundEnd" || next.phase === "gameOver";
+      if (ending && liveTokenRef.current !== null) {
+        clearTimeout(endHoldTimerRef.current);
+        setEndHeld(true);
+        endHoldTimerRef.current = setTimeout(
+          () => setEndHeld(false),
+          TRICK_LINGER_MS + TRICK_FLY_MS
+        );
+      } else if (!ending) {
+        clearTimeout(endHoldTimerRef.current);
+        setEndHeld(false);
+      }
+      setState(next);
+    });
     socket.on("g4:joinRejected", ({ message }) => setRejected(message));
     socket.on("joinRejected", ({ message }) => setRejected(message));
     socket.on("g4:invalidPlay", ({ message }) => setInvalid(message));
@@ -99,11 +122,12 @@ function GameRoom4Page() {
           liveTokenRef.current = null;
           setPendingTrick(null);
           setFlyToSeat(null);
-        }, 600);
-      }, 1900);
+        }, TRICK_FLY_MS);
+      }, TRICK_LINGER_MS);
     });
 
     return () => {
+      clearTimeout(endHoldTimerRef.current);
       socket.emit("leaveRoom", { gameId });
       socket.off("connect", join);
       clearTimeout(noticeTimerRef.current);
@@ -370,7 +394,7 @@ function GameRoom4Page() {
 
   // ---- game over ----
 
-  if (state.phase === "gameOver" && state.winner) {
+  if (state.phase === "gameOver" && state.winner && !endHeld) {
     const iWon = state.winner.playerIds?.includes(playerId);
     // Going out the back door is the LOSING side's fate, not the winner's — it
     // needs the other team's name (or, if you're the one who went out, your
@@ -847,7 +871,7 @@ function GameRoom4Page() {
         </div>
       )}
 
-      {state.phase === "roundEnd" && state.roundResult && (
+      {state.phase === "roundEnd" && state.roundResult && !endHeld && (
         <RoundEnd4Modal
           result={state.roundResult}
           roundEnd={state.roundEnd}
