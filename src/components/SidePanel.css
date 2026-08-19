@@ -137,6 +137,9 @@
 /* A <button>, so it takes the browser's default button text colour unless told
    otherwise — which left the player names under each card black on a dark
    panel. */
+/* A <button>, so it takes the browser's default button text colour unless told
+   otherwise — which left the player names under each card black on a dark
+   panel. */
 .last-trick {
   color: inherit;
   position: relative;
@@ -148,13 +151,15 @@
   background: none;
   cursor: pointer;
   width: 100%;
+  transition: height 0.22s ease;
+  --last-trick-card: 44px;
 }
 
 .last-trick-slot {
   position: relative;
   display: block;
   margin-left: -30px;
-  transition: margin-left 0.2s ease, transform 0.2s ease;
+  transition: margin-left 0.22s ease, transform 0.22s ease;
 }
 
 .last-trick-slot:first-child {
@@ -162,7 +167,9 @@
 }
 
 .last-trick-slot .pc {
+  --card-w: var(--last-trick-card);
   transform: rotate(calc((var(--i) - 1.5) * 4deg));
+  transition: transform 0.22s ease;
 }
 
 .last-trick-slot.winner .pc {
@@ -170,13 +177,27 @@
   outline-offset: 1px;
 }
 
-/* Fanned open: the cards separate and each gets its "who played it" caption. */
-.last-trick.open .last-trick-slot {
-  margin-left: 2px;
+/* Open: two rows of two rather than one row of four, which buys enough width
+   for cards half again as large without the panel having to grow sideways and
+   shove the table over. It grows downward instead, which costs nothing —
+   nothing sits under it. */
+.last-trick.open {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 8px;
+  height: auto;
+  --last-trick-card: 74px;
 }
 
+.last-trick.open .last-trick-slot,
 .last-trick.open .last-trick-slot:first-child {
   margin-left: 0;
+}
+
+/* Straightened up once they're readable — the fan tilt is for the collapsed
+   stack, where it reads as a pile of cards. */
+.last-trick.open .last-trick-slot .pc {
+  transform: none;
 }
 
 .last-trick-who {
@@ -186,14 +207,15 @@
   line-height: 1.2;
   letter-spacing: 0.02em;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.22s ease, font-size 0.22s ease;
   text-align: center;
-  max-width: 46px;
+  max-width: var(--last-trick-card);
   color: var(--ink);
 }
 
 .last-trick.open .last-trick-who {
-  opacity: 0.7;
+  opacity: 0.75;
+  font-size: 10.5px;
 }
 
 .last-trick:focus-visible {

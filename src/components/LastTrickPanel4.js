@@ -53,7 +53,7 @@ function LastTrickPanel4({ lastTrick, seats = [], mySeat, deckId }) {
             <Card
               card={play.card}
               deck={deck}
-              width={44}
+              width={null}
               disabled
               className={cardColor(play.card.suit)}
             />
