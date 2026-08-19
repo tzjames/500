@@ -134,7 +134,11 @@
   margin-bottom: 10px;
 }
 
+/* A <button>, so it takes the browser's default button text colour unless told
+   otherwise — which left the player names under each card black on a dark
+   panel. */
 .last-trick {
+  color: inherit;
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -185,6 +189,7 @@
   transition: opacity 0.2s ease;
   text-align: center;
   max-width: 46px;
+  color: var(--ink);
 }
 
 .last-trick.open .last-trick-who {

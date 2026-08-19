@@ -55,10 +55,13 @@
    translateY in PlayerHand), so the outer cards don't get clipped.
    Spans the board minus the pile gutter and centres the hand in what's left,
    rather than centring on the board and running into the corner. */
+/* Above the status pill (4) and the side panels (5): a card grown under the
+   pointer has to paint over them, and the resting hand never reaches either. */
 .seat-south {
   bottom: 26px;
   left: 0;
   right: var(--pile-gutter);
+  z-index: 6;
 }
 
 /* No max-width on the side seats: they shrink-wrap their fan instead. A width
