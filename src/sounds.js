@@ -8,7 +8,7 @@
 
 const SETS = {
   shuffle: ["/sounds/shuffle-1.m4a", "/sounds/shuffle-2.m4a"],
-  play: ["/sounds/play-1.m4a", "/sounds/play-2.m4a"],
+  play: ["/sounds/play-1.m4a", "/sounds/play-2.m4a", "/sounds/play-3.m4a"],
   won: ["/sounds/won-1.m4a", "/sounds/won-2.m4a"],
   loss: ["/sounds/loss-1.mp3"],
 };
