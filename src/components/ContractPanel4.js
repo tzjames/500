@@ -142,8 +142,12 @@ function ContractPanel4({
 
       {/* Only from the lead, and both opponents have to agree — it hands your
           side every trick that's left. */}
-      {canClaimRest && (
-        <button className="btn-ghost claim-button" onClick={onClaimRest} disabled={claimPending}>
+      {phase === "playing" && (
+        <button
+          className="btn-ghost claim-button"
+          onClick={onClaimRest}
+          disabled={!canClaimRest || claimPending}
+        >
           I&apos;ve got the rest
         </button>
       )}

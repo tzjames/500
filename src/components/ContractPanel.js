@@ -126,11 +126,11 @@ function ContractPanel({
         </>
       )}
 
-      {canClaimRest && (
+      {gamePhase === "playing" && (
         <button
           className="btn-ghost claim-button"
           onClick={onClaimRest}
-          disabled={waitingForClaimResponse}
+          disabled={!canClaimRest || waitingForClaimResponse}
         >
           I&apos;ve got the rest
         </button>
