@@ -63,7 +63,7 @@ function LastTrickPanel({ lastTrick, playerId, deckId, opponentName }) {
               <Card
                 card={play.card}
                 deck={deck}
-                width={44}
+                width={null}
                 disabled
                 className={cardColor(play.card.suit)}
               />

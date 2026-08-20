@@ -32,7 +32,7 @@ const LOCATION_IDS = [
   "plain-sierras",
   "plain-serengeti",
 ];
-const DECK_IDS = ["traveller", "classic"];
+const { DECK_IDS, DEFAULT_DECK, deckAllowed } = require("./decks");
 const FELT_IDS = ["solid", "faded", "hidden"];
 
 // One Room per game document. Player identity is the account's userId (stable
@@ -71,7 +71,7 @@ class Room {
       showOfferPassButton: true,
       showOfferRetroactivePassButton: true,
       location: "falls",
-      deck: "traveller",
+      deck: DEFAULT_DECK,
       felt: "faded",
       ...(snap.gameSettings || {}),
     };
@@ -245,6 +245,11 @@ class Room {
     }
   }
 
+  // Names of everyone seated, for the private-pack check in decks.js.
+  playerNames() {
+    return this.slots.filter(Boolean).map((s) => s.name);
+  }
+
   nameOf(userId) {
     return (
       this.slots.find((s) => s && s.userId === userId)?.name ||
@@ -260,6 +265,62 @@ class Room {
   emitToUser(userId, event, payload) {
     const slot = this.slots.find((s) => s && s.userId === userId);
     if (slot?.socketId) this.io.to(slot.socketId).emit(event, payload);
+  }
+
+  // What one player may know about a dummy hand: their own as cards, the other
+  // player's as a count only. Payloads carrying this have to go out per
+  // recipient rather than room-wide, or the cards ride along whether or not the
+  // client draws them. `revealedId` names a dummy that is deliberately face up
+  // — a claimer's, see claimRest.
+  dummyViewFor(p, viewerId, revealedId = null) {
+    return p.id === viewerId || p.id === revealedId
+      ? { dummyHand: p.dummyHand }
+      : { dummyHandSize: p.dummyHand.length };
+  }
+
+  // The same rule for the real hands, which are secret in exactly the same way
+  // — the client only ever draws a fan of backs for the other player, so all it
+  // needs is how many cards are left. `revealedIds` names the hands that are
+  // deliberately face up; see revealedHandIds.
+  handViewFor(p, viewerId, revealedIds) {
+    return p.id === viewerId || revealedIds.has(p.id)
+      ? { hand: p.hand }
+      : { handSize: p.hand.length };
+  }
+
+  // Whose real hand is face up to the whole table. Two ways in: an Open Misère
+  // bidder's, once the first trick has gone against them (winning one ends the
+  // round on the spot, so the condition is "a trick has been played and the
+  // bidder still hasn't won one"), and a claimer's after "I've got the rest".
+  revealedHandIds(game = this.game) {
+    const ids = new Set();
+    // Live game only — a replay is played out afresh, with no claim in it.
+    if (game === this.game && this.revealedClaimerId) ids.add(this.revealedClaimerId);
+    const bid = game?.currentBid;
+    if (bid?.bid === "Open Misere") {
+      const bidder = game.players.find((p) => p.id === bid.player);
+      const tricksPlayed = game.players.reduce((n, p) => n + p.tricksWon, 0);
+      if (bidder && tricksPlayed >= 1 && bidder.tricksWon === 0) ids.add(bidder.id);
+    }
+    return ids;
+  }
+
+  // Push the cards of any hand that is now face up to someone who was only sent
+  // a count for it. An Open Misère bidder's hand turns over part-way through the
+  // round, so this is the only way its cards ever reach the other player; a
+  // claimer's went out with claimReceived and is simply resent. Resent every
+  // trick rather than tracked as already-sent: it's a few cards, and it keeps
+  // the view authoritative.
+  sendRevealedHands(game, mode) {
+    const revealed = this.revealedHandIds(game);
+    if (!revealed.size) return;
+    const event = mode === "replay" ? "replayHandsRevealed" : "handsRevealed";
+    game.players.forEach((viewer) => {
+      const players = game.players
+        .filter((p) => p.id !== viewer.id && revealed.has(p.id))
+        .map((p) => ({ id: p.id, hand: p.hand }));
+      if (players.length) this.emitToUser(viewer.id, event, { players });
+    });
   }
 
   logEvent(type, payload) {
@@ -287,12 +348,22 @@ class Room {
     });
   }
 
-  gameStartPayload(dealData) {
+  // Per recipient, not room-wide: the payload carries hands, so each player has
+  // to be sent their own view of them. Same reason as the dummy deal — see
+  // dummyViewFor.
+  emitGameStart(dealData) {
+    const revealed = this.revealedHandIds();
+    this.game.players.forEach((viewer) =>
+      this.emitToUser(viewer.id, "gameStart", this.gameStartPayload(dealData, viewer.id, revealed))
+    );
+  }
+
+  gameStartPayload(dealData, viewerId, revealed) {
     return {
       players: this.game.players.map((p) => ({
         id: p.id,
         name: p.name,
-        hand: p.hand,
+        ...this.handViewFor(p, viewerId, revealed),
         isDealer: p.isDealer,
         score: p.score,
         tricksWon: p.tricksWon,
@@ -368,12 +439,13 @@ class Room {
 
   sendResumedState(socket) {
     const currentSeat = this.game.getCurrentSeat();
+    const revealed = this.revealedHandIds();
     socket.emit("gameResumed", {
       players: this.game.players.map((p) => ({
         id: p.id,
         name: p.name,
-        hand: p.hand,
-        dummyHand: p.dummyHand,
+        ...this.handViewFor(p, socket.userId, revealed),
+        ...this.dummyViewFor(p, socket.userId, this.revealedClaimerId),
         isDealer: p.isDealer,
         score: p.score,
         tricksWon: p.tricksWon,
@@ -446,8 +518,8 @@ class Room {
       players: rg.players.map((p) => ({
         id: p.id,
         name: p.name,
-        hand: p.hand,
-        dummyHand: p.dummyHand,
+        ...this.handViewFor(p, socket.userId, this.revealedHandIds(rg)),
+        ...this.dummyViewFor(p, socket.userId),
         isDealer: false,
         score: 0,
         tricksWon: p.tricksWon,
@@ -460,7 +532,11 @@ class Room {
         winningBidder: rg.currentBid.player,
         currentPlayer: rg.currentPlayer,
         currentIsDummy: seat?.isDummy || false,
-        players: rg.players.map((p) => ({ id: p.id, dummyHand: p.dummyHand, tricksWon: p.tricksWon })),
+        players: rg.players.map((p) => ({
+          id: p.id,
+          ...this.dummyViewFor(p, socket.userId),
+          tricksWon: p.tricksWon,
+        })),
         playedCards: rg.currentTrick,
       });
     } else if (rg.currentBid.player === socket.userId) {
@@ -495,7 +571,7 @@ class Room {
     this.scheduleBotTurn();
 
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
-    this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
+    this.emitGameStart(dealData);
     this.io.to(this.id).emit("updateGamePhase", "bidding");
     this.persist();
   }
@@ -521,7 +597,7 @@ class Room {
     this.scheduleBotTurn();
 
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
-    this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
+    this.emitGameStart(dealData);
     this.io.to(this.id).emit("updateGamePhase", "bidding");
     this.persist();
   }
@@ -547,7 +623,7 @@ class Room {
 
     this.logEvent(logType, {});
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
-    this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
+    this.emitGameStart(dealData);
     this.io.to(this.id).emit("updateGamePhase", "bidding");
     this.persist();
   }
@@ -626,7 +702,9 @@ class Room {
     // either a stale client or hand-crafted — drop it rather than persist a
     // value that would render as an unstyled table for both players.
     if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
-    if (DECK_IDS.includes(settings.deck)) next.deck = settings.deck;
+    if (DECK_IDS.includes(settings.deck) && deckAllowed(settings.deck, this.playerNames())) {
+      next.deck = settings.deck;
+    }
     if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
 
     this.gameSettings = next;
@@ -788,12 +866,19 @@ class Room {
     activeGame.currentPlayer = socket.userId;
     if (mode !== "replay") this.gamePhase = "playing";
 
-    this.io.to(this.id).emit(mode === "replay" ? "replayKittyPhaseComplete" : "kittyPhaseComplete", {
-      winningBidder: socket.userId,
-      currentPlayer: socket.userId,
-      currentIsDummy: false,
-      players: activeGame.players.map((p) => ({ id: p.id, dummyHand: p.dummyHand, tricksWon: p.tricksWon })),
-    });
+    const event = mode === "replay" ? "replayKittyPhaseComplete" : "kittyPhaseComplete";
+    activeGame.players.forEach((viewer) =>
+      this.emitToUser(viewer.id, event, {
+        winningBidder: socket.userId,
+        currentPlayer: socket.userId,
+        currentIsDummy: false,
+        players: activeGame.players.map((p) => ({
+          id: p.id,
+          ...this.dummyViewFor(p, viewer.id),
+          tricksWon: p.tricksWon,
+        })),
+      })
+    );
     if (mode !== "replay") this.persist();
   }
 
@@ -861,6 +946,10 @@ class Room {
         else this.finishRound();
         return;
       }
+
+      // Only a resolved trick can change who is allowed to see whose hand, so
+      // this is the one place the reveal has to be re-checked.
+      this.sendRevealedHands(activeGame, mode);
     } else {
       activeGame.advanceSeat();
     }
@@ -928,6 +1017,10 @@ class Room {
     this.emitToUser(this.otherPlayerId(socket.userId), "claimReceived", {
       fromName: this.nameOf(socket.userId),
       claimerId: socket.userId,
+      // The one moment the other player is meant to see these, so the cards are
+      // sent here rather than sitting in their state from the deal.
+      claimerHand: this.game.players.find((p) => p.id === socket.userId).hand,
+      claimerDummyHand: this.game.players.find((p) => p.id === socket.userId).dummyHand,
     });
     this.persist();
   }
@@ -945,6 +1038,8 @@ class Room {
         p.dummyHand = [];
       });
       this.logEvent("claimRestAccepted", { claimerId });
+      // Safe to broadcast room-wide even though it names every hand: they were
+      // all just emptied, so there are no cards left in it to leak.
       this.io.to(this.id).emit("claimResolved", {
         accepted: true,
         claimerId,
@@ -989,6 +1084,10 @@ class Room {
     this.lastRoundResult = {
       bid: bidDescription,
       bidderName: bidderPlayer.name,
+      // Who bid, by id rather than only by name: the client needs to know
+      // whether the contract was yours to decide whether the hand went your
+      // way, and two players can share a name.
+      bidderId,
       bidderMadeBid,
       bidderDelta,
       bidderScore: bidderPlayer.score,
@@ -1189,18 +1288,22 @@ class Room {
     this.replayGame.trumpSuit = bidWonEntry.trumpSuit;
     this.replayDummyHands = dummyEntry ? dummyEntry.hands : {};
 
-    this.io.to(this.id).emit("replayStart", {
-      players: this.replayGame.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        hand: p.hand,
-        isDealer: false,
-        score: 0,
-        tricksWon: 0,
-      })),
-      currentBid: this.replayGame.currentBid,
-      trumpSuit: this.replayGame.trumpSuit,
-    });
+    // Per recipient, for the same reason as the live deal — see emitGameStart.
+    const revealed = this.revealedHandIds(this.replayGame);
+    this.replayGame.players.forEach((viewer) =>
+      this.emitToUser(viewer.id, "replayStart", {
+        players: this.replayGame.players.map((p) => ({
+          id: p.id,
+          name: p.name,
+          ...this.handViewFor(p, viewer.id, revealed),
+          isDealer: false,
+          score: 0,
+          tricksWon: 0,
+        })),
+        currentBid: this.replayGame.currentBid,
+        trumpSuit: this.replayGame.trumpSuit,
+      })
+    );
     this.emitToUser(bidderId, "replayShowKitty", this.replayGame.kitty);
   }
 

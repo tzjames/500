@@ -14,7 +14,7 @@ const LOCATION_IDS = [
   "plain-falls", "plain-zanzibar", "plain-samana", "plain-canyon",
   "plain-sierras", "plain-serengeti",
 ];
-const DECK_IDS = ["traveller", "classic"];
+const { DECK_IDS, DEFAULT_DECK, deckAllowed } = require("./decks");
 const FELT_IDS = ["solid", "faded", "hidden"];
 
 // How long a robot pauses before acting, so a table of them is watchable. The
@@ -60,7 +60,7 @@ class Room4 {
     const snap = doc.snapshot || {};
     this.gameSettings = {
       location: "falls",
-      deck: "traveller",
+      deck: DEFAULT_DECK,
       felt: "faded",
       ...(snap.gameSettings || {}),
     };
@@ -188,6 +188,11 @@ class Room4 {
   }
 
   // ---- helpers ----
+
+  // Names of everyone seated, for the private-pack check in decks.js.
+  playerNames() {
+    return this.slots.filter(Boolean).map((s) => s.name);
+  }
 
   slotOf(userId) {
     return this.slots.find((s) => s && s.userId === userId) || null;
@@ -1054,7 +1059,9 @@ class Room4 {
     if (!this.slotOf(socket.userId)) return;
     const next = { ...this.gameSettings };
     if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
-    if (DECK_IDS.includes(settings.deck)) next.deck = settings.deck;
+    if (DECK_IDS.includes(settings.deck) && deckAllowed(settings.deck, this.playerNames())) {
+      next.deck = settings.deck;
+    }
     if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
     this.gameSettings = next;
     this.persist();

@@ -25,6 +25,11 @@
   --card-w: var(--card-hand, 100px);
   margin-left: calc(var(--card-w) * -0.38);
   transform-origin: 50% 132%;
+  /* Slower than the default card transition, and eased out, because this one
+     carries a scale rather than a nudge. Set here rather than only on :hover so
+     the card settles back at the same pace it grew. */
+  transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.24s ease, opacity 0.18s ease;
 }
 
 .hand-suit-group .hand-card:first-child {
@@ -32,8 +37,31 @@
 }
 
 /* Hovering a card raises it clear of its neighbours on both sides. */
-.player-hand .hand-card:hover {
+/* The art on these packs is worth a look, so pointing at a card grows it
+   rather than just nudging it up. It scales about the fan's pivot, which sits
+   below the cards, so the card rises clear of its neighbours as it grows
+   instead of swelling into them. Keyboard focus gets the same treatment. */
+.player-hand .hand-card:hover,
+.player-hand .hand-card:focus-visible {
+  transform: rotate(var(--card-rotate, 0deg))
+    translateY(calc(var(--card-lift, 0px) * -1)) scale(1.35);
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
   z-index: 40;
+}
+
+
+/* Anyone who's asked for less motion still gets the card, just without the
+   growing. */
+@media (prefers-reduced-motion: reduce) {
+  .player-hand .hand-card {
+    transition: none;
+  }
+
+  .player-hand .hand-card:hover,
+  .player-hand .hand-card:focus-visible {
+    transform: rotate(var(--card-rotate, 0deg))
+      translateY(calc((var(--card-lift, 0px) + 14px) * -1));
+  }
 }
 
 /* Your turn, but this card isn't one you're allowed to play — you have to
