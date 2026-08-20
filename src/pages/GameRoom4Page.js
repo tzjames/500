@@ -201,6 +201,10 @@ function GameRoom4Page() {
   // reconnects — which re-deliver the same finished result — only sound once,
   // and held back until the deciding trick has finished playing out. Hands
   // where nobody bid have no outcome to report.
+  //
+  // As in the two-player room: the loss sting is for your own side's contract
+  // going down, not for every hand that didn't go your way. The other team
+  // making their bid passes without comment.
   const result = state?.roundResult;
   const showingResult =
     (state?.phase === "roundEnd" || state?.phase === "gameOver") && !endHeld;
@@ -211,9 +215,10 @@ function GameRoom4Page() {
     soundedResultRef.current = key;
     const myTeam = state.you?.team;
     if (myTeam === null || myTeam === undefined) return;
-    const madeMyWay =
-      result.biddingTeam === myTeam ? result.made : !result.made;
-    playSound(madeMyWay ? "won" : "loss");
+    const weBid = result.biddingTeam === myTeam;
+    const wentOurWay = weBid ? result.made : !result.made;
+    if (wentOurWay) playSound("won");
+    else if (weBid) playSound("loss");
   }, [showingResult, result, gameId, state?.roundNumber, state?.you?.team]);
 
   // ---- handlers ----

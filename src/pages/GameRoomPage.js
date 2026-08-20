@@ -453,14 +453,19 @@ function GameRoomPage() {
 
     // The sting lands with the result screen rather than the moment the server
     // scores the hand — while the deciding trick is still on the table you're
-    // watching that, not being told how it turned out. Whether the hand went
-    // your way is the contract's outcome seen from your side: your bid made,
-    // or theirs missed.
+    // watching that, not being told how it turned out.
+    //
+    // A hand goes your way if your contract stood up or theirs didn't. The loss
+    // sting is narrower than that, and deliberately: it's for your own contract
+    // going down, not for any hand that didn't go your way. Losing because the
+    // other player quietly made a modest bid is just the game continuing, so it
+    // passes without comment.
     socket.on("roundResult", (result) =>
       afterDecidingTrick(() => {
-        const madeMyWay =
-          result.bidderId === playerId ? result.bidderMadeBid : !result.bidderMadeBid;
-        playSound(madeMyWay ? "won" : "loss");
+        const iBid = result.bidderId === playerId;
+        const wentMyWay = iBid ? result.bidderMadeBid : !result.bidderMadeBid;
+        if (wentMyWay) playSound("won");
+        else if (iBid) playSound("loss");
         setRoundResult(result);
       })
     );
