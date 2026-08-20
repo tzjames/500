@@ -16,6 +16,7 @@ import RoundEndModal from "../components/RoundEndModal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
+import { playSound, preloadSounds } from "../sounds";
 import "../App.css";
 
 // A finished trick sits on the table for a beat, then flies to the winner.
@@ -153,6 +154,10 @@ function GameRoomPage() {
     []
   );
 
+  // Fetched up front so the first card of the hand isn't silent while its file
+  // is still downloading.
+  useEffect(preloadSounds, []);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -161,6 +166,7 @@ function GameRoomPage() {
     // previous one's "reveal" to fire over the new hand.
     const runDeal = (cardCount) => {
       dealTimersRef.current.forEach(clearTimeout);
+      playSound("shuffle");
       // Skipped outright for reduced motion — suppressing just the animation
       // would leave the cards sitting face down for a second doing nothing,
       // which is worse than not dealing at all.
@@ -330,6 +336,7 @@ function GameRoomPage() {
         }
         lastPlaySeqRef.current = seq;
       }
+      playSound("play");
       const isFreshTrick = pendingClearTokenRef.current !== null;
       pendingClearTokenRef.current = null;
       setPlayedCards((prev) => {
@@ -444,7 +451,19 @@ function GameRoomPage() {
       );
     });
 
-    socket.on("roundResult", (result) => afterDecidingTrick(() => setRoundResult(result)));
+    // The sting lands with the result screen rather than the moment the server
+    // scores the hand — while the deciding trick is still on the table you're
+    // watching that, not being told how it turned out. Whether the hand went
+    // your way is the contract's outcome seen from your side: your bid made,
+    // or theirs missed.
+    socket.on("roundResult", (result) =>
+      afterDecidingTrick(() => {
+        const madeMyWay =
+          result.bidderId === playerId ? result.bidderMadeBid : !result.bidderMadeBid;
+        playSound(madeMyWay ? "won" : "loss");
+        setRoundResult(result);
+      })
+    );
     // Broadcast room-wide whenever the game (re-)enters roundEnd/gameOver —
     // including right after the review controller clicks "Back to round" —
     // so this also clears reviewData for the other player, who otherwise had

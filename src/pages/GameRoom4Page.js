@@ -16,6 +16,7 @@ import Confetti from "../components/Confetti";
 import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
+import { playSound, preloadSounds } from "../sounds";
 import "../App.css";
 import "./GameRoom4Page.css";
 
@@ -74,7 +75,16 @@ function GameRoom4Page() {
   const dealTimersRef = useRef([]);
   const dealKeyRef = useRef(null);
 
+  // This page has no per-card broadcast to hang a sound on — it re-renders from
+  // a whole pushed snapshot — so the card and result sounds are derived from
+  // what changed between snapshots instead. Both refs hold "what we last made a
+  // noise about", so a re-render with no real change stays quiet.
+  const trickLenRef = useRef(0);
+  const soundedResultRef = useRef(null);
+
   useEffect(() => () => dealTimersRef.current.forEach(clearTimeout), []);
+
+  useEffect(preloadSounds, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -146,11 +156,17 @@ function GameRoom4Page() {
 
   // Run the deal animation whenever a fresh hand arrives. A redeal of the same
   // round counts as a fresh hand, hence both halves of the key.
-  const dealKey = state?.seats ? `${state.roundNumber}-${state.redealCount}` : null;
+  // The game id is part of the key because a rematch starts counting rounds
+  // again from one, on the same mounted component — without it, round one of
+  // the new match looks like one already dealt and is skipped.
+  const dealKey = state?.seats
+    ? `${gameId}-${state.roundNumber}-${state.redealCount}`
+    : null;
   useEffect(() => {
     if (!state || state.phase !== "bidding" || !dealKey) return;
     if (dealKeyRef.current === dealKey) return;
     dealKeyRef.current = dealKey;
+    playSound("shuffle");
     setSelected([]);
     setInvalid("");
     setReplayResult(null);
@@ -169,6 +185,36 @@ function GameRoom4Page() {
       setTimeout(() => setDeal(null), flightEnds + 120 + (count - 1) * 35 + 480),
     ];
   }, [state, dealKey]);
+
+  // A card hitting the table. The live trick grows by one per play and resets to
+  // empty when it's won, so only growth is a play — and a shrink just re-arms
+  // the count for the next trick. The finished trick lingers locally after the
+  // server has cleared it (pendingTrick), which is why this reads the server's
+  // count rather than what's on screen.
+  const trickLen = state?.currentTrick?.length ?? 0;
+  useEffect(() => {
+    if (trickLen > trickLenRef.current) playSound("play");
+    trickLenRef.current = trickLen;
+  }, [trickLen]);
+
+  // How the hand went, from your side. Keyed on the round so re-renders and
+  // reconnects — which re-deliver the same finished result — only sound once,
+  // and held back until the deciding trick has finished playing out. Hands
+  // where nobody bid have no outcome to report.
+  const result = state?.roundResult;
+  const showingResult =
+    (state?.phase === "roundEnd" || state?.phase === "gameOver") && !endHeld;
+  useEffect(() => {
+    if (!showingResult || !result || result.noContract) return;
+    const key = `${gameId}-${state.roundNumber}`;
+    if (soundedResultRef.current === key) return;
+    soundedResultRef.current = key;
+    const myTeam = state.you?.team;
+    if (myTeam === null || myTeam === undefined) return;
+    const madeMyWay =
+      result.biddingTeam === myTeam ? result.made : !result.made;
+    playSound(madeMyWay ? "won" : "loss");
+  }, [showingResult, result, gameId, state?.roundNumber, state?.you?.team]);
 
   // ---- handlers ----
 

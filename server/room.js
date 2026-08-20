@@ -974,6 +974,10 @@ class Room {
     this.lastRoundResult = {
       bid: bidDescription,
       bidderName: bidderPlayer.name,
+      // Who bid, by id rather than only by name: the client needs to know
+      // whether the contract was yours to decide whether the hand went your
+      // way, and two players can share a name.
+      bidderId,
       bidderMadeBid,
       bidderDelta,
       bidderScore: bidderPlayer.score,
