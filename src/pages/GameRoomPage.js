@@ -941,6 +941,11 @@ function GameRoomPage() {
               value={window.location.href}
               onClick={(e) => e.target.select()}
             />
+            <p>Or don&apos;t wait — a robot will take the other chair. It always
+              makes the game friendly, so nobody&apos;s Elo moves.</p>
+            <button className="btn-primary waiting-bot" onClick={() => socket.emit("addBot")}>
+              Play against a robot
+            </button>
             <div className="settings-list">
               <label>
                 <input

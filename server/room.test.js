@@ -9,10 +9,12 @@ db.deleteGame = async () => {};
 db.getGame = async () => null;
 db.createGame = async (game) => game;
 db.recordRound = async () => {};
-db.applyElo = async () => {};
+const eloCalls = [];
+db.applyElo = async (...args) => eloCalls.push(args);
 db.headToHead = async () => ({ wins: {}, played: 0 });
 
 const { Room } = require("./room");
+const { isFriendlyGame } = require("./friendly");
 
 // Everything the server sends, in order, tagged with who it went to: a socket
 // id for a per-user emit, the room id for a broadcast.
@@ -50,6 +52,23 @@ function newRoom() {
   const sockets = [fakeSocket("u0", "Alice"), fakeSocket("u1", "Bob")];
   sockets.forEach((s) => room.handleJoin(s));
   return { room, io, sockets };
+}
+
+// The same table with only one player at it, so the other chair is free for a
+// robot to take.
+function newSoloRoom() {
+  const io = fakeIo();
+  const room = new Room("game-1", io, {
+    visibility: "private",
+    playerSlots: [null, null],
+    status: "waiting",
+    roundNumber: 1,
+    scoreHistory: [],
+    snapshot: {},
+  });
+  const human = fakeSocket("u0", "Alice");
+  room.handleJoin(human);
+  return { room, io, human };
 }
 
 // Every payload this player could read off their own socket: their own
@@ -335,5 +354,206 @@ test("a replay hides the other player's cards too, freshly and on reconnect", ()
     assertHidden(socket, "replayStart", "hand");
     assertHidden(socket, "replayStart");
     assertHidden(socket, "replayKittyPhaseComplete");
+  }
+});
+
+// ---- robots ----
+
+// This game had no robot until recently, and the wiring is what these cover:
+// seating one, keeping it out of the human head-count, and — the one that
+// matters — that a whole game can be played against it without the table ever
+// stopping dead waiting for a move nobody is going to make.
+
+test("a robot takes the empty chair and the game starts", () => {
+  const { room } = newSoloRoom();
+  assert.equal(room.game, null, "nothing dealt while a chair is empty");
+
+  room.addBot(fakeSocket("u0", "Alice"));
+
+  assert.ok(room.slots.every(Boolean), "both chairs are taken");
+  assert.equal(room.botSlot().isBot, true);
+  assert.match(room.botSlot().name, /robot/, "the robot is named as one");
+  assert.ok(room.game, "the hand is dealt once the table is full");
+  assert.equal(room.gamePhase, "bidding");
+  assert.equal(room.game.players[0].hand.length, 10);
+  assert.equal(room.game.players[1].hand.length, 10);
+  room.dispose();
+});
+
+test("a table with a robot at it is never rated", () => {
+  const { room } = newSoloRoom();
+  room.addBot(fakeSocket("u0", "Alice"));
+  assert.equal(room.isFriendly(), true);
+  // And it survives persistence, which is what the lobby and stats read.
+  assert.equal(isFriendlyGame({ friendly: false, playerSlots: room.slots }), true);
+  room.dispose();
+});
+
+test("a robot doesn't count as somebody being at the table", () => {
+  const { room, human } = newSoloRoom();
+  room.addBot(fakeSocket("u0", "Alice"));
+  assert.equal(room.connectedHumans(), 1);
+  room.handleDisconnect(human);
+  assert.equal(room.connectedHumans(), 0, "a robot alone is an empty table");
+  room.dispose();
+});
+
+test("the empty chair can't be given away once the cards are out", () => {
+  const { room } = newSoloRoom();
+  room.addBot(fakeSocket("u0", "Alice"));
+  const before = room.slots.map((s) => s.userId);
+  room.addBot(fakeSocket("u0", "Alice"));
+  assert.deepEqual(room.slots.map((s) => s.userId), before);
+  room.dispose();
+});
+
+test("only someone sitting at the table may seat a robot", () => {
+  const { room } = newSoloRoom();
+  room.addBot(fakeSocket("someone-else", "Passer-by"));
+  assert.equal(room.botSlot(), null, "a stranger can't seat a robot here");
+  assert.equal(room.game, null);
+});
+
+// The real test of the wiring. A robot's turn can begin after a bid, a discard,
+// a card, a trick resolving, a round ending or an offer being answered. Nothing
+// here tells the watcher what happened — it is only ever asked "is there
+// anything for you to do?", exactly as the timer does in production, so a
+// transition it fails to notice shows up as a table that has stopped dead.
+function playWithRobot(t, { maxTicks = 6000 } = {}) {
+  // The watcher arms real timers and re-arms itself, which would outlive the
+  // test. Mock timers that are never ticked let it arm all it likes without
+  // anything firing behind our back — this loop does the asking itself.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { room, human } = newSoloRoom();
+  room.addBot(fakeSocket("u0", "Alice"));
+  const humanId = "u0";
+
+  let ticks = 0;
+  let humanMoves = 0;
+
+  const humanTurn = () => {
+    const game = room.game;
+    if (!game) return false;
+
+    if ((room.gamePhase === "roundEnd" || room.gamePhase === "gameOver") && room.roundEnd) {
+      if (!room.roundEnd.readyUserIds.has(humanId)) {
+        room.roundEndReady(human);
+        return true;
+      }
+      return false;
+    }
+    if (room.gamePhase === "bidding" && room.currentBidder === humanId) {
+      // The human always passes, so the robot buys every contract it wants.
+      room.placeBid(human, { bid: "Pass", points: 0 });
+      return true;
+    }
+    if (room.gamePhase === "kitty" && game.currentBid?.player === humanId) {
+      const hand = game.players.find((p) => p.id === humanId).hand;
+      room.kittyDone(human, { newHand: [...hand].slice(0, 10) });
+      return true;
+    }
+    if (room.gamePhase === "playing") {
+      const seat = game.getCurrentSeat();
+      if (seat && seat.playerId === humanId) {
+        const legal = game.legalPlays(seat.playerId, seat.isDummy);
+        const card = legal[Math.floor(Math.random() * legal.length)];
+        room.playCard(human, {
+          card,
+          isDummy: seat.isDummy,
+          nominatedSuit: card.suit === "Joker" && !game.trumpSuit ? "♥" : undefined,
+        });
+        return true;
+      }
+    }
+    return false;
+  };
+
+  while (room.gamePhase !== "gameOver" && ticks < maxTicks) {
+    ticks += 1;
+    const actor = room.botActor();
+    if (actor) room.runBotTurn(actor);
+    const moved = humanTurn();
+    if (moved) humanMoves += 1;
+    assert.ok(
+      actor || moved,
+      `the table is stuck in phase "${room.gamePhase}" with nobody able to move`
+    );
+  }
+
+  room.dispose();
+  return { room, ticks, humanMoves };
+}
+
+test("a robot plays a whole game through to a winner", (t) => {
+  const before = eloCalls.length;
+  const { room, ticks, humanMoves } = playWithRobot(t);
+
+  assert.equal(room.gamePhase, "gameOver", `the game didn't finish (${ticks} ticks)`);
+  assert.ok(room.winner, "somebody has to have won");
+  assert.ok(humanMoves > 20, `the human only moved ${humanMoves} times`);
+  assert.ok(room.scoreHistory.length > 0, "rounds should have been recorded");
+  assert.equal(eloCalls.length, before, "a game against a robot must not be rated");
+});
+
+test("the robot answers a claim rather than leaving the human hanging", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { room, human } = newSoloRoom();
+  room.addBot(fakeSocket("u0", "Alice"));
+
+  for (let i = 0; i < 400 && room.gamePhase !== "playing"; i++) {
+    const actor = room.botActor();
+    if (actor) room.runBotTurn(actor);
+    if (room.gamePhase === "bidding" && room.currentBidder === "u0") {
+      room.placeBid(human, { bid: "Pass", points: 0 });
+    } else if (room.gamePhase === "kitty" && room.game.currentBid?.player === "u0") {
+      const hand = room.game.players.find((p) => p.id === "u0").hand;
+      room.kittyDone(human, { newHand: [...hand].slice(0, 10) });
+    }
+  }
+  assert.equal(room.gamePhase, "playing");
+
+  const seat = room.game.getCurrentSeat();
+  if (seat.playerId !== "u0") {
+    room.dispose();
+    return; // the robot leads this hand; nothing for the human to claim
+  }
+  room.claimRest(human);
+  assert.ok(room.pendingClaim, "the claim is outstanding");
+
+  // Answering is what the watcher looks for before anything else, since there's
+  // no other way for the table to move on.
+  const actor = room.botActor();
+  assert.equal(actor?.kind, "claim");
+  room.runBotTurn(actor);
+  assert.equal(room.pendingClaim, null, "the robot has to answer a claim");
+  room.dispose();
+});
+
+test("the watcher re-arms itself and stops when the humans leave", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const { room, human } = newSoloRoom();
+    room.addBot(fakeSocket("u0", "Alice"));
+    assert.ok(room.botTimer, "seating a robot starts the watcher");
+
+    // Who bids first depends on a randomly chosen dealer, so put the robot on
+    // turn deliberately — this is testing the timer, not the auction.
+    room.currentBidder = room.botSlot().userId;
+    t.mock.timers.tick(1000);
+    assert.equal(room.biddingHistory.length, 1, "the timer should have made the robot call");
+    assert.ok(room.botTimer, "and the watcher re-armed without being told to");
+
+    // With nobody there to play against, it stops rather than ticking forever.
+    room.handleDisconnect(human);
+    t.mock.timers.tick(1000);
+    assert.equal(room.botTimer, null, "the watcher should stop at an empty table");
+
+    // And a reconnect starts it again.
+    room.handleJoin(fakeSocket("u0", "Alice"));
+    assert.ok(room.botTimer, "rejoining restarts the watcher");
+    room.dispose();
+    assert.equal(room.botTimer, null, "dispose clears the timer");
+  } finally {
+    t.mock.timers.reset();
   }
 });

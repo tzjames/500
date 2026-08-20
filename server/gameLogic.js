@@ -32,6 +32,61 @@ function checkBidMade(bid, bidderTricksWon) {
   return bidderTricksWon >= parseInt(bid.bid, 10);
 }
 
+// ---- the auction ----
+
+// Until now this table lived only in the client (src/components/BiddingInterface.js),
+// because only the client ever needed to draw it — the server took whatever bid
+// it was sent. A robot needs to know what it is allowed to call, so the table is
+// here too. **The two must agree**: bids2 in the test file pins these values so a
+// change on one side that isn't mirrored on the other fails rather than quietly
+// letting a bot call something the interface can't.
+//
+// Note this auction ranks strictly by points, unlike the four-player game's
+// separate `rank` — a call has to be worth more than the standing one, so Misère
+// at 250 sits between 8♠ (240) and 8♣ (260), and Open Misère at 500 neither
+// beats nor is beaten by 10♥.
+const BID_LEVELS = [6, 7, 8, 9, 10];
+const BID_SUITS = ["♠", "♣", "♦", "♥", "NT"];
+const SUIT_BASE = { "♠": 40, "♣": 60, "♦": 80, "♥": 100, NT: 120 };
+
+const SPECIAL_BIDS = {
+  Misere: { points: 250, target: 0 },
+  "Open Misere": { points: 500, target: 0, open: true },
+};
+
+function bidInfo(bid) {
+  if (!bid || bid === "Pass") return null;
+  if (Object.prototype.hasOwnProperty.call(SPECIAL_BIDS, bid)) {
+    const special = SPECIAL_BIDS[bid];
+    return { bid, points: special.points, special, target: special.target };
+  }
+  const [level, suit] = String(bid).split(" ");
+  const n = Number(level);
+  if (!BID_LEVELS.includes(n) || !BID_SUITS.includes(suit)) return null;
+  return { bid, points: SUIT_BASE[suit] + (n - 6) * 100, level: n, suit, special: null };
+}
+
+// Every contract this game plays, cheapest first.
+function availableBids() {
+  const bids = [];
+  for (const level of BID_LEVELS) {
+    for (const suit of BID_SUITS) bids.push(bidInfo(`${level} ${suit}`));
+  }
+  for (const bid of Object.keys(SPECIAL_BIDS)) bids.push(bidInfo(bid));
+  return bids.sort((a, b) => a.points - b.points);
+}
+
+// Whether a call clears the standing bid. A pure function of the call and the
+// floor rather than a method, because this game keeps its auction in room.js
+// rather than in the engine — the engine only ever learns the winning bid.
+function bidLegality(bid, floorPoints = 0) {
+  if (bid === "Pass") return { ok: true };
+  const info = bidInfo(bid);
+  if (!info) return { ok: false, reason: "That isn't a bid." };
+  if (info.points <= floorPoints) return { ok: false, reason: "That doesn't beat the standing bid." };
+  return { ok: true };
+}
+
 // The suit a card counts as for follow-suit purposes: the Joker and both
 // bowers always count as trump, regardless of their printed suit.
 function getEffectiveSuit(card, trumpSuit) {
@@ -200,6 +255,33 @@ class Game500 {
       return leadPlay.nominatedSuit;
     }
     return getEffectiveSuit(leadPlay.card, this.trumpSuit);
+  }
+
+  // Every card this hand is allowed to play right now — the same rules playCard
+  // enforces below, expressed as a list rather than a verdict. A robot picks
+  // from this, so the two cannot drift apart into a robot that plays illegally;
+  // the four-player engine has had the equivalent from the start.
+  //
+  // Deliberately mirrors what playCard *accepts*, which is not quite what the
+  // comment down there describes: leading the Joker at no trumps needs a suit
+  // nominated but is not otherwise held back, so it is legal whenever you hold it.
+  legalPlays(playerId, isDummy) {
+    const player = this.players.find((p) => p.id === playerId);
+    if (!player) return [];
+    const hand = isDummy ? player.dummyHand : player.hand;
+    if (this.currentTrick.length === 0) return [...hand];
+
+    const leadSuit = this.getLeadSuit(this.currentTrick[0]);
+    const following = hand.filter((c) => getEffectiveSuit(c, this.trumpSuit) === leadSuit);
+    if (following.length > 0) return following;
+
+    // Void in the led suit. A Misère bidder can't sit on the Joker to keep it
+    // from taking a trick — if it's in this hand it has to go now.
+    if (this.currentBid && this.currentBid.bid.includes("Misere")) {
+      const joker = hand.find((c) => c.suit === "Joker");
+      if (joker) return [joker];
+    }
+    return [...hand];
   }
 
   playCard(playerId, card, isDummy, nominatedSuit) {
@@ -420,4 +502,14 @@ class Game500 {
 
 module.exports = Game500;
 module.exports.getEffectiveSuit = getEffectiveSuit;
+module.exports.getCardRank = getCardRank;
 module.exports.checkBidMade = checkBidMade;
+module.exports.bidInfo = bidInfo;
+module.exports.availableBids = availableBids;
+module.exports.bidLegality = bidLegality;
+module.exports.BID_SUITS = BID_SUITS;
+module.exports.BID_LEVELS = BID_LEVELS;
+module.exports.SUIT_BASE = SUIT_BASE;
+module.exports.SPECIAL_BIDS = SPECIAL_BIDS;
+module.exports.VALUES = values;
+module.exports.REAL_SUITS = suits;
