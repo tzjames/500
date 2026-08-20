@@ -139,3 +139,77 @@ test("the mask reaches exactly the cards the rules allow", () => {
     }
   }
 });
+
+// The derived features are the whole reason the second attempt at training
+// exists, so they get checked against positions worked out by hand rather than
+// taken on trust. Getting these wrong would be worse than not having them: the
+// network would learn to rely on a lie.
+test("top-remaining and beaters-out are counted correctly", () => {
+  const { Game500Four } = require("./game4");
+  const c = (value, suit) => ({ value, suit });
+  const JOKER = { suit: "Joker", value: "Joker" };
+
+  // Everything in the pack except this hand has already been played, so nothing
+  // is left that could beat anything.
+  const game = new Game500Four();
+  game.trumpSuit = "♠";
+  const hand = [c("4", "♥"), c("5", "♦")];
+  game.players[0].hand = hand;
+  const heldKeys = new Set(hand.map((card) => obs.cardIndex(card)));
+  game.playedCards = obs.DECK_INDICES.filter((i) => !heldKeys.has(i)).map((i) => ({
+    seat: 1,
+    card: obs.cardFromIndex(i),
+  }));
+
+  let unseen = [];
+  let features = obs.handFeatures(game, 0, hand, unseen);
+  const topAt = (card) => features[obs.cardIndex(card)];
+  const beatersAt = (card) => features[obs.CARD_COUNT + obs.cardIndex(card)];
+  assert.equal(topAt(c("4", "♥")), 1, "with the pack gone, a four is top of its suit");
+  assert.equal(beatersAt(c("4", "♥")), 0);
+
+  // Now leave exactly the Joker outstanding. It beats everything, so nothing in
+  // hand is top of anything any more — and each card has exactly one card out
+  // that beats it.
+  const jokerIndex = obs.cardIndex(JOKER);
+  game.playedCards = game.playedCards.filter((play) => obs.cardIndex(play.card) !== jokerIndex);
+  unseen = [jokerIndex];
+  features = obs.handFeatures(game, 0, hand, unseen);
+  assert.equal(topAt(c("4", "♥")), 0, "the Joker is still out, so nothing is safe");
+  assert.equal(beatersAt(c("4", "♥")), 1 / 12, "exactly one card out beats it");
+
+  // The Joker itself is always top, whatever is unaccounted for.
+  const withJoker = [JOKER, c("4", "♥")];
+  game.players[0].hand = withJoker;
+  features = obs.handFeatures(game, 0, withJoker, obs.DECK_INDICES.filter((i) => i !== jokerIndex));
+  assert.equal(topAt(JOKER), 1, "nothing beats the Joker");
+  assert.equal(beatersAt(JOKER), 0);
+});
+
+test("the trump and void features read the hand the way the rules do", () => {
+  const { Game500Four } = require("./game4");
+  const c = (value, suit) => ({ value, suit });
+  const JOKER = { suit: "Joker", value: "Joker" };
+
+  const game = new Game500Four();
+  game.trumpSuit = "♠";
+  // The Joker and both bowers count as trumps whatever their printed suit, so
+  // the jack of clubs is a spade here.
+  const hand = [JOKER, c("J", "♠"), c("J", "♣"), c("4", "♥")];
+  game.players[0].hand = hand;
+  const features = obs.handFeatures(game, 0, hand, []);
+
+  const isTrumpAt = (card) => features[obs.CARD_COUNT * 3 + obs.cardIndex(card)];
+  assert.equal(isTrumpAt(JOKER), 1);
+  assert.equal(isTrumpAt(c("J", "♠")), 1, "the right bower");
+  assert.equal(isTrumpAt(c("J", "♣")), 1, "the left bower counts as a spade");
+  assert.equal(isTrumpAt(c("4", "♥")), 0);
+
+  // Three trumps out of a four-card hand, and void in clubs and diamonds —
+  // the jack of clubs is a trump, so clubs is void as the rules see it.
+  const aggregateStart = obs.CARD_COUNT * 4;
+  assert.equal(features[aggregateStart], 3 / 13, "three trumps held");
+  const voidStart = aggregateStart + 2;
+  const voids = REAL_SUITS.map((_, i) => features[voidStart + i]);
+  assert.deepEqual(voids, [0, 1, 1, 0], "void in clubs and diamonds, not spades or hearts");
+});

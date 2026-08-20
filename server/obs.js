@@ -20,6 +20,8 @@ const {
   BID_SUITS,
   SPECIAL_BIDS,
   isNoTricksBid,
+  getCardRank,
+  getEffectiveSuit,
 } = require("./game4");
 const { OPTIONS } = require("./gameOptions");
 
@@ -152,6 +154,107 @@ function isAvoidingTricks(game, seat) {
   return true;
 }
 
+// How many of `sortedDescending` are strictly greater than `value`. The lists
+// below are built once per observation and walked once per card in hand, so this
+// is a binary search rather than a scan.
+function countAbove(sortedDescending, value) {
+  let low = 0;
+  let high = sortedDescending.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (sortedDescending[mid] > value) low = mid + 1;
+    else high = mid;
+  }
+  return low;
+}
+
+// ---- what the hand is worth, rather than what it contains ----
+//
+// Everything above is raw: which cards are where, as one-hot vectors. A network
+// given only that has to learn the whole of 500's ranking from scratch — that
+// the Joker beats the right bower beats the left bower beats the trump ace, that
+// an off-suit card can't win at all — and then do set arithmetic over the unseen
+// cards on top of it, all from a single reward at the end of the hand.
+//
+// bot.js learns none of that. It calls isTopRemaining() and gets an answer. The
+// first attempt at training left the network to infer the same thing from the
+// one-hot blocks, and its card play stalled about 22 points a hand behind the
+// heuristics while its bidding drew level — so these are the heuristic's own
+// quantities, handed over instead of inferred.
+function handFeatures(game, seat, hand, unseen) {
+  const trump = game.trumpSuit;
+  const options = game.options;
+
+  // Every unseen card's rank under each possible led suit, high to low. Built
+  // once here so "what still out there beats this card" is one lookup per card
+  // rather than a pass over the whole pack.
+  const unseenRanks = {};
+  for (const suit of REAL_SUITS) {
+    unseenRanks[suit] = unseen
+      .map((index) => getCardRank(cardFromIndex(index), trump, suit, options))
+      .sort((a, b) => b - a);
+  }
+
+  // What's currently winning the trick, and in what suit.
+  const leadSuit = game.currentTrick.length > 0 ? game.getLeadSuit(game.currentTrick[0]) : null;
+  let bestInTrick = -Infinity;
+  for (const play of game.currentTrick) {
+    const rank = getCardRank(play.card, trump, leadSuit, options);
+    if (rank > bestInTrick) bestInTrick = rank;
+  }
+
+  const topRemaining = new Array(CARD_COUNT).fill(0);
+  const beatersOut = new Array(CARD_COUNT).fill(0);
+  const beatsTrick = new Array(CARD_COUNT).fill(0);
+  const isTrump = new Array(CARD_COUNT).fill(0);
+  let trumpsHeld = 0;
+
+  for (const card of hand) {
+    const index = cardIndex(card);
+    // The suit this card would be led in — its own, as the rules see it.
+    const ownSuit = getEffectiveSuit(card, trump) || card.suit;
+    const ranks = unseenRanks[ownSuit] || [];
+    const above = countAbove(ranks, getCardRank(card, trump, ownSuit, options));
+    beatersOut[index] = Math.min(above, 12) / 12;
+    topRemaining[index] = above === 0 ? 1 : 0;
+
+    if (leadSuit && getCardRank(card, trump, leadSuit, options) > bestInTrick) beatsTrick[index] = 1;
+    if (trump && (card.suit === "Joker" || getEffectiveSuit(card, trump) === trump)) {
+      isTrump[index] = 1;
+      trumpsHeld += 1;
+    }
+  }
+
+  // Trumps still unaccounted for — the whole of "draw trumps while you hold the
+  // top of them" turns on this and on trumpsHeld.
+  const trumpsOut = trump
+    ? unseen.filter((index) => {
+        const card = cardFromIndex(index);
+        return card.suit === "Joker" || getEffectiveSuit(card, trump) === trump;
+      }).length
+    : 0;
+
+  const held = (suit) => hand.filter((card) => getEffectiveSuit(card, trump) === suit).length;
+
+  return [
+    ...topRemaining,
+    ...beatersOut,
+    ...beatsTrick,
+    ...isTrump,
+    trumpsHeld / 13,
+    trumpsOut / 15,
+    // Void in each suit as the rules count it, which is what says whether this
+    // seat can be thrown the lead or can ruff.
+    ...REAL_SUITS.map((suit) => (held(suit) === 0 ? 1 : 0)),
+    // Where in the trick this seat is sitting. Playing last is worth knowing:
+    // it's the difference between covering cheaply and guessing.
+    game.currentTrick.length / 4,
+    Math.max(0, game.activeSeats().length - 1 - game.currentTrick.length) / 3,
+    game.currentTrick.length === 0 ? 1 : 0,
+    leadSuit && held(leadSuit) > 0 ? 1 : 0,
+  ];
+}
+
 // Everything the acting seat can see, as one flat vector of floats.
 //
 // Seats are encoded *relative* to whoever is acting — slot 0 is me, 1 is the
@@ -240,6 +343,9 @@ function encodeObservation(game, seat, ctx) {
     // How many cards this decision still has to pick, for the sequential ones.
     (ctx.picksRemaining || 0) / 5,
 
+    // The heuristic's own reading of the hand — see handFeatures.
+    ...handFeatures(game, seat, hand, unseen),
+
     // The house rules, since they change what a hand is worth.
     ...OPTION_IDS.map((id) => (game.options[id] ? 1 : 0)),
   ];
@@ -269,4 +375,5 @@ module.exports = {
   legalActionMask,
   encodeObservation,
   isAvoidingTricks,
+  handFeatures,
 };

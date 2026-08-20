@@ -1,10 +1,12 @@
 """Self-play training for a 500 bot.
 
 Reward arrives once per hand — how far your partnership got ahead, your points
-less theirs, in units of the 500 it takes to win — and every decision in that
-hand is credited with it. With no intermediate rewards and no discounting there
-is nothing for GAE to do that a plain baseline doesn't, so the advantage is just
-`return − value`.
+less theirs, in units of the 500 it takes to win. Crediting every decision in the
+hand with that same number is what the first run did, and over thirty-odd
+decisions it is mostly noise: a card played well in a hand that was lost anyway
+scores exactly as badly as the blunder that lost it. Each seat's decisions are
+now walked backwards through GAE instead (--gae-lambda), which leaves the optimal
+policy alone where a hand-rolled per-trick bonus would not.
 
 Bidding and card play are entangled, and training both from scratch at once
 doesn't work: a fresh policy bids badly, learns that bidding loses points,
@@ -93,15 +95,50 @@ class Table:
     def owner(self, seat: int):
         return "learner" if seat in self.learner_seats else self.opponent
 
-    def flush(self, batch: dict, stats: dict) -> None:
+    def flush(self, batch: dict, stats: dict, lam: float = 0.95) -> None:
+        """Bank the hand, crediting each decision for its share of the outcome.
+
+        The reward lands once, at the end. Handing every decision in the hand the
+        same number — as the first version did — means a well-played card in a
+        hand that was lost anyway looks exactly as bad as the blunder that lost
+        it, and with thirty-odd decisions a hand the gradient is mostly noise.
+
+        So each seat's own decisions are walked backwards through GAE. With no
+        intermediate rewards and no discounting, that blends "what actually
+        happened" with "what the value head expected from here", and lambda says
+        how far down the hand a decision is held responsible for. Unlike handing
+        out per-trick rewards it cannot change which policy is optimal, which
+        matters here: on a Misère winning a trick is a disaster, so a shaping
+        term that paid for tricks would have to know the contract to get the sign
+        right, and would quietly teach the wrong thing wherever it didn't.
+        """
         rewards = self.reply["rewards"]
-        for obs, mask, action, logp, value, seat in self.records:
-            batch["obs"].append(obs)
-            batch["mask"].append(mask)
-            batch["action"].append(action)
-            batch["logp"].append(logp)
-            batch["value"].append(value)
-            batch["ret"].append(rewards[seat])
+
+        # A seat's decisions in the order it made them. Other seats acted in
+        # between, but with one reward at the end and no discounting, a seat's
+        # own next decision is the successor state that matters to it.
+        by_seat: dict = {}
+        for record in self.records:
+            by_seat.setdefault(record[5], []).append(record)
+
+        for seat, steps in by_seat.items():
+            advantage = 0.0
+            # Nothing follows the hand, so the value beyond the last decision is
+            # zero and the whole reward arrives there.
+            next_value = 0.0
+            for i in range(len(steps) - 1, -1, -1):
+                obs, mask, action, logp, value, _ = steps[i]
+                reward = rewards[seat] if i == len(steps) - 1 else 0.0
+                delta = reward + next_value - value
+                advantage = delta + lam * advantage
+                next_value = value
+
+                batch["obs"].append(obs)
+                batch["mask"].append(mask)
+                batch["action"].append(action)
+                batch["logp"].append(logp)
+                batch["adv"].append(advantage)
+                batch["ret"].append(advantage + value)
         self.records = []
 
         info = self.reply["info"]
@@ -121,7 +158,7 @@ class Table:
 
 def collect(learner: Policy, league: list[Policy], tables: list[Table], cfg, rng, device):
     """Play hands until the batch is full, one batched forward pass per round."""
-    batch = {k: [] for k in ("obs", "mask", "action", "logp", "value", "ret")}
+    batch = {k: [] for k in ("obs", "mask", "action", "logp", "adv", "ret")}
     stats = {"hands": 0, "passed_out": 0, "reward": 0.0, "contracts": 0, "made": 0}
 
     for table in tables:
@@ -134,7 +171,7 @@ def collect(learner: Policy, league: list[Policy], tables: list[Table], cfg, rng
             # A hand can finish the moment it starts — everyone passing it out —
             # so this loops rather than testing once.
             while table.active and table.reply["done"]:
-                table.flush(batch, stats)
+                table.flush(batch, stats, cfg.gae_lambda)
                 if stats["hands"] >= cfg.hands_per_batch:
                     table.active = False
                 else:
@@ -184,10 +221,11 @@ def ppo_update(learner: Policy, optimiser, batch: dict, cfg, device) -> dict:
     mask = torch.tensor(batch["mask"], dtype=torch.float32, device=device)
     action = torch.tensor(batch["action"], dtype=torch.long, device=device)
     logp_old = torch.tensor(batch["logp"], dtype=torch.float32, device=device)
-    value_old = torch.tensor(batch["value"], dtype=torch.float32, device=device)
     returns = torch.tensor(batch["ret"], dtype=torch.float32, device=device)
 
-    advantage = returns - value_old
+    # Already credited per decision by GAE in Table.flush; only the scale is
+    # left to fix, so a big hand doesn't dominate a batch of ordinary ones.
+    advantage = torch.tensor(batch["adv"], dtype=torch.float32, device=device)
     advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
 
     total = obs.shape[0]
@@ -276,6 +314,14 @@ def main() -> None:
     parser.add_argument("--vf-coef", type=float, default=0.5)
     parser.add_argument("--ent-coef", type=float, default=0.01)
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
+    parser.add_argument(
+        "--gae-lambda",
+        type=float,
+        default=0.95,
+        help="how far down the hand a decision is held responsible for its outcome. "
+        "1.0 credits every decision with the whole result, which is what the first "
+        "run did and is almost all noise over thirty-odd decisions.",
+    )
     parser.add_argument("--league-frac", type=float, default=0.25)
     parser.add_argument("--heuristic-frac", type=float, default=0.15)
     parser.add_argument("--league-every", type=int, default=50, help="iterations between snapshots")
