@@ -31,6 +31,22 @@ export function setSoundEnabled(on) {
 // cut each other off.
 const cache = new Map();
 
+// The take each event used last, so the next one differs. Picking uniformly at
+// random repeated a take back-to-back about half the time with only two of
+// them, and two copies of the same short waveform landing together sound like
+// one slightly louder sound rather than two — which reads as a missed sound
+// when what you're listening for is a second card.
+const lastTake = new Map();
+
+function pick(kind, set) {
+  if (set.length === 1) return set[0];
+  const previous = lastTake.get(kind);
+  const choices = set.filter((src) => src !== previous);
+  const src = choices[Math.floor(Math.random() * choices.length)];
+  lastTake.set(kind, src);
+  return src;
+}
+
 function element(src) {
   if (!cache.has(src)) {
     const audio = new Audio(src);
@@ -54,8 +70,7 @@ export function playSound(kind) {
   const set = SETS[kind];
   if (!set || set.length === 0) return;
   try {
-    const src = set[Math.floor(Math.random() * set.length)];
-    const take = element(src).cloneNode();
+    const take = element(pick(kind, set)).cloneNode();
     take.volume = LEVELS[kind] ?? 0.6;
     // Rejects when the browser hasn't seen an interaction yet, which is normal
     // and not worth surfacing.

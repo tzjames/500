@@ -79,10 +79,17 @@ function GameRoom4Page() {
   // a whole pushed snapshot — so the card and result sounds are derived from
   // what changed between snapshots instead. Both refs hold "what we last made a
   // noise about", so a re-render with no real change stays quiet.
-  const trickLenRef = useRef(0);
+  const cardsPlayedRef = useRef(null);
   const soundedResultRef = useRef(null);
+  const playTimersRef = useRef([]);
 
-  useEffect(() => () => dealTimersRef.current.forEach(clearTimeout), []);
+  useEffect(
+    () => () => {
+      dealTimersRef.current.forEach(clearTimeout);
+      playTimersRef.current.forEach(clearTimeout);
+    },
+    []
+  );
 
   useEffect(preloadSounds, []);
 
@@ -186,16 +193,30 @@ function GameRoom4Page() {
     ];
   }, [state, dealKey]);
 
-  // A card hitting the table. The live trick grows by one per play and resets to
-  // empty when it's won, so only growth is a play — and a shrink just re-arms
-  // the count for the next trick. The finished trick lingers locally after the
-  // server has cleared it (pendingTrick), which is why this reads the server's
-  // count rather than what's on screen.
-  const trickLen = state?.currentTrick?.length ?? 0;
+  // A card hitting the table. Counted as cards played in the whole hand rather
+  // than the length of the live trick: two snapshots can arrive in one render,
+  // and at a trick boundary the live trick then appears to *shrink* — 4 cards
+  // to 2 — while two cards were in fact played. Watching the trick length
+  // missed both of them. A hand's running total only ever climbs, so a rise of
+  // n means n cards however the snapshots were batched.
+  const tricksDone = (state?.seats || []).reduce((n, s) => n + (s.tricksWon || 0), 0);
+  const cardsPlayed = tricksDone * 4 + (state?.currentTrick?.length ?? 0);
   useEffect(() => {
-    if (trickLen > trickLenRef.current) playSound("play");
-    trickLenRef.current = trickLen;
-  }, [trickLen]);
+    const prev = cardsPlayedRef.current;
+    cardsPlayedRef.current = cardsPlayed;
+    // First look at a hand, or the count restarting for a new one.
+    if (prev === null || cardsPlayed <= prev) return;
+    const fresh = cardsPlayed - prev;
+    // More than a trick's worth means we weren't watching — joining a hand in
+    // progress, or a reconnect — and the backlog shouldn't be replayed.
+    if (fresh > 4) return;
+    // Staggered, so cards batched into one render still sound like two cards
+    // rather than one louder one.
+    for (let i = 0; i < fresh; i++) {
+      const timer = setTimeout(() => playSound("play"), i * 80);
+      playTimersRef.current.push(timer);
+    }
+  }, [cardsPlayed]);
 
   // How the hand went, from your side. Keyed on the round so re-renders and
   // reconnects — which re-deliver the same finished result — only sound once,
