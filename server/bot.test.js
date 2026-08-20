@@ -222,6 +222,58 @@ test("the declarer leads trumps from the top", () => {
   assert.equal(choice.card.suit, "Joker", "the top trump of all is the Joker");
 });
 
+// A trick where a trump was led and both opponents threw hearts on it, which is
+// proof neither has a trump left: the Joker and the left bower both count as the
+// trump suit for following, so a seat that can't follow a trump lead holds none
+// of them either.
+function bothOpponentsOutOfTrumps(game) {
+  const plays = [
+    { seat: 0, card: c("A", "♠") },
+    { seat: 1, card: c("5", "♥") },
+    { seat: 2, card: c("6", "♠") },
+    { seat: 3, card: c("7", "♥") },
+  ];
+  plays.forEach((play) => {
+    play.playerId = `u${play.seat}`;
+  });
+  game.playedCards = plays;
+  game.currentSeat = 0;
+}
+
+test("the declarer stops drawing trumps once both opponents have shown out", () => {
+  const game = table();
+  game.trumpSuit = "♠";
+  game.currentBid = { seat: 0, player: "u0", bid: "8 ♠", points: 240 };
+  bothOpponentsOutOfTrumps(game);
+  // Four trumps, which is enough to draw off length, and a side suit to lead
+  // instead. Drawing here would only make partner follow with a trump of their
+  // own — two of the side's tricks spent to win one the defence couldn't take.
+  game.players[0].hand = [
+    c("K", "♠"), c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("4", "♥"), c("3", "♥"),
+  ];
+
+  const choice = bot.choosePlay(game, 0);
+  assert.ok(
+    !["♠", "Joker"].includes(choice.card.suit),
+    `led ${choice.card.value}${choice.card.suit} into a table with no trumps left`
+  );
+});
+
+test("a trump still gets drawn while one opponent might hold one", () => {
+  const game = table();
+  game.trumpSuit = "♠";
+  game.currentBid = { seat: 0, player: "u0", bid: "8 ♠", points: 240 };
+  bothOpponentsOutOfTrumps(game);
+  // Same position, except seat 3 followed the trump lead instead of discarding,
+  // so nothing is known about their trumps and the draw is still on.
+  game.playedCards[3] = { seat: 3, playerId: "u3", card: c("8", "♠") };
+  game.players[0].hand = [
+    c("K", "♠"), c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("4", "♥"), c("3", "♥"),
+  ];
+
+  assert.equal(bot.choosePlay(game, 0).card.suit, "♠");
+});
+
 test("leading the Joker at no trumps always comes with a nomination", () => {
   const game = table();
   game.currentBid = { seat: 0, player: "u0", bid: "7 NT", points: 220 };

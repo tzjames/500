@@ -293,6 +293,51 @@ test("the robot doesn't overtake its own dummy", () => {
   assert.equal(key(bot2.choosePlay(game, 1, false).card), key(c("A", "♥")), "should take the trick");
 });
 
+// A trick where a trump was led and both of player 2's hands threw hearts on it.
+// Each hand at the table shows out separately, so it takes both of them before
+// the opponent is known to be out of trumps altogether.
+function opponentOutOfTrumps(game) {
+  game.playedCards = [
+    { playerId: 1, isDummy: false, card: c("A", "♠") },
+    { playerId: 2, isDummy: false, card: c("5", "♥") },
+    { playerId: 1, isDummy: true, card: c("6", "♠") },
+    { playerId: 2, isDummy: true, card: c("7", "♥") },
+  ];
+}
+
+test("the declarer stops drawing trumps once the opponent has shown out of them", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  game.players[0].hand = [
+    c("K", "♠"), c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("4", "♥"), c("3", "♥"),
+  ];
+
+  const choice = bot2.choosePlay(game, 1, false);
+  assert.ok(
+    !["♠", "Joker"].includes(choice.card.suit),
+    `led ${key(choice.card)} with no trumps left against it`
+  );
+});
+
+test("a trump still gets drawn while one of the opponent's hands might hold one", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  // Their dummy followed the trump lead instead of discarding, so that hand
+  // could still be holding one and the draw is still worth it.
+  game.playedCards[3] = { playerId: 2, isDummy: true, card: c("8", "♠") };
+  game.players[0].hand = [
+    c("K", "♠"), c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("4", "♥"), c("3", "♥"),
+  ];
+
+  assert.equal(bot2.choosePlay(game, 1, false).card.suit, "♠");
+});
+
 test("a Misère bidder ducks as high as it can without winning", () => {
   const game = new Game500();
   game.currentBid = { player: 1, bid: "Misere", points: 250 };

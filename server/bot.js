@@ -222,6 +222,41 @@ function isTopRemaining(game, seat, card) {
   );
 }
 
+// Which suits each seat has shown out of. A seat that couldn't follow a lead
+// holds none of that suit, and a hand only ever gets shorter, so that holds for
+// the rest of the deal. Every trick is the same length — a solo partner folds
+// before a card is played — so the plays chunk straight into tricks.
+function shownVoids(game) {
+  const size = game.activeSeats().length;
+  const voids = new Map();
+  for (let i = 0; i < game.playedCards.length; i += size) {
+    const trick = game.playedCards.slice(i, i + size);
+    const leadSuit = game.getLeadSuit(trick[0]);
+    for (const play of trick.slice(1)) {
+      if (getEffectiveSuit(play.card, game.trumpSuit) === leadSuit) continue;
+      if (!voids.has(play.seat)) voids.set(play.seat, new Set());
+      voids.get(play.seat).add(leadSuit);
+    }
+  }
+  return voids;
+}
+
+// Is there an opponent trump left to draw? Unseen trumps aren't the question —
+// they might all be sitting in your own partner's hand, and once both opponents
+// have shown out, a trump lead only makes your partner follow with one of
+// theirs: two of your side's trumps spent on a trick the defence couldn't have
+// taken either way. Play a side suit instead — losing one to them is how you or
+// your partner comes by a void, and a ruff back into control.
+function opponentsHoldTrumps(game, seat) {
+  const trump = game.trumpSuit;
+  if (!unseenCards(game, seat).some((card) => countsAsTrump(card, trump))) return false;
+  const voids = shownVoids(game);
+  return game
+    .activeSeats()
+    .filter((other) => game.teamOf(other) !== game.teamOf(seat))
+    .some((other) => !voids.get(other)?.has(trump));
+}
+
 // Who is winning the trick as it stands, and by how much.
 function trickLeader(game) {
   if (game.currentTrick.length === 0) return null;
@@ -352,12 +387,11 @@ function chooseLead(game, seat, legal) {
 
   // Declaring side with trumps: pull the opponents' trumps out while you still
   // hold the top of the suit, which is the whole of basic 500 declarer play.
-  if (onContract && trump) {
+  if (onContract && trump && opponentsHoldTrumps(game, seat)) {
     const trumps = legal.filter((card) => countsAsTrump(card, trump));
-    const opponentsHoldTrumps = unseenCards(game, seat).some((card) => countsAsTrump(card, trump));
     // Worth doing off the top of the suit, or off length — a losing trump lead
     // from five still strips the defenders and clears the way for the rest.
-    if (opponentsHoldTrumps && trumps.length > 0) {
+    if (trumps.length > 0) {
       const top = highest(trumps, game);
       if (trumps.length >= 4 || isTopRemaining(game, seat, top)) return { card: top };
     }

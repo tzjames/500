@@ -239,6 +239,44 @@ function isTopRemaining(game, playerId, card) {
   );
 }
 
+// Each hand at the table is its own seat — a player's own hand and their dummy
+// hold different cards and show out separately.
+const seatKey = (seat) => `${seat.playerId}|${seat.isDummy ? "dummy" : "hand"}`;
+
+// Which suits each seat has shown out of. A seat that couldn't follow a lead
+// holds none of that suit, and a hand only ever gets shorter, so that holds for
+// the rest of the deal.
+function shownVoids(game) {
+  const size = game.seats ? game.seats.length : 4;
+  const voids = new Map();
+  for (let i = 0; i < game.playedCards.length; i += size) {
+    const trick = game.playedCards.slice(i, i + size);
+    const leadSuit = game.getLeadSuit(trick[0]);
+    for (const play of trick.slice(1)) {
+      if (getEffectiveSuit(play.card, game.trumpSuit) === leadSuit) continue;
+      const k = seatKey(play);
+      if (!voids.has(k)) voids.set(k, new Set());
+      voids.get(k).add(leadSuit);
+    }
+  }
+  return voids;
+}
+
+// Is there an opponent trump left to draw? Unseen trumps aren't the question —
+// they might all be sitting in your own dummy, and drawing then bleeds your own
+// side: the trump you lead and the one your dummy has to follow with are two
+// tricks the opponent never had to beat. Once both of their hands have shown out
+// of trumps, side suits come first — losing one to them is how you or your dummy
+// gets a void of your own, and a ruff back into control.
+function theyHoldTrumps(game, playerId) {
+  const trump = game.trumpSuit;
+  if (!liveAgainstMe(game, playerId).some((card) => countsAsTrump(card, trump))) return false;
+  const voids = shownVoids(game);
+  return (game.seats || [])
+    .filter((seat) => seat.playerId !== playerId)
+    .some((seat) => !voids.get(seatKey(seat))?.has(trump));
+}
+
 function trickLeader(game) {
   if (game.currentTrick.length === 0) return null;
   const leadSuit = game.getLeadSuit(game.currentTrick[0]);
@@ -282,10 +320,9 @@ function chooseLead(game, playerId, hand, legal) {
 
   // Declaring with trumps: pull the opponent's trumps while you still hold the
   // top of the suit. Both of your hands can draw, so this applies from either.
-  if (onContract && trump) {
+  if (onContract && trump && theyHoldTrumps(game, playerId)) {
     const trumps = legal.filter((card) => countsAsTrump(card, trump));
-    const theyHoldTrumps = liveAgainstMe(game, playerId).some((card) => countsAsTrump(card, trump));
-    if (theyHoldTrumps && trumps.length > 0) {
+    if (trumps.length > 0) {
       const top = highest(trumps, game);
       if (trumps.length >= 4 || isTopRemaining(game, playerId, top)) return { card: top };
     }
