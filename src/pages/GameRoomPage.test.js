@@ -40,14 +40,16 @@ const fire = (event, ...args) =>
     handlers.get(event)(...args);
   });
 
-function renderRoom() {
+// What the deal looks like coming off the wire: your own cards, and nothing but
+// a count for the other player's hand.
+function renderRoom(bid = { player: "me", bid: "7 ♠", points: 140 }, trumpSuit = "♠") {
   handlers.clear();
   render(<GameRoomPage />);
 
   fire("gameStart", {
     players: [
       { id: "me", name: "Alice", hand: hand("♠"), isDealer: false, score: 0, tricksWon: 0 },
-      { id: "them", name: "Bob", hand: hand("♣"), isDealer: true, score: 0, tricksWon: 0 },
+      { id: "them", name: "Bob", handSize: 10, isDealer: true, score: 0, tricksWon: 0 },
     ],
     currentBid: null,
     trumpSuit: null,
@@ -56,11 +58,11 @@ function renderRoom() {
     roundNumber: 1,
     scoreHistory: [],
   });
-  fire("biddingComplete", { player: "me", bid: "7 ♠", points: 140 }, [], "♠");
+  fire("biddingComplete", bid, [], trumpSuit);
 }
 
-// What the deal for the other player's dummy looks like coming off the wire:
-// their cards never arrive, only how many are left.
+// The same again for the other player's dummy: their cards never arrive, only
+// how many are left.
 function dealDummies() {
   fire("kittyPhaseComplete", {
     winningBidder: "me",
@@ -84,6 +86,43 @@ function seatCards(label) {
   };
 }
 
+test("the opponent's hand is drawn from the count the server sends", () => {
+  renderRoom();
+  dealDummies();
+
+  expect(seatCards("Bob")).toEqual({ faceDown: 10, faceUp: 0 });
+
+  // Same as the dummy below: a play takes the fan down and a take-back puts it
+  // back, because the count is all this client has to go on.
+  const played = { suit: "♦", value: "4" };
+  fire("cardPlayed", { playerId: "them", card: played, isDummy: false, seq: 1 });
+  expect(seatCards("Bob").faceDown).toBe(9);
+
+  fire("cardRetracted", { playerId: "them", card: played, isDummy: false, seq: 2 });
+  expect(seatCards("Bob").faceDown).toBe(10);
+});
+
+test("an Open Misère bidder's hand goes face up when the server sends it", () => {
+  renderRoom({ player: "them", bid: "Open Misere", points: 500 }, null);
+  dealDummies();
+
+  expect(seatCards("Bob")).toEqual({ faceDown: 10, faceUp: 0 });
+
+  // The reveal waits on the bidder losing a trick, and the cards follow in
+  // their own event — the deal only ever sent the count above.
+  fire("trickResolved", {
+    winner: "me",
+    winnerIsDummy: false,
+    newScores: [
+      { id: "me", score: 0, tricksWon: 1 },
+      { id: "them", score: 0, tricksWon: 0 },
+    ],
+  });
+  fire("handsRevealed", { players: [{ id: "them", hand: hand("♣") }] });
+
+  expect(seatCards("Bob")).toEqual({ faceDown: 0, faceUp: 10 });
+});
+
 test("the opponent's dummy is drawn from the count the server sends", () => {
   renderRoom();
   dealDummies();
@@ -100,11 +139,18 @@ test("the opponent's dummy is drawn from the count the server sends", () => {
   expect(seatCards("Bob's dummy").faceDown).toBe(10);
 });
 
-test("a claim turns the claimer's dummy face up", () => {
+test("a claim turns the claimer's hand and dummy face up", () => {
   renderRoom();
   dealDummies();
+  expect(seatCards("Bob").faceUp).toBe(0);
   expect(seatCards("Bob's dummy").faceUp).toBe(0);
 
-  fire("claimReceived", { fromName: "Bob", claimerId: "them", claimerDummyHand: hand("♦") });
+  fire("claimReceived", {
+    fromName: "Bob",
+    claimerId: "them",
+    claimerHand: hand("♣"),
+    claimerDummyHand: hand("♦"),
+  });
+  expect(seatCards("Bob")).toEqual({ faceDown: 0, faceUp: 10 });
   expect(seatCards("Bob's dummy")).toEqual({ faceDown: 0, faceUp: 10 });
 });

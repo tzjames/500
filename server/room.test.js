@@ -114,6 +114,22 @@ function playOutRound(room, sockets, mode) {
   return played;
 }
 
+test("each player is dealt their own cards and the other's count", () => {
+  const { room, io, sockets } = newRoom();
+
+  for (const socket of sockets) {
+    const { players } = findFor(room, io, socket, "gameStart");
+    const mine = players.find((p) => p.id === socket.userId);
+    const theirs = players.find((p) => p.id !== socket.userId);
+    assert.equal(mine.hand.length, 10);
+    assert.equal(mine.handSize, undefined);
+    assert.equal(theirs.hand, undefined, "the other player's cards must not be sent");
+    assert.equal(theirs.handSize, 10);
+  }
+  // Nobody's hand rides along on a room-wide broadcast.
+  assert.equal(io.emitted.filter((e) => e.to === room.id && e.event === "gameStart").length, 0);
+});
+
 test("each player is dealt their own dummy's cards and the other's count", () => {
   const { room, io, sockets } = newRoom();
   const bidder = bidAndTakeKitty(room, sockets);
@@ -135,18 +151,21 @@ test("each player is dealt their own dummy's cards and the other's count", () =>
   assert.ok(bidder);
 });
 
-test("the other player's dummy cards are never sent, all round", () => {
+test("none of the other player's cards are ever sent, all round", () => {
   const { room, io, sockets } = newRoom();
-  bidAndTakeKitty(room, sockets);
 
-  // Snapshotted at the deal, then each card struck off as it's played for
-  // real: from that moment on it's public and may appear in a payload.
-  const secrets = new Map(
-    sockets.map((s) => {
-      const other = room.game.players.find((p) => p.id !== s.userId);
-      return [s.userId, new Set(other.dummyHand.map(cardKey))];
-    })
-  );
+  // Everything the other player is holding, recorded as it's dealt to them and
+  // struck off again as it's played for real — from that moment on it's public
+  // and may appear in a payload. Snapshotted rather than read live off the
+  // game, because a card that leaves their hand any other way (the bidder's
+  // discard to the kitty) is still theirs alone until the round is over.
+  const secrets = new Map(sockets.map((s) => [s.userId, new Set()]));
+  const hide = () => {
+    for (const socket of sockets) {
+      const other = room.game.players.find((p) => p.id !== socket.userId);
+      [...other.hand, ...other.dummyHand].forEach((c) => secrets.get(socket.userId).add(cardKey(c)));
+    }
+  };
 
   const check = () => {
     for (const socket of sockets) {
@@ -155,23 +174,30 @@ test("the other player's dummy cards are never sent, all round", () => {
         for (const card of cardsIn(payload)) {
           assert.ok(
             !secret.has(cardKey(card)),
-            `${socket.userId} was sent ${cardKey(card)} from the other dummy in "${event}"`
+            `${socket.userId} was sent the other player's ${cardKey(card)} in "${event}"`
           );
         }
       }
     }
   };
 
+  hide();
   check();
+  // The bidder's hand is a different ten cards after the kitty, and neither
+  // dummy exists until then.
+  bidAndTakeKitty(room, sockets);
+  hide();
+  check();
+
   for (let i = 0; i < 40 && !room.game.isRoundDecided(); i++) {
     const play = playOneCard(room, sockets);
-    if (play.isDummy) secrets.forEach((secret) => secret.delete(cardKey(play.card)));
+    secrets.forEach((secret) => secret.delete(cardKey(play.card)));
     check();
   }
   assert.equal(room.gamePhase === "roundEnd" || room.gamePhase === "gameOver", true);
 });
 
-test("reconnecting mid-round resends your own dummy and their count", () => {
+test("reconnecting mid-round resends your own cards and their counts", () => {
   const { room, io, sockets } = newRoom();
   bidAndTakeKitty(room, sockets);
   playOneCard(room, sockets);
@@ -182,42 +208,102 @@ test("reconnecting mid-round resends your own dummy and their count", () => {
     const { players } = findFor(room, io, socket, "gameResumed");
     const mine = players.find((p) => p.id === socket.userId);
     const theirs = players.find((p) => p.id !== socket.userId);
+    assert.ok(mine.hand.length >= 9);
     assert.ok(mine.dummyHand.length >= 9);
+    assert.equal(theirs.hand, undefined);
+    assert.equal(typeof theirs.handSize, "number");
     assert.equal(theirs.dummyHand, undefined);
     assert.equal(typeof theirs.dummyHandSize, "number");
   }
 });
 
-test("a claim reveals the claimer's dummy, and keeps it revealed", () => {
+test("an Open Misère bidder's hand goes face up once they've lost a trick", () => {
+  const { room, io, sockets } = newRoom();
+  const bidder = bidAndTakeKitty(room, sockets, "Open Misere");
+  const other = sockets.find((s) => s !== bidder);
+  const bidderPlayer = room.game.players.find((p) => p.id === bidder.userId);
+  const otherPlayer = room.game.players.find((p) => p.id === other.userId);
+
+  // Rigged so the first trick is certain to go against the bidder: they lead
+  // the four of spades and the other player's hand takes it with the king.
+  // Left with a card each afterwards, so the round is still running.
+  bidderPlayer.hand = [
+    { suit: "♠", value: "4" },
+    { suit: "♠", value: "5" },
+  ];
+  otherPlayer.hand = [
+    { suit: "♠", value: "K" },
+    { suit: "♠", value: "Q" },
+  ];
+  otherPlayer.dummyHand = [
+    { suit: "♠", value: "6" },
+    { suit: "♠", value: "7" },
+  ];
+
+  // Nothing has been revealed yet, so the deal's count is all there is.
+  assert.equal(findFor(room, io, other, "gameStart").players.find((p) => p.id === bidder.userId).hand, undefined);
+
+  for (let i = 0; i < 3; i++) playOneCard(room, sockets);
+  assert.equal(bidderPlayer.tricksWon, 0);
+  assert.equal(otherPlayer.tricksWon, 1);
+  assert.equal(room.gamePhase, "playing");
+
+  assert.deepEqual(findFor(room, io, other, "handsRevealed"), {
+    players: [{ id: bidder.userId, hand: bidderPlayer.hand }],
+  });
+  // One-way: the bidder is owed nothing in return.
+  assert.equal(
+    seenBy(room, io, bidder).filter((e) => e.event === "handsRevealed").length,
+    0,
+    "the bidder must not be sent the other player's hand"
+  );
+
+  // And it's still face up after a reconnect, still only one way round.
+  for (const socket of [other, bidder]) socket.received.length = 0;
+  room.handleJoin(other);
+  assert.deepEqual(
+    findFor(room, io, other, "gameResumed").players.find((p) => p.id === bidder.userId).hand.map(cardKey),
+    bidderPlayer.hand.map(cardKey)
+  );
+  room.handleJoin(bidder);
+  const otherEntry = findFor(room, io, bidder, "gameResumed").players.find((p) => p.id === other.userId);
+  assert.equal(otherEntry.hand, undefined);
+  assert.equal(otherEntry.handSize, otherPlayer.hand.length);
+});
+
+test("a claim reveals the claimer's hand and dummy, and keeps them revealed", () => {
   const { room, io, sockets } = newRoom();
   const claimer = bidAndTakeKitty(room, sockets);
   const responder = sockets.find((s) => s !== claimer);
-  const claimerDummy = room.game.players.find((p) => p.id === claimer.userId).dummyHand;
+  const claimerPlayer = room.game.players.find((p) => p.id === claimer.userId);
+  const claimerHand = claimerPlayer.hand;
+  const claimerDummy = claimerPlayer.dummyHand;
 
   room.claimRest(claimer);
   const claim = findFor(room, io, responder, "claimReceived");
+  assert.deepEqual(claim.claimerHand.map(cardKey), claimerHand.map(cardKey));
   assert.deepEqual(claim.claimerDummyHand.map(cardKey), claimerDummy.map(cardKey));
 
-  // Declining keeps it face up for the rest of the round, including across a
-  // reconnect — and still doesn't hand the claimer the responder's dummy.
+  // Declining keeps them face up for the rest of the round, including across a
+  // reconnect — and still doesn't hand the claimer the responder's cards.
   room.respondToClaim(responder, false);
   responder.received.length = 0;
   room.handleJoin(responder);
-  const resumed = findFor(room, io, responder, "gameResumed");
-  assert.deepEqual(
-    resumed.players.find((p) => p.id === claimer.userId).dummyHand.map(cardKey),
-    claimerDummy.map(cardKey)
-  );
+  const resumed = findFor(room, io, responder, "gameResumed").players.find((p) => p.id === claimer.userId);
+  assert.deepEqual(resumed.hand.map(cardKey), claimerHand.map(cardKey));
+  assert.deepEqual(resumed.dummyHand.map(cardKey), claimerDummy.map(cardKey));
 
   claimer.received.length = 0;
   room.handleJoin(claimer);
   const claimerView = findFor(room, io, claimer, "gameResumed");
   const responderEntry = claimerView.players.find((p) => p.id === responder.userId);
+  assert.equal(responderEntry.hand, undefined);
+  assert.equal(responderEntry.handSize, 10);
   assert.equal(responderEntry.dummyHand, undefined);
   assert.equal(responderEntry.dummyHandSize, 10);
 });
 
-test("a replay hides the other dummy too, freshly and on reconnect", () => {
+test("a replay hides the other player's cards too, freshly and on reconnect", () => {
   const { room, io, sockets } = newRoom();
   const bidder = bidAndTakeKitty(room, sockets);
   playOutRound(room, sockets);
@@ -229,20 +315,24 @@ test("a replay hides the other dummy too, freshly and on reconnect", () => {
   const replayHand = room.replayGame.players.find((p) => p.id === bidder.userId).hand;
   room.kittyDone(bidder, { newHand: [...replayHand, ...room.replayGame.kitty].slice(0, 10), mode: "replay" });
 
-  const assertHidden = (socket, event) => {
+  const assertHidden = (socket, event, key = "dummyHand") => {
     const { players } = findFor(room, io, socket, event);
     const mine = players.find((p) => p.id === socket.userId);
     const theirs = players.find((p) => p.id !== socket.userId);
-    assert.ok(Array.isArray(mine.dummyHand), `${socket.userId} should see their own dummy in ${event}`);
-    assert.equal(theirs.dummyHand, undefined, `${event} leaked the other dummy to ${socket.userId}`);
-    assert.equal(typeof theirs.dummyHandSize, "number");
+    assert.ok(Array.isArray(mine[key]), `${socket.userId} should see their own ${key} in ${event}`);
+    assert.equal(theirs[key], undefined, `${event} leaked the other ${key} to ${socket.userId}`);
+    assert.equal(typeof theirs[`${key}Size`], "number");
   };
 
+  // The replay's own deal, then its dummy deal.
+  sockets.forEach((s) => assertHidden(s, "replayStart", "hand"));
   sockets.forEach((s) => assertHidden(s, "replayKittyPhaseComplete"));
+  assert.equal(io.emitted.filter((e) => e.to === room.id && e.event === "replayStart").length, 0);
 
   for (const socket of sockets) {
     socket.received.length = 0;
     room.handleJoin(socket);
+    assertHidden(socket, "replayStart", "hand");
     assertHidden(socket, "replayStart");
     assertHidden(socket, "replayKittyPhaseComplete");
   }

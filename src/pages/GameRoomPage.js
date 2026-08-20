@@ -44,22 +44,37 @@ function MatchRecordLine({ record, playerId }) {
   );
 }
 
-// The opponent's dummy arrives from the server as a count and not as cards —
-// you're never meant to see inside it — so a play from that one hand moves the
-// count, where every other hand has a card added to or taken out of it.
-const hiddenDummy = (p, isDummy) => isDummy && !p.dummyHand;
+// The opponent's hand and dummy arrive from the server as a count and not as
+// cards — you're never meant to see inside them — so a play from one of those
+// only moves the count, where a hand you can see has a card added to or taken
+// out of it. A hand the server later turns face up has both, and both move.
+function resized(p, key, delta) {
+  const size = `${key}Size`;
+  return p[size] === undefined ? { ...p } : { ...p, [size]: p[size] + delta };
+}
 
 function withoutCard(p, card, isDummy) {
-  if (hiddenDummy(p, isDummy)) return { ...p, dummyHandSize: (p.dummyHandSize || 0) - 1 };
   const key = isDummy ? "dummyHand" : "hand";
-  return { ...p, [key]: (p[key] || []).filter((c) => !(c.suit === card.suit && c.value === card.value)) };
+  const moved = resized(p, key, -1);
+  if (p[key]) moved[key] = p[key].filter((c) => !(c.suit === card.suit && c.value === card.value));
+  return moved;
 }
 
 function withCard(p, card, isDummy) {
-  if (hiddenDummy(p, isDummy)) return { ...p, dummyHandSize: (p.dummyHandSize || 0) + 1 };
   const key = isDummy ? "dummyHand" : "hand";
-  return { ...p, [key]: [...(p[key] || []), card] };
+  const moved = resized(p, key, 1);
+  if (p[key]) moved[key] = [...p[key], card];
+  return moved;
 }
+
+// Hands the server has just turned face up, arriving as cards for the first
+// time. The count they were dealt as stays put, and withoutCard/withCard go on
+// keeping the two in step.
+const revealHands = (players, revealed) =>
+  players.map((p) => {
+    const shown = revealed.find((r) => r.id === p.id);
+    return shown ? { ...p, hand: shown.hand } : p;
+  });
 
 function GameRoomPage() {
   const { id: gameId } = useParams();
@@ -236,17 +251,17 @@ function GameRoomPage() {
     });
     socket.on("playersUpdate", ({ count }) => setConnectedPlayers(count));
 
-    socket.on("claimReceived", ({ fromName, claimerId, claimerDummyHand }) => {
+    socket.on("claimReceived", ({ fromName, claimerId, claimerHand, claimerDummyHand }) => {
       setPendingClaimReceived({ fromName });
       setRevealedClaimerId(claimerId);
-      // Claiming turns the claimer's dummy face up, which is the first time
-      // this client has been sent its cards at all.
+      // Claiming turns the claimer's hand and dummy face up, which is the first
+      // time this client has been sent either one's cards at all.
       setGameState((prevState) => {
         if (!prevState) return prevState;
         return {
           ...prevState,
           players: prevState.players.map((p) =>
-            p.id === claimerId ? { ...p, dummyHand: claimerDummyHand } : p
+            p.id === claimerId ? { ...p, hand: claimerHand, dummyHand: claimerDummyHand } : p
           ),
         };
       });
@@ -264,6 +279,7 @@ function GameRoomPage() {
               ? {
                   ...p,
                   hand: updated.hand,
+                  handSize: updated.hand.length,
                   dummyHand: updated.dummyHand,
                   dummyHandSize: updated.dummyHand.length,
                   tricksWon: updated.tricksWon,
@@ -406,6 +422,14 @@ function GameRoomPage() {
     });
 
     socket.on("invalidPlay", ({ message }) => setInvalidPlayMessage(message));
+
+    // Open Misère turns the bidder's hand face up once the first trick has gone
+    // against them. The deal only sent a count, so the cards arrive here.
+    socket.on("handsRevealed", ({ players }) => {
+      setGameState((prevState) =>
+        prevState ? { ...prevState, players: revealHands(prevState.players, players) } : prevState
+      );
+    });
 
     socket.on("gameResumed", (state) => {
       setGameState({
@@ -606,6 +630,10 @@ function GameRoomPage() {
           }),
         };
       });
+    });
+
+    socket.on("replayHandsRevealed", ({ players }) => {
+      setReplay((r) => (r ? { ...r, players: revealHands(r.players, players) } : r));
     });
 
     socket.on("replayCardPlayed", ({ playerId: cardPlayerId, card, isDummy }) => {
@@ -965,6 +993,9 @@ function GameRoomPage() {
   // can never reach 1 while the round is still live — the reveal condition
   // has to be "at least one trick has been played, and the bidder still
   // hasn't won one," not "the bidder has won one."
+  // The server decides this too, and only then sends the cards (see
+  // revealedHandIds); until they arrive there is nothing but a count to draw,
+  // which is what the face-down fan falls back to.
   const viewingOpenMisereBidder =
     gameState.currentBid?.bid === "Open Misere" && gameState.currentBid.player !== playerId;
   const tricksPlayedSoFar = (currentPlayerData?.tricksWon || 0) + (otherPlayerData?.tricksWon || 0);
@@ -1110,7 +1141,7 @@ function GameRoomPage() {
                 </div>
                 <GameTable
                   playedCards={replay.playedCards}
-                  opponentHandSize={replayOtherPlayerData?.hand?.length || 0}
+                  opponentHandSize={replayOtherPlayerData?.handSize || 0}
                   opponentDummyHandSize={replayOtherPlayerData?.dummyHandSize || 0}
                   playerHand={replayCurrentPlayerData?.hand || []}
                   playerDummyHand={replayCurrentPlayerData?.dummyHand || []}
@@ -1320,7 +1351,7 @@ function GameRoomPage() {
           <div className="board-center">
             <GameTable
               playedCards={playedCards}
-              opponentHandSize={otherPlayerData?.hand?.length || 0}
+              opponentHandSize={otherPlayerData?.handSize || 0}
               opponentDummyHandSize={gamePhase === "playing" ? otherPlayerData?.dummyHandSize || 0 : 10}
               playerHand={currentPlayerData.hand || []}
               playerDummyHand={currentPlayerData.dummyHand || []}
