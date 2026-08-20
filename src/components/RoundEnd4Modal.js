@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import ScoreChart from "./ScoreChart";
 import { isRed } from "../cards";
 import { bidLabel } from "../gameOptions";
@@ -145,6 +146,10 @@ function RoundEnd4Modal({
             been.
           </p>
           {ready && <p className="round-end-waiting">Waiting for the others…</p>}
+          {/* See RoundEndModal: this screen hides the top bar's link home. */}
+          <Link to="/" className="round-end-leave">
+            Leave for now
+          </Link>
         </div>
       )}
     </Shell>

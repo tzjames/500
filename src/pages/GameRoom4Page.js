@@ -15,7 +15,8 @@ import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
 import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
-import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
+import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
+import { playSound, preloadSounds } from "../sounds";
 import "../App.css";
 import "./GameRoom4Page.css";
 
@@ -26,6 +27,10 @@ const SUITS = ["♠", "♣", "♥", "♦"];
 // stitching together patches. The only local state is the things that are about
 // timing or intent rather than truth: the deal, the beat a finished trick spends
 // on the table, and what you've picked up but not yet committed to.
+// A finished trick sits on the table for a beat, then flies to the winner.
+const TRICK_LINGER_MS = 1900;
+const TRICK_FLY_MS = 600;
+
 function GameRoom4Page() {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
@@ -58,6 +63,11 @@ function GameRoom4Page() {
   // Cleared by the next deal too, so a message about the auction that just
   // ended can't outlive it and read as news about the hand you're now bidding.
   const noticeTimerRef = useRef(null);
+  // True while the hand-deciding trick is still playing out. This page renders
+  // from one pushed state object, so the hold gates the end screens rather than
+  // the state itself — the table stays up, showing the trick that decided it.
+  const [endHeld, setEndHeld] = useState(false);
+  const endHoldTimerRef = useRef(null);
 
   // The deal: `{ revealed }` while the cards fly in and turn over, null the rest
   // of the time. Keyed on the round and redeal count so a redeal re-runs it.
@@ -65,7 +75,23 @@ function GameRoom4Page() {
   const dealTimersRef = useRef([]);
   const dealKeyRef = useRef(null);
 
-  useEffect(() => () => dealTimersRef.current.forEach(clearTimeout), []);
+  // This page has no per-card broadcast to hang a sound on — it re-renders from
+  // a whole pushed snapshot — so the card and result sounds are derived from
+  // what changed between snapshots instead. Both refs hold "what we last made a
+  // noise about", so a re-render with no real change stays quiet.
+  const cardsPlayedRef = useRef(null);
+  const soundedResultRef = useRef(null);
+  const playTimersRef = useRef([]);
+
+  useEffect(
+    () => () => {
+      dealTimersRef.current.forEach(clearTimeout);
+      playTimersRef.current.forEach(clearTimeout);
+    },
+    []
+  );
+
+  useEffect(preloadSounds, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -74,7 +100,21 @@ function GameRoom4Page() {
     if (socket.connected) join();
     socket.on("connect", join);
 
-    socket.on("g4:state", setState);
+    socket.on("g4:state", (next) => {
+      const ending = next.phase === "roundEnd" || next.phase === "gameOver";
+      if (ending && liveTokenRef.current !== null) {
+        clearTimeout(endHoldTimerRef.current);
+        setEndHeld(true);
+        endHoldTimerRef.current = setTimeout(
+          () => setEndHeld(false),
+          TRICK_LINGER_MS + TRICK_FLY_MS
+        );
+      } else if (!ending) {
+        clearTimeout(endHoldTimerRef.current);
+        setEndHeld(false);
+      }
+      setState(next);
+    });
     socket.on("g4:joinRejected", ({ message }) => setRejected(message));
     socket.on("joinRejected", ({ message }) => setRejected(message));
     socket.on("g4:invalidPlay", ({ message }) => setInvalid(message));
@@ -99,11 +139,12 @@ function GameRoom4Page() {
           liveTokenRef.current = null;
           setPendingTrick(null);
           setFlyToSeat(null);
-        }, 600);
-      }, 1900);
+        }, TRICK_FLY_MS);
+      }, TRICK_LINGER_MS);
     });
 
     return () => {
+      clearTimeout(endHoldTimerRef.current);
       socket.emit("leaveRoom", { gameId });
       socket.off("connect", join);
       clearTimeout(noticeTimerRef.current);
@@ -122,11 +163,17 @@ function GameRoom4Page() {
 
   // Run the deal animation whenever a fresh hand arrives. A redeal of the same
   // round counts as a fresh hand, hence both halves of the key.
-  const dealKey = state?.seats ? `${state.roundNumber}-${state.redealCount}` : null;
+  // The game id is part of the key because a rematch starts counting rounds
+  // again from one, on the same mounted component — without it, round one of
+  // the new match looks like one already dealt and is skipped.
+  const dealKey = state?.seats
+    ? `${gameId}-${state.roundNumber}-${state.redealCount}`
+    : null;
   useEffect(() => {
     if (!state || state.phase !== "bidding" || !dealKey) return;
     if (dealKeyRef.current === dealKey) return;
     dealKeyRef.current = dealKey;
+    playSound("shuffle");
     setSelected([]);
     setInvalid("");
     setReplayResult(null);
@@ -145,6 +192,55 @@ function GameRoom4Page() {
       setTimeout(() => setDeal(null), flightEnds + 120 + (count - 1) * 35 + 480),
     ];
   }, [state, dealKey]);
+
+  // A card hitting the table. Counted as cards played in the whole hand rather
+  // than the length of the live trick: two snapshots can arrive in one render,
+  // and at a trick boundary the live trick then appears to *shrink* — 4 cards
+  // to 2 — while two cards were in fact played. Watching the trick length
+  // missed both of them. A hand's running total only ever climbs, so a rise of
+  // n means n cards however the snapshots were batched.
+  const tricksDone = (state?.seats || []).reduce((n, s) => n + (s.tricksWon || 0), 0);
+  const cardsPlayed = tricksDone * 4 + (state?.currentTrick?.length ?? 0);
+  useEffect(() => {
+    const prev = cardsPlayedRef.current;
+    cardsPlayedRef.current = cardsPlayed;
+    // First look at a hand, or the count restarting for a new one.
+    if (prev === null || cardsPlayed <= prev) return;
+    const fresh = cardsPlayed - prev;
+    // More than a trick's worth means we weren't watching — joining a hand in
+    // progress, or a reconnect — and the backlog shouldn't be replayed.
+    if (fresh > 4) return;
+    // Staggered, so cards batched into one render still sound like two cards
+    // rather than one louder one.
+    for (let i = 0; i < fresh; i++) {
+      const timer = setTimeout(() => playSound("play"), i * 80);
+      playTimersRef.current.push(timer);
+    }
+  }, [cardsPlayed]);
+
+  // How the hand went, from your side. Keyed on the round so re-renders and
+  // reconnects — which re-deliver the same finished result — only sound once,
+  // and held back until the deciding trick has finished playing out. Hands
+  // where nobody bid have no outcome to report.
+  //
+  // As in the two-player room: the loss sting is for your own side's contract
+  // going down, not for every hand that didn't go your way. The other team
+  // making their bid passes without comment.
+  const result = state?.roundResult;
+  const showingResult =
+    (state?.phase === "roundEnd" || state?.phase === "gameOver") && !endHeld;
+  useEffect(() => {
+    if (!showingResult || !result || result.noContract) return;
+    const key = `${gameId}-${state.roundNumber}`;
+    if (soundedResultRef.current === key) return;
+    soundedResultRef.current = key;
+    const myTeam = state.you?.team;
+    if (myTeam === null || myTeam === undefined) return;
+    const weBid = result.biddingTeam === myTeam;
+    const wentOurWay = weBid ? result.made : !result.made;
+    if (wentOurWay) playSound("won");
+    else if (weBid) playSound("loss");
+  }, [showingResult, result, gameId, state?.roundNumber, state?.you?.team]);
 
   // ---- handlers ----
 
@@ -193,8 +289,9 @@ function GameRoom4Page() {
   };
 
   const locationId = state?.gameSettings?.location || DEFAULT_LOCATION;
-  const deckId = state?.gameSettings?.deck || DEFAULT_DECK;
   const feltId = state?.gameSettings?.felt || DEFAULT_FELT;
+  const playerNames = (state?.seats || []).filter(Boolean).map((s) => s.name);
+  const deckId = resolveDeckId(state?.gameSettings?.deck || DEFAULT_DECK, playerNames);
 
   if (!session) return null;
 
@@ -235,6 +332,7 @@ function GameRoom4Page() {
         locationId={locationId}
         deckId={deckId}
         feltId={feltId}
+        playerNames={playerNames}
         onChange={handleSetGameSettings}
         compact
       />
@@ -368,7 +466,7 @@ function GameRoom4Page() {
 
   // ---- game over ----
 
-  if (state.phase === "gameOver" && state.winner) {
+  if (state.phase === "gameOver" && state.winner && !endHeld) {
     const iWon = state.winner.playerIds?.includes(playerId);
     // Going out the back door is the LOSING side's fate, not the winner's — it
     // needs the other team's name (or, if you're the one who went out, your
@@ -630,6 +728,8 @@ function GameRoom4Page() {
         currentSeat={b.currentSeat}
         trumpSuit={b.trumpSuit}
         deckId={deckId}
+        bidderSeat={b.currentBid?.seat ?? null}
+        teamNames={state.teamNames || []}
         playedCards={cards}
         flyToSeat={mine ? flyToSeat : null}
         revealedHands={b.revealedHands || {}}
@@ -845,7 +945,7 @@ function GameRoom4Page() {
         </div>
       )}
 
-      {state.phase === "roundEnd" && state.roundResult && (
+      {state.phase === "roundEnd" && state.roundResult && !endHeld && (
         <RoundEnd4Modal
           result={state.roundResult}
           roundEnd={state.roundEnd}

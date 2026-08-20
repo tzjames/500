@@ -1,8 +1,9 @@
 // A robot to fill an empty seat. It plays by rules of thumb rather than search:
 // count your winners before bidding, draw trumps when you're declarer, lead
 // aces and cover your partner when you're defending, duck everything when
-// you're on a Misère. Nothing here learns anything — it just shouldn't embarrass
-// itself, and it must never try an illegal call or play.
+// you're on a Misère — and when you're defending one, do the opposite of all
+// of it. Nothing here learns anything — it just shouldn't embarrass itself, and
+// it must never try an illegal call or play.
 const {
   RANKS,
   REAL_SUITS,
@@ -251,6 +252,42 @@ function isAvoidingTricks(game, seat) {
   return true;
 }
 
+// The seats currently trying to avoid tricks — usually just the Misère bidder.
+function avoidingSeats(game) {
+  if (!game.currentBid) return [];
+  const spec = game.contractSpec();
+  if (!spec) return [];
+  const bidderSeat = game.currentBid.seat;
+  const seats = spec.bothPartners
+    ? [bidderSeat, game.partnerOf(bidderSeat)]
+    : [bidderSeat];
+  return seats.filter(
+    (seat) => !game.players[seat].folded && isAvoidingTricks(game, seat)
+  );
+}
+
+// Playing against someone who mustn't take a trick. This inverts every ordinary
+// instinct, which is why it needs saying out loud: the only thing that beats the
+// contract is making them take a trick, so a trick won by a defender is a trick
+// wasted, cashing an ace throws one away, and overtaking the declarer when they
+// were about to be caught hands them the contract.
+function defendingAvoider(game, seat) {
+  const avoiders = avoidingSeats(game);
+  return avoiders.length > 0 && !avoiders.includes(seat);
+}
+
+// The declarer's hand on an Open Misère — but only once it has genuinely gone
+// face up. The test is the server's own (see revealedHands in room4), so the
+// robot never sees a card a defender in the same seat couldn't.
+function openAvoiderHand(game, seat) {
+  const spec = game.contractSpec();
+  if (!spec?.open || !game.currentBid) return null;
+  if (game.playedCards.length < game.activeSeats().length) return null;
+  const bidderSeat = game.currentBid.seat;
+  if (bidderSeat === seat) return null;
+  return game.players[bidderSeat].hand;
+}
+
 const lowest = (cards, game) =>
   [...cards].sort(
     (a, b) =>
@@ -265,9 +302,49 @@ const highest = (cards, game) =>
       getCardRank(a, game.trumpSuit, a.suit, game.options)
   )[0];
 
+// A lead the avoider can't duck: they hold the suit, and every card they hold
+// in it beats ours, so following suit takes the trick. Only knowable when their
+// hand is face up. A suit they're void in is no use — they'd discard and escape.
+function forcingLead(game, legal, avoiderHand) {
+  const forcing = legal.filter((card) => {
+    if (isJoker(card)) return false;
+    const theirs = avoiderHand.filter((other) => other.suit === card.suit);
+    if (theirs.length === 0) return false;
+    const mine = getCardRank(card, game.trumpSuit, card.suit, game.options);
+    return theirs.every(
+      (other) => getCardRank(other, game.trumpSuit, card.suit, game.options) > mine
+    );
+  });
+  return forcing.length > 0 ? lowest(forcing, game) : null;
+}
+
+// Lead low out of the longest suit and keep the honours back. Against a
+// no-tricks contract this is the forcing lead as well: coming at the same long
+// suit over and over burns through whatever low cards the declarer is hiding
+// behind, until all they have left in it is the card that takes the trick.
+function lowLeadFromLength(game, legal) {
+  const trump = game.trumpSuit;
+  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
+  const pool = sideSuits.length > 0 ? sideSuits : legal;
+  const byLength = {};
+  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
+  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
+  const fromLongest = pool.filter((card) => card.suit === longest);
+  return lowest(fromLongest.length > 0 ? fromLongest : pool, game);
+}
+
 function chooseLead(game, seat, legal) {
   const avoiding = isAvoidingTricks(game, seat);
   if (avoiding) return { card: lowest(legal, game) };
+
+  // Defending a no-tricks contract. Cashing a winner here is the standard
+  // blunder: you win the trick yourself, which the declarer is delighted by —
+  // it costs them nothing and lets them throw a card they were worried about.
+  if (defendingAvoider(game, seat)) {
+    const open = openAvoiderHand(game, seat);
+    const forced = open ? forcingLead(game, legal, open) : null;
+    return { card: forced || lowLeadFromLength(game, legal) };
+  }
 
   const trump = game.trumpSuit;
   const onContract =
@@ -292,13 +369,7 @@ function chooseLead(game, seat, legal) {
 
   // Nothing to cash: lead low out of the longest side suit and keep the honours
   // for later.
-  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
-  const pool = sideSuits.length > 0 ? sideSuits : legal;
-  const byLength = {};
-  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
-  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
-  const fromLongest = pool.filter((card) => card.suit === longest);
-  const card = lowest(fromLongest.length > 0 ? fromLongest : pool, game);
+  const card = lowLeadFromLength(game, legal);
 
   // Leading the Joker at no trumps means naming a suit; name the one it's
   // longest in so the lead stays useful.
@@ -323,17 +394,36 @@ function chooseFollow(game, seat, legal) {
     (card) => getCardRank(card, game.trumpSuit, leader.leadSuit, game.options) > leader.rank
   );
 
+  const isLast = game.currentTrick.length === game.activeSeats().length - 1;
+
   if (avoiding) {
-    // Get as high as possible without taking it; if everything wins, lose as
-    // little material as possible.
+    // Duck as high as you can: the trick is safe and a big card is gone.
     const losers = legal.filter((card) => !beats.includes(card));
-    return { card: losers.length > 0 ? highest(losers, game) : lowest(legal, game) };
+    if (losers.length > 0) return { card: highest(losers, game) };
+    // Everything wins. Playing last that settles it, so spend the biggest card
+    // — the low ones are what duck the tricks still to come. With players yet
+    // to act, scrape over as low as possible instead and hope one of them
+    // takes it off you.
+    return { card: isLast ? highest(legal, game) : lowest(legal, game) };
+  }
+
+  if (defendingAvoider(game, seat)) {
+    const avoiders = avoidingSeats(game);
+    if (avoiders.includes(leader.play.seat)) {
+      // They're winning it. That trick is the contract — leave it alone, and
+      // use the moment to shed the highest card that doesn't snatch it back.
+      const ducks = legal.filter((card) => !beats.includes(card));
+      return { card: ducks.length > 0 ? highest(ducks, game) : highest(legal, game) };
+    }
+    // Either they've yet to play, or a defender already holds the trick. Keep
+    // the bar low so they have to climb over it, and keep hold of the low cards
+    // that make them.
+    return { card: lowest(legal, game) };
   }
 
   const partnerSeat = game.partnerOf(seat);
   const partnerWinning =
     !game.players[partnerSeat].folded && leader.play.seat === partnerSeat;
-  const isLast = game.currentTrick.length === game.activeSeats().length - 1;
 
   // Partner has it: don't spend a card beating your own side.
   if (partnerWinning) return { card: lowest(legal, game) };

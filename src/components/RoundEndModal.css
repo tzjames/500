@@ -113,6 +113,19 @@
   line-height: 1.5;
 }
 
+.round-end-leave {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--ink);
+  opacity: 0.55;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.round-end-leave:hover {
+  opacity: 0.9;
+}
+
 .round-end-waiting {
   font-size: 13px;
   opacity: 0.72;

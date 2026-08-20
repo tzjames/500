@@ -15,8 +15,13 @@ import ConfirmModal from "../components/ConfirmModal";
 import RoundEndModal from "../components/RoundEndModal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
-import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
+import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
+import { playSound, preloadSounds } from "../sounds";
 import "../App.css";
+
+// A finished trick sits on the table for a beat, then flies to the winner.
+const TRICK_LINGER_MS = 2000;
+const TRICK_FLY_MS = 600;
 
 // "That's 4–2 to Grace" under the final scores. Counts every finished game
 // between the two players, this one included.
@@ -109,6 +114,7 @@ function GameRoomPage() {
   // has already sent the whole hand by the time any of it plays.
   const [deal, setDeal] = useState(null);
   const dealTimersRef = useRef([]);
+  const roundEndTimersRef = useRef([]);
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
   const [incomingRematchOffer, setIncomingRematchOffer] = useState(null);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
@@ -140,7 +146,17 @@ function GameRoomPage() {
   // the opponent's hand/dummy until someone happens to refresh the page.
   const lastPlaySeqRef = useRef(null);
 
-  useEffect(() => () => dealTimersRef.current.forEach(clearTimeout), []);
+  useEffect(
+    () => () => {
+      dealTimersRef.current.forEach(clearTimeout);
+      roundEndTimersRef.current.forEach(clearTimeout);
+    },
+    []
+  );
+
+  // Fetched up front so the first card of the hand isn't silent while its file
+  // is still downloading.
+  useEffect(preloadSounds, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -150,6 +166,7 @@ function GameRoomPage() {
     // previous one's "reveal" to fire over the new hand.
     const runDeal = (cardCount) => {
       dealTimersRef.current.forEach(clearTimeout);
+      playSound("shuffle");
       // Skipped outright for reduced motion — suppressing just the animation
       // would leave the cards sitting face down for a second doing nothing,
       // which is worse than not dealing at all.
@@ -165,6 +182,21 @@ function GameRoomPage() {
         // goes back to being ordinary one-sided cards.
         setTimeout(() => setDeal(null), flightEnds + 120 + (cardCount - 1) * 35 + 480),
       ];
+    };
+
+    // The trick that ends a hand should be watchable before the result screen
+    // covers it. pendingClearTokenRef is non-null exactly while a resolved
+    // trick is still on the table, which is also how we tell a hand decided by
+    // a trick from one ended by a claim or a resignation — those have nothing
+    // to watch, so they shouldn't wait at all.
+    const afterDecidingTrick = (show) => {
+      if (pendingClearTokenRef.current === null) {
+        show();
+        return;
+      }
+      roundEndTimersRef.current.push(
+        setTimeout(show, TRICK_LINGER_MS + TRICK_FLY_MS)
+      );
     };
 
     const join = () => socket.emit("joinRoom", { gameId });
@@ -234,6 +266,7 @@ function GameRoomPage() {
       setRedealCount(initialState.redealCount || 0);
       setScoreHistory(initialState.scoreHistory || []);
       setGameOverInfo(null);
+      roundEndTimersRef.current.forEach(clearTimeout);
       setRoundResult(null);
       setRoundEndInfo(null);
       setReviewData(null);
@@ -303,6 +336,7 @@ function GameRoomPage() {
         }
         lastPlaySeqRef.current = seq;
       }
+      playSound("play");
       const isFreshTrick = pendingClearTokenRef.current !== null;
       pendingClearTokenRef.current = null;
       setPlayedCards((prev) => {
@@ -373,6 +407,7 @@ function GameRoomPage() {
       setRedealCount(state.redealCount || 0);
       setScoreHistory(state.scoreHistory || []);
       setGameOverInfo(null);
+      roundEndTimersRef.current.forEach(clearTimeout);
       setRoundResult(state.roundResult || null);
       setRoundEndInfo(null);
       setReviewData(null);
@@ -401,8 +436,10 @@ function GameRoomPage() {
     socket.on("matchRecord", (record) => setMatchRecord(record));
 
     socket.on("gameOver", (info) => {
-      setGameOverInfo(info);
-      setScoreHistory(info.scoreHistory || []);
+      afterDecidingTrick(() => {
+        setGameOverInfo(info);
+        setScoreHistory(info.scoreHistory || []);
+      });
     });
 
     // A hand given up rather than played out. The round-end modal follows
@@ -414,7 +451,24 @@ function GameRoomPage() {
       );
     });
 
-    socket.on("roundResult", (result) => setRoundResult(result));
+    // The sting lands with the result screen rather than the moment the server
+    // scores the hand — while the deciding trick is still on the table you're
+    // watching that, not being told how it turned out.
+    //
+    // A hand goes your way if your contract stood up or theirs didn't. The loss
+    // sting is narrower than that, and deliberately: it's for your own contract
+    // going down, not for any hand that didn't go your way. Losing because the
+    // other player quietly made a modest bid is just the game continuing, so it
+    // passes without comment.
+    socket.on("roundResult", (result) =>
+      afterDecidingTrick(() => {
+        const iBid = result.bidderId === playerId;
+        const wentMyWay = iBid ? result.bidderMadeBid : !result.bidderMadeBid;
+        if (wentMyWay) playSound("won");
+        else if (iBid) playSound("loss");
+        setRoundResult(result);
+      })
+    );
     // Broadcast room-wide whenever the game (re-)enters roundEnd/gameOver —
     // including right after the review controller clicks "Back to round" —
     // so this also clears reviewData for the other player, who otherwise had
@@ -454,8 +508,8 @@ function GameRoomPage() {
             setPlayedCards([]);
             setFlyingWinner(null);
           }
-        }, 600);
-      }, 2000);
+        }, TRICK_FLY_MS);
+      }, TRICK_LINGER_MS);
     });
 
     socket.on("updateCurrentPlayer", ({ playerId: newCurrentPlayer, isDummy }) => {
@@ -787,8 +841,11 @@ function GameRoomPage() {
   const handleReplayReturn = () => setReplay(null);
 
   const locationId = gameSettings.location || DEFAULT_LOCATION;
-  const deckId = gameSettings.deck || DEFAULT_DECK;
   const feltId = gameSettings.felt || DEFAULT_FELT;
+  // Private packs fall back for anyone they don't belong to, so a game that
+  // had one set still renders rather than showing a pack that isn't theirs.
+  const playerNames = (gameState?.players || []).map((p) => p.name);
+  const deckId = resolveDeckId(gameSettings.deck || DEFAULT_DECK, playerNames);
 
   if (!session) return null;
 
@@ -819,6 +876,7 @@ function GameRoomPage() {
               locationId={locationId}
               deckId={deckId}
               feltId={feltId}
+              playerNames={playerNames}
               onChange={handleSetGameSettings}
             />
           </div>
@@ -1167,6 +1225,7 @@ function GameRoomPage() {
           locationId={locationId}
           deckId={deckId}
           feltId={feltId}
+          playerNames={playerNames}
           onChange={handleSetGameSettings}
           compact
         />

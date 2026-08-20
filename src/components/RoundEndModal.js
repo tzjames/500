@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import ScoreChart from "./ScoreChart";
 import { isRed } from "../cards";
 import "./RoundEndModal.css";
@@ -135,6 +136,12 @@ function RoundEndModal({
             {iAmReady && (
               <p className="round-end-waiting">Waiting for the other player…</p>
             )}
+            {/* This screen covers the top bar, so without its own way out the
+                only route home was the browser's back button. The game keeps
+                its place — you rejoin from the list. */}
+            <Link to="/" className="round-end-leave">
+              Leave for now
+            </Link>
           </div>
         )}
       </div>

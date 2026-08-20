@@ -24,7 +24,7 @@ const LOCATION_IDS = [
   "plain-sierras",
   "plain-serengeti",
 ];
-const DECK_IDS = ["traveller", "classic"];
+const { DECK_IDS, DEFAULT_DECK, deckAllowed } = require("./decks");
 const FELT_IDS = ["solid", "faded", "hidden"];
 
 // One Room per game document. Player identity is the account's userId (stable
@@ -63,7 +63,7 @@ class Room {
       showOfferPassButton: true,
       showOfferRetroactivePassButton: true,
       location: "falls",
-      deck: "traveller",
+      deck: DEFAULT_DECK,
       felt: "faded",
       ...(snap.gameSettings || {}),
     };
@@ -230,6 +230,11 @@ class Room {
     } catch (err) {
       console.error("head-to-head lookup failed", err);
     }
+  }
+
+  // Names of everyone seated, for the private-pack check in decks.js.
+  playerNames() {
+    return this.slots.filter(Boolean).map((s) => s.name);
   }
 
   nameOf(userId) {
@@ -604,7 +609,9 @@ class Room {
     // either a stale client or hand-crafted — drop it rather than persist a
     // value that would render as an unstyled table for both players.
     if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
-    if (DECK_IDS.includes(settings.deck)) next.deck = settings.deck;
+    if (DECK_IDS.includes(settings.deck) && deckAllowed(settings.deck, this.playerNames())) {
+      next.deck = settings.deck;
+    }
     if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
 
     this.gameSettings = next;
@@ -967,6 +974,10 @@ class Room {
     this.lastRoundResult = {
       bid: bidDescription,
       bidderName: bidderPlayer.name,
+      // Who bid, by id rather than only by name: the client needs to know
+      // whether the contract was yours to decide whether the hand went your
+      // way, and two players can share a name.
+      bidderId,
       bidderMadeBid,
       bidderDelta,
       bidderScore: bidderPlayer.score,

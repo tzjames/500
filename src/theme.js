@@ -134,7 +134,19 @@ export const LOCATIONS = [...PLACES, ...PLAIN];
 // draw the face from the rank and the Unicode suit character. A glyph deck has
 // no back image of its own, so it borrows the current location's `back`
 // gradient — which is how the deck picker still yields a per-location back.
+// `ratio` is the card's height divided by its width. Packs aren't all drawn to
+// the same shape, so it travels with the deck rather than being baked into the
+// card component — everything that sizes a card reads it.
 export const DECKS = [
+  {
+    id: "scientists",
+    name: "Scientists",
+    blurb: "Engraved portraits, cream and ink",
+    art: "image",
+    path: "/cards/scientists",
+    back: "/cards/scientists/BACK.jpg",
+    ratio: 600 / 399,
+  },
   {
     // The id stays "traveller" even though the deck is now called "Travelers" —
     // it's the value persisted in every saved game's gameSettings, so renaming
@@ -145,6 +157,7 @@ export const DECKS = [
     art: "image",
     path: "/cards/traveller",
     back: "/cards/traveller/BACK.jpg",
+    ratio: 1400 / 1000,
   },
   {
     id: "classic",
@@ -153,6 +166,7 @@ export const DECKS = [
     art: "glyph",
     path: null,
     back: null,
+    ratio: 1400 / 1000,
   },
 ];
 
@@ -177,8 +191,39 @@ export const nextFeltMode = (id) => {
   return FELT_MODES[(i + 1) % FELT_MODES.length].id;
 };
 
+// Packs that belong to particular people rather than to everyone, keyed by
+// deck id. A private pack is offered only when the room is exactly those
+// players, in any order — mirrored server-side in server/decks.js, which is
+// what actually enforces it.
+const PRIVATE_TO = { traveller: ["graham", "james"] };
+
+export function deckAllowed(deckId, playerNames = []) {
+  const owners = PRIVATE_TO[deckId];
+  if (!owners) return true;
+  const seated = playerNames
+    .filter(Boolean)
+    .map((n) => String(n).trim().toLowerCase());
+  return (
+    seated.length === owners.length &&
+    seated.every((s) => owners.includes(s)) &&
+    owners.every((o) => seated.includes(o))
+  );
+}
+
+export const decksFor = (playerNames) =>
+  DECKS.filter((d) => deckAllowed(d.id, playerNames));
+
+// Resolve a stored deck id against who's actually playing. A game that had a
+// private pack set keeps working for everyone else — it just falls back to the
+// default rather than showing them a pack that isn't theirs.
+export const resolveDeckId = (deckId, playerNames) =>
+  deckAllowed(deckId, playerNames) ? deckId : DEFAULT_DECK;
+
 export const DEFAULT_LOCATION = LOCATIONS[0].id;
-export const DEFAULT_DECK = DECKS[0].id;
+// Whatever the picker shows first that isn't private to particular players —
+// a private pack can't be the fallback, or the people it excludes would fall
+// back onto the very thing they're not allowed.
+export const DEFAULT_DECK = (DECKS.find((d) => deckAllowed(d.id, [])) || DECKS[0]).id;
 
 export const getLocation = (id) =>
   LOCATIONS.find((l) => l.id === id) || LOCATIONS[0];
@@ -226,5 +271,6 @@ export function themeVars(locationId, deckId, feltId) {
     "--felt-inset": shape.inset,
     "--felt-clip": shape.clipPath || "none",
     "--card-back-image": deck.art === "image" ? `url(${deck.back})` : "none",
+    "--card-ratio": deck.ratio || 1.4,
   };
 }

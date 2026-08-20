@@ -15,7 +15,8 @@ import "./GameTable4.css";
 //   west  ...      the trick      ...  east
 //              south = you
 //
-// Every seat has its own pile of won tricks, sitting beside that seat's cards.
+// Won tricks are kept one pile per partnership, not one per player — see
+// pileFor below.
 const POSITIONS = ["bottom", "left", "top", "right"];
 
 function GameTable4({
@@ -27,6 +28,10 @@ function GameTable4({
   currentSeat,
   trumpSuit,
   deckId,
+  // Which seat holds the contract, and the two partnerships' names — both only
+  // needed to place and label the trick piles.
+  bidderSeat = null,
+  teamNames = [],
   playedCards,
   flyToSeat,
   revealedHands = {},
@@ -47,11 +52,47 @@ function GameTable4({
   const me = seatAt("bottom");
   const winnerPosition = flyToSeat === null || flyToSeat === undefined ? null : positionOf(flyToSeat);
 
+  // Partners keep their won tricks together in a single pile in front of one of
+  // them, so there are two piles on the table rather than four. The bidding
+  // side's sits in front of the bidder; the defenders' in front of the defender
+  // on the bidder's left, who is next to play. Seats alternate between the two
+  // teams, so the seat after the bidder always belongs to the other pair.
+  //
+  // That is also how the two-player table arranges it — opponentSide in
+  // GameTable.js resolves to the seat immediately clockwise of the bidder
+  // whichever side bid — so the two boards agree.
+  //
+  // Until the auction settles there's no bidder to anchor to and your own seat
+  // stands in; both piles are empty placeholders at that point anyway.
+  const pileAnchor =
+    bidderSeat === null || bidderSeat === undefined ? reference : bidderSeat;
+  const pileSeats = [pileAnchor, (pileAnchor + 1) % 4];
+  const teamTricks = (team) =>
+    seats.reduce((total, s) => (s.team === team ? total + (s.tricksWon || 0) : total), 0);
+  // Named the way the contract panel names the two sides. The pill clips at
+  // 15ch, which a partnership's full name — two names joined by an ampersand —
+  // blows straight past; "Your side" also says more at a glance than half of
+  // "Fermat & Boole" would. A spectator has no side, so they get the names.
+  const myTeam = mySeat === -1 ? null : me?.team;
+  const sideName = (team) =>
+    myTeam === null || myTeam === undefined
+      ? teamNames[team] || `Side ${team + 1}`
+      : team === myTeam
+      ? "Your side"
+      : "Them";
+  // The pile this seat carries, or null when their partner is holding it.
+  const pileFor = (seat) =>
+    pileSeats.includes(seat.seat)
+      ? { count: teamTricks(seat.team), owner: sideName(seat.team) }
+      : null;
+  const myPile = me ? pileFor(me) : null;
+
   const renderSeat = (position) => {
     const seat = seatAt(position);
     if (!seat) return null;
     const revealed = revealedHands[seat.seat];
     const onCall = seat.seat === currentSeat;
+    const seatPile = pileFor(seat);
 
     return (
       <div
@@ -74,7 +115,13 @@ function GameTable4({
         ) : (
           <Fan count={seat.handCount} position={position} deck={deck} />
         )}
-        <TrickPile className="pile4-seated" count={seat.tricksWon} owner={seat.name} />
+        {seatPile && (
+          <TrickPile
+            className="pile4-seated"
+            count={seatPile.count}
+            owner={seatPile.owner}
+          />
+        )}
       </div>
     );
   };
@@ -112,7 +159,9 @@ function GameTable4({
         <div className={`table4-status pill${isYourTurn ? " your-turn" : ""}`}>{statusText}</div>
       )}
 
-      <TrickPile className="pile4-mine" count={me?.tricksWon || 0} owner="You" />
+      {myPile && (
+        <TrickPile className="pile4-mine" count={myPile.count} owner={myPile.owner} />
+      )}
 
       <div className="seat4 seat4-bottom">
         {blindCount > 0 ? (

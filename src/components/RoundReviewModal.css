@@ -100,7 +100,7 @@
 .review-trick {
   margin-top: 12px;
   text-align: center;
-  min-height: calc(clamp(50px, 4.6vw, 78px) * 1.4 + 28px);
+  min-height: calc(clamp(50px, 4.6vw, 78px) * var(--card-ratio, 1.4) + 28px);
 }
 
 .review-trick-empty {

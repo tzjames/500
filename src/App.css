@@ -84,7 +84,7 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: calc(var(--card-hand) * 1.4 + 46px);
+  bottom: calc(var(--card-hand) * var(--card-ratio, 1.4) + 46px);
   display: flex;
   align-items: center;
   justify-content: center;

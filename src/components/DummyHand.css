@@ -16,14 +16,34 @@
 .dummy-hand .dummy-card {
   --card-w: var(--card-dummy, 64px);
   margin-left: calc(var(--card-w) * -0.36);
+  /* Grows downward from its top edge on hover — the dummy sits against the top
+     of the board, so that's the side with room. */
+  transform-origin: 50% 0;
+  transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.24s ease, opacity 0.18s ease;
 }
 
 .dummy-suit-group .dummy-card:first-child {
   margin-left: 0;
 }
 
-.dummy-hand .dummy-card:hover {
+/* Same look-at-the-art zoom your own hand gets. */
+.dummy-hand .dummy-card:hover,
+.dummy-hand .dummy-card:focus-visible {
+  transform: scale(1.45);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
   z-index: 40;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dummy-hand .dummy-card {
+    transition: none;
+  }
+
+  .dummy-hand .dummy-card:hover,
+  .dummy-hand .dummy-card:focus-visible {
+    transform: none;
+  }
 }
 
 /* When it's the dummy's turn, ring the whole group so it's obvious which of
