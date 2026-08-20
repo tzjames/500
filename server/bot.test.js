@@ -283,3 +283,100 @@ test("a robot never bids a contract this table doesn't allow", () => {
     }
   }
 });
+
+// ---- defending a no-tricks contract ----
+//
+// The defence of a Misère runs against every ordinary instinct, so each of
+// these is a decision the robot used to get backwards.
+
+test("a Misère defender ducks rather than overtake the declarer", () => {
+  const game = table();
+  game.currentBid = { seat: 0, player: "u0", bid: "Misere", points: 250 };
+  game.players[2].folded = true; // the declarer's partner sits a solo contract out
+  game.players[1].hand = [c("6", "♠")];
+  game.players[0].hand = [c("K", "♠")];
+  game.players[3].hand = [c("A", "♠"), c("2", "♠")];
+
+  game.playCard(1, c("6", "♠"));
+  game.playCard(0, c("K", "♠")); // the declarer, forced up, is winning the trick
+
+  // Taking it with the ace would hand the declarer the contract.
+  assert.equal(key(bot.choosePlay(game, 3).card), key(c("2", "♠")));
+});
+
+test("a Misère defender doesn't cash a winner on lead", () => {
+  const game = table();
+  game.currentBid = { seat: 0, player: "u0", bid: "Misere", points: 250 };
+  game.players[2].folded = true;
+  game.players[0].hand = [c("A", "♦"), c("7", "♦")];
+  game.players[1].hand = [c("A", "♠"), c("2", "♠"), c("4", "♦")];
+  game.players[3].hand = [c("9", "♥"), c("5", "♦")];
+  // With the Joker gone the ace of spades really is the top spade, which is
+  // exactly when the robot used to lead it.
+  game.playedCards = [{ seat: 3, card: JOKER }];
+
+  const led = bot.choosePlay(game, 1).card;
+  assert.notEqual(key(led), key(c("A", "♠")), "cashing the ace wins the trick for the defence, which is what the declarer wants");
+  assert.equal(key(led), key(c("2", "♠")));
+});
+
+test("a Misère defender keeps the bar low while the declarer is still to play", () => {
+  const game = table();
+  game.currentBid = { seat: 2, player: "u2", bid: "Misere", points: 250 };
+  game.players[0].folded = true;
+  game.players[1].hand = [c("5", "♥")];
+  game.players[3].hand = [c("K", "♥"), c("3", "♥")];
+  game.players[2].hand = [c("4", "♥"), c("9", "♥")];
+
+  game.playCard(1, c("5", "♥"));
+  // Seat 3 plays before the declarer. Winning the trick with the king would let
+  // the declarer duck under it with the four; the three leaves them stuck.
+  assert.equal(key(bot.choosePlay(game, 3).card), key(c("3", "♥")));
+});
+
+test("a Misère bidder forced to win as last player throws its biggest card", () => {
+  const game = table();
+  game.currentBid = { seat: 1, player: "u1", bid: "Misere", points: 250 };
+  game.players[3].folded = true;
+  game.players[0].hand = [c("2", "♠")];
+  game.players[2].hand = [c("3", "♠")];
+  game.players[1].hand = [c("K", "♠"), c("Q", "♠")];
+
+  game.playCard(0, c("2", "♠"));
+  game.playCard(2, c("3", "♠"));
+  // Both cards win, so the trick is lost either way; the king is the one that
+  // would be hardest to duck with later, so it's the one to spend.
+  assert.equal(key(bot.choosePlay(game, 1).card), key(c("K", "♠")));
+});
+
+test("an Open Misère defender leads a suit the declarer cannot duck", () => {
+  const game = table({ openMisere: true });
+  game.currentBid = { seat: 0, player: "u0", bid: "Open Misere", points: 500 };
+  game.players[2].folded = true;
+  // Hearts the declarer can duck in; clubs it cannot.
+  game.players[0].hand = [c("2", "♥"), c("Q", "♣"), c("J", "♣")];
+  game.players[1].hand = [c("8", "♥"), c("5", "♣"), c("4", "♥")];
+  game.players[3].hand = [c("9", "♥"), c("6", "♣"), c("3", "♥")];
+  // The hand only goes face up once a full trick has been played.
+  game.playedCards = [
+    { seat: 1, card: c("7", "♦") },
+    { seat: 0, card: c("6", "♦") },
+    { seat: 3, card: c("8", "♦") },
+  ];
+
+  assert.equal(key(bot.choosePlay(game, 1).card), key(c("5", "♣")));
+});
+
+test("a hidden Misère leaves the declarer's hand alone", () => {
+  // The same shape as above, but a plain Misère — nothing is face up, so the
+  // robot must not be reading the declarer's cards.
+  const game = table();
+  game.currentBid = { seat: 0, player: "u0", bid: "Misere", points: 250 };
+  game.players[2].folded = true;
+  game.players[0].hand = [c("2", "♥"), c("Q", "♣"), c("J", "♣")];
+  game.players[1].hand = [c("8", "♥"), c("5", "♣"), c("4", "♥")];
+  game.players[3].hand = [c("9", "♥"), c("6", "♣"), c("3", "♥")];
+
+  // Two hearts against one club, so length picks hearts and the four goes.
+  assert.equal(key(bot.choosePlay(game, 1).card), key(c("4", "♥")));
+});
