@@ -194,6 +194,11 @@
   text-align: center;
 }
 
+.waiting-bot {
+  width: 100%;
+  margin: 4px 0 18px;
+}
+
 .settings-list {
   display: flex;
   flex-direction: column;

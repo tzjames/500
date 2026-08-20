@@ -1,0 +1,9 @@
+# Training a 500 bot. Nothing here is needed to run the server — the exported
+# model is read by server/net.js, which has no dependencies at all.
+torch>=2.2
+numpy>=1.24
+
+# Only for ai/export_onnx.py, which is the alternative export for running
+# inference in the browser rather than on the server.
+onnx>=1.15
+onnxruntime>=1.17

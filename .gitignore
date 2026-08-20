@@ -11,6 +11,12 @@
 # production
 /build
 
+# bot training — checkpoints and logs are large and reproducible. The exported
+# model at server/models/bot.json is not ignored: it's what gets deployed.
+/ai/runs
+__pycache__/
+*.pyc
+
 # misc
 .DS_Store
 .env.local

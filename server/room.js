@@ -1,9 +1,17 @@
 const crypto = require("crypto");
 const Game500 = require("./gameLogic");
-const { checkBidMade } = Game500;
+const { checkBidMade, bidInfo } = Game500;
 const db = require("./db");
 const { Room4 } = require("./room4");
 const { isFriendlyGame } = require("./friendly");
+const bot2 = require("./bot2");
+// The robot names are the same list either game draws from; only the play is
+// game-specific.
+const { botName } = require("./bot");
+
+// How long a robot appears to think, and how often the watcher below looks to
+// see whether it owes the table a move.
+const BOT_PAUSE = 800;
 
 const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
@@ -39,9 +47,9 @@ class Room {
     // need to know whether this game was advertised publicly. persist() sets a
     // fixed list of fields, so the document's own value survives untouched.
     this.visibility = doc.visibility === "public" ? "public" : "private";
-    // Set once at creation and never changed after, like visibility above —
-    // the two-player game has no robots, so there's no "forced" case here and
-    // no waiting-room control to flip it later.
+    // Set once at creation and never changed after, like visibility above. It
+    // isn't the whole answer though: isFriendly() below also forces a table with
+    // a robot at it to be unrated, so nobody's Elo moves for beating one.
     this.friendly = Boolean(doc.friendly);
     this.slots = (doc.playerSlots || [null, null]).map((s) => (s ? { ...s, socketId: null } : null));
     this.status = doc.status || "waiting";
@@ -201,7 +209,12 @@ class Room {
     // the head-to-head after a game over has to include the game just won.
     return db.saveGame(this.id, {
       status: this.status,
-      playerSlots: this.slots.map((s) => (s ? { userId: s.userId, name: s.name } : null)),
+      // isBot rides along because friendly.js reads it straight off the
+      // persisted slots to decide the game isn't rated, and because a reload
+      // has to find the robot still sitting there.
+      playerSlots: this.slots.map((s) =>
+        s ? { userId: s.userId, name: s.name, isBot: Boolean(s.isBot) } : null
+      ),
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
       winner: this.winner,
@@ -255,8 +268,11 @@ class Room {
     return entry;
   }
 
+  // Robots don't count: a table sitting there with nobody but a robot at it is
+  // an empty table, for the lobby's presence dot and for the abandoned-table
+  // cleanup alike.
   connectedHumans() {
-    return this.slots.filter((s) => s && s.socketId).length;
+    return this.humanSlots().filter((s) => s.socketId).length;
   }
 
   isFriendly() {
@@ -339,6 +355,9 @@ class Room {
     }
 
     if (this.game) this.sendResumedState(socket);
+    // A reconnect has to restart the watcher: it stops itself when the last
+    // human leaves, so without this a reload would leave the robot frozen.
+    this.scheduleBotTurn();
   }
 
   handleDisconnect(socket) {
@@ -473,6 +492,7 @@ class Room {
     this.lastTrick = null;
     this.redealCount = 0;
     this.gamePhase = "bidding";
+    this.scheduleBotTurn();
 
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
     this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
@@ -498,6 +518,7 @@ class Room {
     this.lastTrick = null;
     this.redealCount = 0;
     this.gamePhase = "bidding";
+    this.scheduleBotTurn();
 
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
     this.io.to(this.id).emit("gameStart", this.gameStartPayload(dealData));
@@ -522,6 +543,7 @@ class Room {
     this.lastTrick = null;
     this.redealCount += 1;
     this.gamePhase = "bidding";
+    this.scheduleBotTurn();
 
     this.logEvent(logType, {});
     this.logEvent("deal", this.dealHandsLogPayload(dealData.dealerId));
@@ -1228,7 +1250,8 @@ class Room {
       // Carried over rather than reset: a friendly rematch should stay
       // friendly.
       friendly: this.friendly,
-      playerSlots: this.slots.map((s) => ({ userId: s.userId, name: s.name })),
+      // A rematch against a robot is still against that robot.
+      playerSlots: this.slots.map((s) => ({ userId: s.userId, name: s.name, isBot: Boolean(s.isBot) })),
       roundNumber: 1,
       scoreHistory: [],
       winner: null,
@@ -1238,6 +1261,191 @@ class Room {
       updatedAt: Date.now(),
     });
     this.io.to(this.id).emit("rematchStarted", { gameId: newGame._id });
+  }
+
+  // ---- robots ----
+
+  // This game had no robots at all until now. The shape is room4.js's: a robot
+  // fills the empty chair, and every decision it makes goes through the same
+  // method a human's socket would have called — placeBid, kittyDone, playCard —
+  // with a stand-in socket. So there is no second path through the rules to keep
+  // in step, and anything the robot tries that the rules forbid is rejected
+  // exactly as a human's would be.
+  humanSlots() {
+    return this.slots.filter((s) => s && !s.isBot);
+  }
+
+  isBotUser(userId) {
+    return this.slots.some((s) => s && s.isBot && s.userId === userId);
+  }
+
+  botSlot() {
+    return this.slots.find((s) => s && s.isBot) || null;
+  }
+
+  // A robot has no socket, so this is what it emits into.
+  botSocket(userId) {
+    return { userId, emit: () => {} };
+  }
+
+  // Fill the empty chair with a robot. Only before the deal — there's no way to
+  // hand a half-played hand over to one — and only for someone already sitting
+  // at the table.
+  addBot(socket) {
+    if (this.game) return;
+    const index = this.slots.findIndex((s) => s === null);
+    if (index === -1) return;
+    if (!this.slots.some((s) => s && s.userId === socket.userId)) return;
+
+    const taken = this.slots.filter(Boolean).map((s) => s.name);
+    this.slots[index] = {
+      userId: `bot:${crypto.randomUUID()}`,
+      name: botName(index, taken),
+      socketId: null,
+      isBot: true,
+    };
+    // A table with a robot at it is never rated — see friendly.js, which reads
+    // the isBot flag straight off the persisted slots.
+    this.status = "active";
+    this.broadcastPlayersUpdate();
+    this.persist();
+    if (this.slots.every(Boolean) && !this.game) this.startGame();
+  }
+
+  // What the robot owes the table right now, if anything.
+  //
+  // Questions come before turns: a human sitting on "do you accept?" is stuck
+  // until the robot answers, and unlike a turn there's no other way for the game
+  // to move on.
+  botActor() {
+    const bot = this.botSlot();
+    if (!bot || !this.game) return null;
+    const id = bot.userId;
+
+    if (this.pendingClaim && this.otherPlayerId(this.pendingClaim.fromPlayerId) === id) {
+      return { kind: "claim", userId: id };
+    }
+    if (this.pendingOffer && this.otherPlayerId(this.pendingOffer.fromPlayerId) === id) {
+      return { kind: "offer", userId: id };
+    }
+    if ((this.gamePhase === "roundEnd" || this.gamePhase === "gameOver") && this.roundEnd) {
+      // The next hand waits on both players saying they're ready.
+      return this.roundEnd.readyUserIds.has(id) ? null : { kind: "ready", userId: id };
+    }
+    if (this.gamePhase === "bidding" && this.currentBidder === id) {
+      return { kind: "bid", userId: id };
+    }
+    if (this.gamePhase === "kitty" && this.game.currentBid?.player === id) {
+      return { kind: "kitty", userId: id };
+    }
+    if (this.gamePhase === "playing") {
+      const seat = this.game.getCurrentSeat();
+      // Both of the robot's seats are its own to play: its hand and its dummy.
+      if (seat && seat.playerId === id) return { kind: "play", userId: id, isDummy: seat.isDummy };
+    }
+    return null;
+  }
+
+  // A robot's turn can begin after any of a dozen things — a bid, a discard, a
+  // card, a trick resolving, a round ending, an offer being answered — and
+  // room4.js handles that by calling into the scheduler from each of them. Doing
+  // the same here would mean a dozen insertions into this file, and *missing*
+  // one wouldn't be a robot that moves late, it would be a hand that stops dead
+  // with nobody able to play.
+  //
+  // So this watches instead of being told. While there's a live game with a
+  // robot at it, the timer re-arms itself and checks each time whether the robot
+  // owes the table anything. One timer per table, a check that's a few
+  // comparisons, and no way for a new transition added later to be forgotten.
+  // The cost is up to one pause of latency, which is what the pause is for.
+  scheduleBotTurn() {
+    if (this.botTimer || !this.botSlot()) return;
+    this.botTimer = setTimeout(() => {
+      this.botTimer = null;
+      this.tickBot();
+    }, BOT_PAUSE);
+    // A chain of timers that re-arms itself would otherwise hold the event loop
+    // open on its own — the server has a listening socket keeping it alive
+    // regardless, so nothing is lost by letting this one not count.
+    this.botTimer.unref?.();
+  }
+
+  tickBot() {
+    const actor = this.botActor();
+    if (actor) {
+      try {
+        this.runBotTurn(actor);
+      } catch (err) {
+        console.error(`robot in game ${this.id} failed on ${actor.kind}`, err);
+      }
+    }
+    // Keep watching, unless there's nothing left to watch: a finished game, or a
+    // table the human has walked away from — a robot playing on alone would keep
+    // this timer alive for as long as the process.
+    if (this.game && this.botSlot() && this.connectedHumans() > 0) this.scheduleBotTurn();
+  }
+
+  runBotTurn(actor) {
+    // Replay is the human's own review of a hand already played; nothing in it
+    // is the robot's to move.
+    if (this.gamePhase === "replay") return;
+    // The table may have moved on while the robot was thinking.
+    const current = this.botActor();
+    if (!current || current.kind !== actor.kind || current.userId !== actor.userId) return;
+
+    const socket = this.botSocket(actor.userId);
+    const game = this.game;
+
+    if (actor.kind === "claim") {
+      this.respondToClaim(socket, bot2.acceptsClaim(game, actor.userId));
+      return;
+    }
+
+    if (actor.kind === "offer") {
+      // A "let's both pass" is worth taking if the robot was going to pass
+      // anyway. A resignation and a redeal are the opponent's to ask for, and
+      // this game isn't rated, so they're simply granted.
+      const accept =
+        this.pendingOffer.type === "pass"
+          ? bot2.chooseBid(game, actor.userId, 0) === "Pass"
+          : true;
+      this.respondToOffer(socket, accept);
+      return;
+    }
+
+    if (actor.kind === "ready") {
+      this.roundEndReady(socket);
+      return;
+    }
+
+    if (actor.kind === "bid") {
+      const floor = game.currentBid ? game.currentBid.points : 0;
+      const call = bot2.chooseBid(game, actor.userId, floor);
+      const points = call === "Pass" ? 0 : bidInfo(call).points;
+      this.placeBid(socket, { bid: call, points });
+      return;
+    }
+
+    if (actor.kind === "kitty") {
+      this.kittyDone(socket, { newHand: bot2.chooseDiscard(game, actor.userId) });
+      return;
+    }
+
+    if (actor.kind === "play") {
+      const choice = bot2.choosePlay(game, actor.userId, actor.isDummy);
+      if (choice) {
+        this.playCard(socket, {
+          card: choice.card,
+          isDummy: actor.isDummy,
+          nominatedSuit: choice.nominatedSuit,
+        });
+      }
+    }
+  }
+
+  dispose() {
+    if (this.botTimer) clearTimeout(this.botTimer);
+    this.botTimer = null;
   }
 }
 

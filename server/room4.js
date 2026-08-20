@@ -3,7 +3,9 @@ const db = require("./db");
 const { Game500Four, availableBids, bidInfo } = require("./game4");
 const { sanitizeOptions } = require("./gameOptions");
 const { isFriendlyGame } = require("./friendly");
-const bot = require("./bot");
+// The trained policy if one has been deployed, and the rules of thumb in bot.js
+// if not — same four functions either way, so nothing below here changes.
+const bot = require("./botPolicy");
 
 // Mirrors of the client's theme registry (src/theme.js) — see room.js, which
 // keeps the same list for the two-player game.

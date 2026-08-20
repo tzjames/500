@@ -220,6 +220,7 @@ io.on("connection", (socket) => {
   socket.on("g4:setVisibility", ({ visibility }) => room?.setVisibility?.(socket, visibility));
   socket.on("g4:setFriendly", ({ friendly }) => room?.setFriendly?.(socket, friendly));
 
+  socket.on("addBot", () => room?.addBot?.(socket));
   socket.on("placeBid", (payload) => room?.placeBid(socket, payload));
   socket.on("setGameSettings", (settings) => room?.setGameSettings(socket, settings));
   socket.on("offerPass", () => room?.offerPass(socket));
