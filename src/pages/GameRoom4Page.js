@@ -707,6 +707,8 @@ function GameRoom4Page() {
         currentSeat={b.currentSeat}
         trumpSuit={b.trumpSuit}
         deckId={deckId}
+        bidderSeat={b.currentBid?.seat ?? null}
+        teamNames={state.teamNames || []}
         playedCards={cards}
         flyToSeat={mine ? flyToSeat : null}
         revealedHands={b.revealedHands || {}}
