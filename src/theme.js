@@ -145,7 +145,7 @@ export const DECKS = [
     art: "image",
     path: "/cards/scientists",
     back: "/cards/scientists/BACK.jpg",
-    ratio: 511 / 340,  // the shipped files, not the 399x600 source
+    ratio: 600 / 399,
   },
   {
     // The id stays "traveller" even though the deck is now called "Travelers" —
