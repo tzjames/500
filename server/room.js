@@ -249,6 +249,17 @@ class Room {
     if (slot?.socketId) this.io.to(slot.socketId).emit(event, payload);
   }
 
+  // What one player may know about a dummy hand: their own as cards, the other
+  // player's as a count only. Payloads carrying this have to go out per
+  // recipient rather than room-wide, or the cards ride along whether or not the
+  // client draws them. `revealedId` names a dummy that is deliberately face up
+  // — a claimer's, see claimRest.
+  dummyViewFor(p, viewerId, revealedId = null) {
+    return p.id === viewerId || p.id === revealedId
+      ? { dummyHand: p.dummyHand }
+      : { dummyHandSize: p.dummyHand.length };
+  }
+
   logEvent(type, payload) {
     const entry = { seq: this.log.length, round: this.roundNumber, type, ts: Date.now(), ...payload };
     this.log.push(entry);
@@ -354,7 +365,7 @@ class Room {
         id: p.id,
         name: p.name,
         hand: p.hand,
-        dummyHand: p.dummyHand,
+        ...this.dummyViewFor(p, socket.userId, this.revealedClaimerId),
         isDealer: p.isDealer,
         score: p.score,
         tricksWon: p.tricksWon,
@@ -428,7 +439,7 @@ class Room {
         id: p.id,
         name: p.name,
         hand: p.hand,
-        dummyHand: p.dummyHand,
+        ...this.dummyViewFor(p, socket.userId),
         isDealer: false,
         score: 0,
         tricksWon: p.tricksWon,
@@ -441,7 +452,11 @@ class Room {
         winningBidder: rg.currentBid.player,
         currentPlayer: rg.currentPlayer,
         currentIsDummy: seat?.isDummy || false,
-        players: rg.players.map((p) => ({ id: p.id, dummyHand: p.dummyHand, tricksWon: p.tricksWon })),
+        players: rg.players.map((p) => ({
+          id: p.id,
+          ...this.dummyViewFor(p, socket.userId),
+          tricksWon: p.tricksWon,
+        })),
         playedCards: rg.currentTrick,
       });
     } else if (rg.currentBid.player === socket.userId) {
@@ -766,12 +781,19 @@ class Room {
     activeGame.currentPlayer = socket.userId;
     if (mode !== "replay") this.gamePhase = "playing";
 
-    this.io.to(this.id).emit(mode === "replay" ? "replayKittyPhaseComplete" : "kittyPhaseComplete", {
-      winningBidder: socket.userId,
-      currentPlayer: socket.userId,
-      currentIsDummy: false,
-      players: activeGame.players.map((p) => ({ id: p.id, dummyHand: p.dummyHand, tricksWon: p.tricksWon })),
-    });
+    const event = mode === "replay" ? "replayKittyPhaseComplete" : "kittyPhaseComplete";
+    activeGame.players.forEach((viewer) =>
+      this.emitToUser(viewer.id, event, {
+        winningBidder: socket.userId,
+        currentPlayer: socket.userId,
+        currentIsDummy: false,
+        players: activeGame.players.map((p) => ({
+          id: p.id,
+          ...this.dummyViewFor(p, viewer.id),
+          tricksWon: p.tricksWon,
+        })),
+      })
+    );
     if (mode !== "replay") this.persist();
   }
 
@@ -906,6 +928,9 @@ class Room {
     this.emitToUser(this.otherPlayerId(socket.userId), "claimReceived", {
       fromName: this.nameOf(socket.userId),
       claimerId: socket.userId,
+      // The one moment the other player is meant to see this dummy, so its
+      // cards are sent here rather than sitting in their state from the deal.
+      claimerDummyHand: this.game.players.find((p) => p.id === socket.userId).dummyHand,
     });
     this.persist();
   }

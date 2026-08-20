@@ -39,6 +39,23 @@ function MatchRecordLine({ record, playerId }) {
   );
 }
 
+// The opponent's dummy arrives from the server as a count and not as cards —
+// you're never meant to see inside it — so a play from that one hand moves the
+// count, where every other hand has a card added to or taken out of it.
+const hiddenDummy = (p, isDummy) => isDummy && !p.dummyHand;
+
+function withoutCard(p, card, isDummy) {
+  if (hiddenDummy(p, isDummy)) return { ...p, dummyHandSize: (p.dummyHandSize || 0) - 1 };
+  const key = isDummy ? "dummyHand" : "hand";
+  return { ...p, [key]: (p[key] || []).filter((c) => !(c.suit === card.suit && c.value === card.value)) };
+}
+
+function withCard(p, card, isDummy) {
+  if (hiddenDummy(p, isDummy)) return { ...p, dummyHandSize: (p.dummyHandSize || 0) + 1 };
+  const key = isDummy ? "dummyHand" : "hand";
+  return { ...p, [key]: [...(p[key] || []), card] };
+}
+
 function GameRoomPage() {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
@@ -187,9 +204,20 @@ function GameRoomPage() {
     });
     socket.on("playersUpdate", ({ count }) => setConnectedPlayers(count));
 
-    socket.on("claimReceived", ({ fromName, claimerId }) => {
+    socket.on("claimReceived", ({ fromName, claimerId, claimerDummyHand }) => {
       setPendingClaimReceived({ fromName });
       setRevealedClaimerId(claimerId);
+      // Claiming turns the claimer's dummy face up, which is the first time
+      // this client has been sent its cards at all.
+      setGameState((prevState) => {
+        if (!prevState) return prevState;
+        return {
+          ...prevState,
+          players: prevState.players.map((p) =>
+            p.id === claimerId ? { ...p, dummyHand: claimerDummyHand } : p
+          ),
+        };
+      });
     });
     socket.on("claimResolved", ({ accepted, claimerId, revealedClaimerId: newRevealedId, byName, players }) => {
       setPendingClaimReceived(null);
@@ -200,7 +228,15 @@ function GameRoomPage() {
           ...prevState,
           players: prevState.players.map((p) => {
             const updated = players.find((u) => u.id === p.id);
-            return updated ? { ...p, hand: updated.hand, dummyHand: updated.dummyHand, tricksWon: updated.tricksWon } : p;
+            return updated
+              ? {
+                  ...p,
+                  hand: updated.hand,
+                  dummyHand: updated.dummyHand,
+                  dummyHandSize: updated.dummyHand.length,
+                  tricksWon: updated.tricksWon,
+                }
+              : p;
           }),
         }));
         setPlayedCards([]);
@@ -290,7 +326,7 @@ function GameRoomPage() {
         ...prevState,
         players: prevState.players.map((p) => {
           const dealt = dummyDeal?.find((d) => d.id === p.id);
-          return dealt ? { ...p, dummyHand: dealt.dummyHand, tricksWon: dealt.tricksWon } : p;
+          return dealt ? { ...p, ...dealt } : p;
         }),
       }));
     });
@@ -314,11 +350,7 @@ function GameRoomPage() {
         if (!prevState) return prevState;
         return {
           ...prevState,
-          players: prevState.players.map((p) => {
-            if (p.id !== cardPlayerId) return p;
-            const key = isDummy ? "dummyHand" : "hand";
-            return { ...p, [key]: (p[key] || []).filter((c) => !(c.suit === card.suit && c.value === card.value)) };
-          }),
+          players: prevState.players.map((p) => (p.id === cardPlayerId ? withoutCard(p, card, isDummy) : p)),
         };
       });
       if (cardPlayerId === playerId) setInvalidPlayMessage("");
@@ -334,11 +366,7 @@ function GameRoomPage() {
         if (!prevState) return prevState;
         return {
           ...prevState,
-          players: prevState.players.map((p) => {
-            if (p.id !== cardPlayerId) return p;
-            const key = isDummy ? "dummyHand" : "hand";
-            return { ...p, [key]: [...(p[key] || []), card] };
-          }),
+          players: prevState.players.map((p) => (p.id === cardPlayerId ? withCard(p, card, isDummy) : p)),
         };
       });
     });
@@ -520,7 +548,7 @@ function GameRoomPage() {
           playedCards: pc || [],
           players: r.players.map((p) => {
             const dealt = dummyDeal?.find((d) => d.id === p.id);
-            return dealt ? { ...p, dummyHand: dealt.dummyHand, tricksWon: dealt.tricksWon } : p;
+            return dealt ? { ...p, ...dealt } : p;
           }),
         };
       });
@@ -536,11 +564,7 @@ function GameRoomPage() {
           invalidPlayMessage: cardPlayerId === playerId ? "" : r.invalidPlayMessage,
           flyingWinner: null,
           playedCards: [...base, { playerId: cardPlayerId, card, isDummy }],
-          players: r.players.map((p) => {
-            if (p.id !== cardPlayerId) return p;
-            const key = isDummy ? "dummyHand" : "hand";
-            return { ...p, [key]: (p[key] || []).filter((c) => !(c.suit === card.suit && c.value === card.value)) };
-          }),
+          players: r.players.map((p) => (p.id === cardPlayerId ? withoutCard(p, card, isDummy) : p)),
         };
       });
     });
@@ -1029,7 +1053,7 @@ function GameRoomPage() {
                 <GameTable
                   playedCards={replay.playedCards}
                   opponentHandSize={replayOtherPlayerData?.hand?.length || 0}
-                  opponentDummyHandSize={replayOtherPlayerData?.dummyHand?.length || 0}
+                  opponentDummyHandSize={replayOtherPlayerData?.dummyHandSize || 0}
                   playerHand={replayCurrentPlayerData?.hand || []}
                   playerDummyHand={replayCurrentPlayerData?.dummyHand || []}
                   onPlayCard={(card, isDummy) => handleReplayPlayCard(card, isDummy)}
@@ -1238,7 +1262,7 @@ function GameRoomPage() {
             <GameTable
               playedCards={playedCards}
               opponentHandSize={otherPlayerData?.hand?.length || 0}
-              opponentDummyHandSize={gamePhase === "playing" ? otherPlayerData?.dummyHand?.length || 0 : 10}
+              opponentDummyHandSize={gamePhase === "playing" ? otherPlayerData?.dummyHandSize || 0 : 10}
               playerHand={currentPlayerData.hand || []}
               playerDummyHand={currentPlayerData.dummyHand || []}
               onPlayCard={(card, isDummy) => playCard(card, isDummy)}
