@@ -312,15 +312,54 @@ function nominateSuit(hand) {
   return counts[0].suit;
 }
 
+// Lead low out of the longest suit and keep the honours back, off a side suit
+// where there is one.
+function lowLeadFromLength(game, legal) {
+  const trump = game.trumpSuit;
+  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
+  const pool = sideSuits.length > 0 ? sideSuits : legal;
+  const byLength = {};
+  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
+  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
+  const fromLongest = pool.filter((card) => card.suit === longest);
+  return lowest(fromLongest.length > 0 ? fromLongest : pool, game);
+}
+
+// The lead once nothing the opponent holds can ruff. Every trump left in hand is
+// a trick whenever you care to take it, so the lead stops being about trumps and
+// starts being about the rest of the hand.
+function leadNothingToRuffWith(game, playerId, legal) {
+  const trump = game.trumpSuit;
+  const trumps = legal.filter((card) => countsAsTrump(card, trump));
+  const side = legal.filter((card) => !countsAsTrump(card, trump));
+
+  // Cash a side winner ahead of a trump. It takes the trick just the same, and
+  // it makes them follow suit rather than handing them a free discard to throw a
+  // loser on.
+  const sideWinners = side.filter((card) => isTopRemaining(game, playerId, card));
+  if (sideWinners.length > 0) return { card: highest(sideWinners, game) };
+
+  // Trumps and one odd card: run the trumps and keep the odd one for last. They
+  // have to find a discard every round, not knowing which suit to keep guarded.
+  if (side.length === 1 && trumps.length > 0) return { card: highest(trumps, game) };
+
+  if (side.length > 0) return { card: lowLeadFromLength(game, side) };
+  return { card: highest(trumps, game) };
+}
+
 function chooseLead(game, playerId, hand, legal) {
   if (isAvoidingTricks(game, playerId)) return { card: lowest(legal, game) };
 
   const trump = game.trumpSuit;
   const onContract = game.currentBid && game.currentBid.player === playerId;
 
+  if (trump && !theyHoldTrumps(game, playerId)) {
+    return leadNothingToRuffWith(game, playerId, legal);
+  }
+
   // Declaring with trumps: pull the opponent's trumps while you still hold the
   // top of the suit. Both of your hands can draw, so this applies from either.
-  if (onContract && trump && theyHoldTrumps(game, playerId)) {
+  if (onContract && trump) {
     const trumps = legal.filter((card) => countsAsTrump(card, trump));
     if (trumps.length > 0) {
       const top = highest(trumps, game);
@@ -331,13 +370,7 @@ function chooseLead(game, playerId, hand, legal) {
   const winners = legal.filter((card) => !isJoker(card) && isTopRemaining(game, playerId, card));
   if (winners.length > 0) return { card: highest(winners, game) };
 
-  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
-  const pool = sideSuits.length > 0 ? sideSuits : legal;
-  const byLength = {};
-  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
-  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
-  const fromLongest = pool.filter((card) => card.suit === longest);
-  return { card: lowest(fromLongest.length > 0 ? fromLongest : pool, game) };
+  return { card: lowLeadFromLength(game, legal) };
 }
 
 function chooseFollow(game, playerId, hand, legal) {

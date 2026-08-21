@@ -274,6 +274,40 @@ test("a trump still gets drawn while one opponent might hold one", () => {
   assert.equal(bot.choosePlay(game, 0).card.suit, "♠");
 });
 
+test("a side winner is cashed ahead of a trump when nothing can ruff", () => {
+  const game = table();
+  game.trumpSuit = "♠";
+  game.currentBid = { seat: 0, player: "u0", bid: "8 ♠", points: 240 };
+  bothOpponentsOutOfTrumps(game);
+  // The Joker went on that first trick, which leaves the right bower the best
+  // trump in the deal — so both it and the ace of diamonds take the trick for
+  // certain. The ace is the one to spend: nothing can take the bower off you
+  // later, and leading the side suit makes them follow it instead of handing
+  // them a free discard to throw a loser on.
+  game.playedCards[0] = { seat: 0, playerId: "u0", card: JOKER };
+  game.players[0].hand = [c("J", "♠"), c("A", "♦"), c("3", "♥")];
+
+  const choice = bot.choosePlay(game, 0);
+  assert.deepEqual(
+    { value: choice.card.value, suit: choice.card.suit },
+    { value: "A", suit: "♦" },
+    "spent the top trump on a trick the ace would have taken"
+  );
+});
+
+test("trumps are run first when only one odd card is left beside them", () => {
+  const game = table();
+  game.trumpSuit = "♠";
+  game.currentBid = { seat: 0, player: "u0", bid: "8 ♠", points: 240 };
+  bothOpponentsOutOfTrumps(game);
+  // Nothing here wins on its own — the odd card is a loser and the trumps are
+  // under the bowers. Run the trumps anyway and keep the loser back: they have
+  // to throw something on each round, and it may well be its guard.
+  game.players[0].hand = [c("9", "♠"), c("8", "♠"), c("3", "♥")];
+
+  assert.equal(bot.choosePlay(game, 0).card.suit, "♠");
+});
+
 test("leading the Joker at no trumps always comes with a nomination", () => {
   const game = table();
   game.currentBid = { seat: 0, player: "u0", bid: "7 NT", points: 220 };

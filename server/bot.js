@@ -368,6 +368,31 @@ function lowLeadFromLength(game, legal) {
   return lowest(fromLongest.length > 0 ? fromLongest : pool, game);
 }
 
+// The lead once nothing the opponents hold can ruff. Every trump left in hand is
+// a trick whenever you care to take it, so the lead stops being about trumps and
+// starts being about the rest of the hand.
+function leadNothingToRuffWith(game, seat, legal) {
+  const trump = game.trumpSuit;
+  const trumps = legal.filter((card) => countsAsTrump(card, trump));
+  const side = legal.filter((card) => !countsAsTrump(card, trump));
+
+  // Cash a side winner ahead of a trump. It takes the trick just the same, and
+  // it makes the opponents follow suit rather than handing them a free discard
+  // to throw a loser on.
+  const sideWinners = side.filter((card) => isTopRemaining(game, seat, card));
+  if (sideWinners.length > 0) return { card: highest(sideWinners, game) };
+
+  // Trumps and one odd card: run the trumps and keep the odd one for last. They
+  // have to find a discard every round, not knowing which suit to keep guarded,
+  // and the card they throw is often the one that was holding yours off.
+  if (side.length === 1 && trumps.length > 0) return { card: highest(trumps, game) };
+
+  // Nothing to cash: lead low from a side suit and leave the trumps where they
+  // are, since no card out there can take one off you later.
+  if (side.length > 0) return { card: lowLeadFromLength(game, side) };
+  return { card: highest(trumps, game) };
+}
+
 function chooseLead(game, seat, legal) {
   const avoiding = isAvoidingTricks(game, seat);
   if (avoiding) return { card: lowest(legal, game) };
@@ -385,9 +410,13 @@ function chooseLead(game, seat, legal) {
   const onContract =
     game.currentBid && game.teamOf(seat) === game.teamOf(game.currentBid.seat);
 
+  if (trump && !opponentsHoldTrumps(game, seat)) {
+    return leadNothingToRuffWith(game, seat, legal);
+  }
+
   // Declaring side with trumps: pull the opponents' trumps out while you still
   // hold the top of the suit, which is the whole of basic 500 declarer play.
-  if (onContract && trump && opponentsHoldTrumps(game, seat)) {
+  if (onContract && trump) {
     const trumps = legal.filter((card) => countsAsTrump(card, trump));
     // Worth doing off the top of the suit, or off length — a losing trump lead
     // from five still strips the defenders and clears the way for the rest.

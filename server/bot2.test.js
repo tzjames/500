@@ -338,6 +338,32 @@ test("a trump still gets drawn while one of the opponent's hands might hold one"
   assert.equal(bot2.choosePlay(game, 1, false).card.suit, "♠");
 });
 
+test("a side winner is cashed ahead of a trump when nothing can ruff", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  // The Joker led that trick and is gone, so the right bower is the best trump
+  // left and takes the trick for certain — but so does the ace of diamonds, and
+  // nothing can take the bower off you later.
+  game.playedCards[0] = { playerId: 1, isDummy: false, card: JOKER };
+  game.players[0].hand = [c("J", "♠"), c("A", "♦"), c("3", "♥")];
+
+  assert.equal(key(bot2.choosePlay(game, 1, false).card), key(c("A", "♦")));
+});
+
+test("trumps are run first when only one odd card is left beside them", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  game.players[0].hand = [c("9", "♠"), c("8", "♠"), c("3", "♥")];
+
+  assert.equal(bot2.choosePlay(game, 1, false).card.suit, "♠");
+});
+
 test("a Misère bidder ducks as high as it can without winning", () => {
   const game = new Game500();
   game.currentBid = { player: 1, bid: "Misere", points: 250 };
