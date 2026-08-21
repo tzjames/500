@@ -46,6 +46,10 @@
    middle column is the only one that flexes, so the panels keep their width as
    the window narrows. */
 .board-row {
+  /* One definition of how wide a side panel is, so the last-trick box and the
+     help controls under it can't drift apart — anything in the column that
+     wanted to be wider used to widen the whole column with it. */
+  --side-panel-w: 212px;
   display: flex;
   align-items: stretch;
   gap: 16px;
@@ -66,6 +70,7 @@
    width and stay together when the row wraps them out of sight. */
 .side-column {
   flex: 0 0 auto;
+  width: var(--side-panel-w, 212px);
   display: flex;
   flex-direction: column;
   gap: 10px;

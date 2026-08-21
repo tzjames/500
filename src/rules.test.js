@@ -1,4 +1,4 @@
-import { trumpOrder, noTrumpReason, bidValue } from "./rules";
+import { trumpOrder, noTrumpReason, trumpOrderState, bidValue, EXAMPLE_SUIT } from "./rules";
 
 const labels = (trumpSuit, variant) => trumpOrder(trumpSuit, variant).map((e) => e.label);
 
@@ -41,9 +41,8 @@ test("the two-player game deals a full pack, so its suits run down to the two", 
 
 // Why the Trump order button is greyed out. Each of these is a different reason
 // and the button says which, rather than just going dim.
-test("there is no trump order to show without a trump suit", () => {
+test("a contract with no trump suit has no order to show", () => {
   expect(noTrumpReason("♠", "6 ♠")).toBeNull();
-  expect(noTrumpReason(null, null)).toMatch(/No contract yet/);
   expect(noTrumpReason(null, "Misere")).toMatch(/no-tricks contract/i);
   expect(noTrumpReason(null, "Open Misere")).toMatch(/no-tricks contract/i);
   expect(noTrumpReason(null, "7 NT")).toMatch(/No-trumps/);
@@ -52,6 +51,35 @@ test("there is no trump order to show without a trump suit", () => {
 
 test("a table that calls it Nullo is still recognised as a no-tricks contract", () => {
   expect(noTrumpReason(null, "Nullo")).toMatch(/no-tricks contract/i);
+});
+
+// During the auction nothing is trumps, but the shape of the order is the same
+// whichever suit wins — and that's exactly when someone is trying to work out
+// what a bid is worth, so the panel shows a worked example instead of refusing.
+test("the auction gets an example suit rather than a locked button", () => {
+  const bidding = trumpOrderState(null, null, "four");
+  expect(bidding.mode).toBe("example");
+  expect(bidding.suit).toBe(EXAMPLE_SUIT);
+  expect(bidding.order.map((e) => e.label).slice(0, 4)).toEqual([
+    "Joker", "J♠", "J♣", "A♠",
+  ]);
+  expect(bidding.reason).toBeNull();
+});
+
+test("a settled trump suit is shown for real, not as an example", () => {
+  const live = trumpOrderState("♥", "7 ♥", "four");
+  expect(live.mode).toBe("live");
+  expect(live.suit).toBe("♥");
+  expect(live.order[1].label).toBe("J♥");
+});
+
+test("a no-trumps or no-tricks contract still blocks the panel", () => {
+  for (const bid of ["7 NT", "Misere", "Open Misere", "Nullo"]) {
+    const state = trumpOrderState(null, bid, "four");
+    expect(state.mode).toBe("blocked");
+    expect(state.order).toEqual([]);
+    expect(state.reason).toBeTruthy();
+  }
 });
 
 // The Avondale schedule, which is what the modal's grid is drawn from.

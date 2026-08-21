@@ -3,7 +3,7 @@ import Card from "./Card";
 import RulesModal from "./RulesModal";
 import { getDeck } from "../theme";
 import { cardColor } from "../cards";
-import { trumpOrder, noTrumpReason } from "../rules";
+import { trumpOrderState } from "../rules";
 import "./GameHelp.css";
 
 // The two help controls, sitting under the last trick. Rules opens a modal;
@@ -14,8 +14,8 @@ function GameHelp({ variant, trumpSuit, bid, options, deckId }) {
   const [showRules, setShowRules] = useState(false);
   const [showTrumps, setShowTrumps] = useState(false);
 
-  const blocked = noTrumpReason(trumpSuit, bid);
-  const order = blocked ? [] : trumpOrder(trumpSuit, variant);
+  const trumps = trumpOrderState(trumpSuit, bid, variant);
+  const blocked = trumps.mode === "blocked";
   const deck = getDeck(deckId);
 
   return (
@@ -32,28 +32,43 @@ function GameHelp({ variant, trumpSuit, bid, options, deckId }) {
           type="button"
           className="btn-ghost game-help-button"
           onClick={() => setShowTrumps((open) => !open)}
-          disabled={Boolean(blocked)}
+          disabled={blocked}
           // Greyed out with no explanation reads as a bug, so the reason rides
           // along as the tooltip.
-          title={blocked || "Show the trump suit in order, highest first"}
+          title={
+            trumps.reason ||
+            (trumps.mode === "example"
+              ? `Nothing is trumps yet — shows ${trumps.suit} as an example`
+              : "Show the trump suit in order, highest first")
+          }
           aria-expanded={showTrumps}
         >
           Trump order
         </button>
       </div>
 
-      {blocked && <p className="game-help-note">{blocked}</p>}
+      {blocked && <p className="game-help-note">{trumps.reason}</p>}
 
-      {showTrumps && order.length > 0 && (
+      {showTrumps && trumps.order.length > 0 && (
         <div className="trump-order">
-          <p className="trump-order-cap">Highest</p>
+          {/* Said plainly, so an example during the auction can't be mistaken
+              for the suit having been settled. */}
+          {trumps.mode === "example" ? (
+            <p className="trump-order-example">
+              Nothing is trumps yet. If{" "}
+              <span className={cardColor(trumps.suit)}>{trumps.suit}</span> were,
+              the order would run:
+            </p>
+          ) : (
+            <p className="trump-order-cap">Highest</p>
+          )}
           <ol className="trump-order-list">
-            {order.map((entry) => (
+            {trumps.order.map((entry) => (
               <li key={entry.label} className="trump-order-row">
                 <Card
                   card={entry.card}
                   deck={deck}
-                  trumpSuit={trumpSuit}
+                  trumpSuit={trumps.suit}
                   width={null}
                   disabled
                   className={cardColor(entry.card.suit)}
@@ -68,6 +83,11 @@ function GameHelp({ variant, trumpSuit, bid, options, deckId }) {
             ))}
           </ol>
           <p className="trump-order-cap">Lowest</p>
+          {trumps.mode === "example" && (
+            <p className="trump-order-example trump-order-example-foot">
+              Whichever suit wins the auction, the shape is the same.
+            </p>
+          )}
         </div>
       )}
 

@@ -53,17 +53,41 @@ export function trumpOrder(trumpSuit, variant = "four") {
   ];
 }
 
-// Why the trump order can't be shown, or null when it can. The auction, a
-// no-trump contract and a Misère all end up with no trump suit, and saying
-// which one it is beats greying out a button for no stated reason.
+// Why the trump order can't be shown, or null when it can. A no-trump contract
+// and a Misère genuinely have no order to show, and saying which one it is
+// beats greying out a button for no stated reason.
 export function noTrumpReason(trumpSuit, bid) {
   if (trumpSuit) return null;
-  if (!bid) return "No contract yet — nothing is trumps until the auction ends.";
-  if (bid.includes("Misere") || bid.includes("Nullo")) {
+  if (bid && (bid.includes("Misere") || bid.includes("Nullo"))) {
     return "A no-tricks contract is played without trumps.";
   }
-  if (bid.includes("NT")) return "No-trumps: the Joker is the only card above an ace.";
-  return "This contract has no trump suit.";
+  if (bid && bid.includes("NT")) {
+    return "No-trumps: the Joker is the only card above an ace.";
+  }
+  if (bid) return "This contract has no trump suit.";
+  return null;
+}
+
+// The suit shown as an example before anything is trumps. Spades is the lowest
+// bid and the first suit everywhere else in the app, so it's the least
+// surprising stand-in.
+export const EXAMPLE_SUIT = "♠";
+
+// What the trump-order panel should show. Once a suit is trumps, that suit.
+// During the auction nothing is trumps yet — but the shape of the order is the
+// same whichever suit wins, and the auction is exactly when someone is working
+// out what a bid is worth, so it shows one suit as an example rather than
+// refusing. Only a contract that really has no trumps blocks it.
+export function trumpOrderState(trumpSuit, bid, variant = "four") {
+  const reason = noTrumpReason(trumpSuit, bid);
+  if (reason) return { mode: "blocked", reason, suit: null, order: [] };
+  const suit = trumpSuit || EXAMPLE_SUIT;
+  return {
+    mode: trumpSuit ? "live" : "example",
+    reason: null,
+    suit,
+    order: trumpOrder(suit, variant),
+  };
 }
 
 // The Avondale schedule, which both sizes of game use.
