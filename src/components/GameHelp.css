@@ -1,0 +1,115 @@
+/* The help controls sit under the last trick, in the same column and to the
+   same width, so they read as part of that side of the board rather than as
+   something floating on the felt. */
+.game-help {
+  width: 100%;
+}
+
+.game-help-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.game-help-button {
+  flex: 1;
+  padding: 7px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.game-help-button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.game-help-note {
+  margin: 7px 2px 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  opacity: 0.6;
+}
+
+/* ---- the trump order box ---- */
+
+.trump-order {
+  --trump-card: 34px;
+  /* How far each card sits below the one above. Enough of the card above stays
+     visible to recognise it; the label beside it is what carries the rank. */
+  --trump-step: 23px;
+  margin-top: 8px;
+  padding: 10px 10px 8px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-panel);
+  /* A last resort. Fifteen trumps overlapped come to about 400px, which fits a
+     normal window; this only bites on a very short one, and scrolling beats
+     running off the bottom of the screen. */
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.trump-order-cap {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  text-align: center;
+}
+
+/* Overlapped rather than listed: a spade contract is twelve cards and a
+   two-player red one fifteen, and upright they came to 700px of column and had
+   to scroll — which rather defeats a panel you open to check something at a
+   glance. Each row is one step tall and its card overflows down over the rows
+   below, so the whole thing reads as one fanned stack. */
+.trump-order-list {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0 0 calc(var(--trump-card) * var(--card-ratio, 1.5) - var(--trump-step));
+  display: grid;
+  grid-auto-rows: var(--trump-step);
+}
+
+.trump-order-row {
+  display: grid;
+  grid-template-columns: var(--trump-card) 1fr;
+  align-items: start;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* Later cards paint over earlier ones, which is what makes the overlap read as
+   a stack dealt downwards rather than a pile of clipped rectangles. */
+.trump-order-row .pc {
+  --card-w: var(--trump-card);
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+/* Name and note on one line: the row is only a step tall, so a second line
+   would collide with the row beneath it. */
+.trump-order-text {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  line-height: var(--trump-step);
+}
+
+.trump-order-name {
+  font-family: var(--serif);
+  font-size: 14px;
+}
+
+.trump-order-note {
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  opacity: 0.55;
+  white-space: nowrap;
+}

@@ -6,6 +6,7 @@ import ThemedTable from "../components/ThemedTable";
 import ThemePicker from "../components/ThemePicker";
 import ContractPanel from "../components/ContractPanel";
 import LastTrickPanel from "../components/LastTrickPanel";
+import GameHelp from "../components/GameHelp";
 import BiddingInterface from "../components/BiddingInterface";
 import GameTable from "../components/GameTable";
 import AnimatedHand from "../components/AnimatedHand";
@@ -1432,12 +1433,20 @@ function GameRoomPage() {
             )}
           </div>
 
-          <LastTrickPanel
-            lastTrick={lastTrick}
-            playerId={playerId}
-            deckId={deckId}
-            opponentName={opponentName}
-          />
+          <div className="side-column">
+            <LastTrickPanel
+              lastTrick={lastTrick}
+              playerId={playerId}
+              deckId={deckId}
+              opponentName={opponentName}
+            />
+            <GameHelp
+              variant="two"
+              trumpSuit={gameState.trumpSuit}
+              bid={gameState.currentBid?.bid}
+              deckId={deckId}
+            />
+          </div>
         </div>
       )}
 

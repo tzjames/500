@@ -8,6 +8,7 @@ import GameTable4 from "../components/GameTable4";
 import BiddingInterface4 from "../components/BiddingInterface4";
 import ContractPanel4 from "../components/ContractPanel4";
 import LastTrickPanel4 from "../components/LastTrickPanel4";
+import GameHelp from "../components/GameHelp";
 import RoundEnd4Modal from "../components/RoundEnd4Modal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import ScoreHistoryModal from "../components/ScoreHistoryModal";
@@ -813,12 +814,21 @@ function GameRoom4Page() {
           )}
         </div>
 
-        <LastTrickPanel4
-          lastTrick={state.lastTrick}
-          seats={state.seats || []}
-          mySeat={state.you.seat}
-          deckId={deckId}
-        />
+        <div className="side-column">
+          <LastTrickPanel4
+            lastTrick={state.lastTrick}
+            seats={state.seats || []}
+            mySeat={state.you.seat}
+            deckId={deckId}
+          />
+          <GameHelp
+            variant="four"
+            trumpSuit={state.trumpSuit}
+            bid={state.currentBid?.bid}
+            options={state.options}
+            deckId={deckId}
+          />
+        </div>
       </div>
 
       {/* Blind bidding: asked once, when the auction reaches you, before you've
