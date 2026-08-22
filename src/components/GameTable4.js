@@ -34,6 +34,10 @@ function GameTable4({
   teamNames = [],
   playedCards,
   flyToSeat,
+  // Trick counts to show, seat by seat, held back while a won trick is still
+  // flying to its pile — see shownTricks in GameRoom4Page. Falls back to the
+  // live counts when there's nothing being animated.
+  shownTricks = null,
   revealedHands = {},
   statusText,
   isYourTurn = false,
@@ -67,8 +71,10 @@ function GameTable4({
   const pileAnchor =
     bidderSeat === null || bidderSeat === undefined ? reference : bidderSeat;
   const pileSeats = [pileAnchor, (pileAnchor + 1) % 4];
+  const tricksFor = (s) =>
+    shownTricks && shownTricks[s.seat] !== undefined ? shownTricks[s.seat] : s.tricksWon || 0;
   const teamTricks = (team) =>
-    seats.reduce((total, s) => (s.team === team ? total + (s.tricksWon || 0) : total), 0);
+    seats.reduce((total, s) => (s.team === team ? total + tricksFor(s) : total), 0);
   // Named the way the contract panel names the two sides. The pill clips at
   // 15ch, which a partnership's full name — two names joined by an ampersand —
   // blows straight past; "Your side" also says more at a glance than half of

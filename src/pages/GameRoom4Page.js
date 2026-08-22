@@ -194,6 +194,26 @@ function GameRoom4Page() {
     ];
   }, [state, dealKey]);
 
+  // What the piles show. The server credits a trick the moment it resolves and
+  // pushes the new count straight away, but the pile shouldn't grow until the
+  // cards have actually flown into it — so the counts are held at what they were
+  // until the animation finishes.
+  //
+  // Held as a snapshot rather than by subtracting one from the winner, because
+  // g4:trickResolved and the state carrying the increment are two separate
+  // messages: in the gap between them, subtracting showed the winner one short.
+  // Freezing can't do that whichever order they land in.
+  const [shownTricks, setShownTricks] = useState(null);
+  useEffect(() => {
+    if (pendingTrick) return;
+    const seats = state?.seats;
+    if (!seats || seats.length === 0) return;
+    setShownTricks((prev) => {
+      if (prev && seats.every((s) => prev[s.seat] === (s.tricksWon || 0))) return prev;
+      return Object.fromEntries(seats.map((s) => [s.seat, s.tricksWon || 0]));
+    });
+  }, [state, pendingTrick]);
+
   // A card hitting the table. Counted as cards played in the whole hand rather
   // than the length of the live trick: two snapshots can arrive in one render,
   // and at a trick boundary the live trick then appears to *shrink* — 4 cards
@@ -733,6 +753,7 @@ function GameRoom4Page() {
         teamNames={state.teamNames || []}
         playedCards={cards}
         flyToSeat={mine ? flyToSeat : null}
+        shownTricks={mode === "replay" ? null : shownTricks}
         revealedHands={b.revealedHands || {}}
         statusText={statusText}
         isYourTurn={yourTurn}

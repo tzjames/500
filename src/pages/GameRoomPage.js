@@ -21,6 +21,17 @@ import { playSound, preloadSounds } from "../sounds";
 import "../App.css";
 
 // A finished trick sits on the table for a beat, then flies to the winner.
+// The server credits a trick the moment it resolves, but the pile shouldn't
+// grow until the cards have actually flown into it — otherwise the count jumps
+// a beat and a half before the trick visibly arrives. While a finished trick is
+// still on the felt its winner is shown one short, so the stack and the number
+// both move as the cards land. `settling` is the trick being animated away.
+const tricksShown = (player, settling) => {
+  const won = player?.tricksWon || 0;
+  if (!player || !settling || settling.winnerId !== player.id) return won;
+  return Math.max(0, won - 1);
+};
+
 const TRICK_LINGER_MS = 2000;
 const TRICK_FLY_MS = 600;
 
@@ -173,6 +184,9 @@ function GameRoomPage() {
   const replayTrickTokenCounterRef = useRef(0);
   const replayPendingClearTokenRef = useRef(null);
   const [flyingWinner, setFlyingWinner] = useState(null);
+  // The trick on its way to a pile: credited by the server already, not yet
+  // shown in that player's count. See tricksShown.
+  const [settlingTrick, setSettlingTrick] = useState(null);
   // Tracks the server's log seq of the last "cardPlayed" we actually saw, so
   // a dropped broadcast (a connectivity blip that doesn't fully disconnect)
   // shows up as a gap instead of silently leaving stale face-down cards in
@@ -310,6 +324,7 @@ function GameRoomPage() {
       pendingClearTokenRef.current = null;
       lastPlaySeqRef.current = null;
       setFlyingWinner(null);
+      setSettlingTrick(null);
       setLastTrick(null);
       setExposed({});
       setCurrentPlayer(null);
@@ -392,6 +407,9 @@ function GameRoomPage() {
       playSound("play");
       const isFreshTrick = pendingClearTokenRef.current !== null;
       pendingClearTokenRef.current = null;
+      // The previous trick's animation is being cut short by the next card, so
+      // stop holding its count back.
+      if (isFreshTrick) setSettlingTrick(null);
       setPlayedCards((prev) => {
         const base = isFreshTrick ? [] : prev;
         return [...base, { playerId: cardPlayerId, card, isDummy }];
@@ -450,6 +468,7 @@ function GameRoomPage() {
       pendingClearTokenRef.current = null;
       lastPlaySeqRef.current = null;
       setFlyingWinner(null);
+      setSettlingTrick(null);
       setLastTrick(state.lastTrick || null);
       setExposed(state.exposed || {});
       // Rejoining mid-round is not a deal — show the hand as it stands.
@@ -550,6 +569,7 @@ function GameRoomPage() {
         }),
       }));
       if (resolved) setLastTrick(resolved);
+      setSettlingTrick({ winnerId: winner });
       const token = ++trickTokenCounterRef.current;
       pendingClearTokenRef.current = token;
       setTimeout(() => {
@@ -560,6 +580,8 @@ function GameRoomPage() {
             pendingClearTokenRef.current = null;
             setPlayedCards([]);
             setFlyingWinner(null);
+            // The cards have landed, so the trick is now theirs to show.
+            setSettlingTrick(null);
           }
         }, TRICK_FLY_MS);
       }, TRICK_LINGER_MS);
@@ -646,6 +668,9 @@ function GameRoomPage() {
           ...r,
           invalidPlayMessage: cardPlayerId === playerId ? "" : r.invalidPlayMessage,
           flyingWinner: null,
+          // The next card cuts the previous trick's flight short, so its count
+          // stops being held back.
+          settling: null,
           playedCards: [...base, { playerId: cardPlayerId, card, isDummy }],
           players: r.players.map((p) => (p.id === cardPlayerId ? withoutCard(p, card, isDummy) : p)),
         };
@@ -663,6 +688,7 @@ function GameRoomPage() {
           }),
         };
       });
+      setReplay((r) => (r ? { ...r, settling: { winnerId: winner } } : r));
       const token = ++replayTrickTokenCounterRef.current;
       replayPendingClearTokenRef.current = token;
       setTimeout(() => {
@@ -671,7 +697,7 @@ function GameRoomPage() {
         setTimeout(() => {
           if (replayPendingClearTokenRef.current === token) {
             replayPendingClearTokenRef.current = null;
-            setReplay((r) => (r ? { ...r, playedCards: [], flyingWinner: null } : r));
+            setReplay((r) => (r ? { ...r, playedCards: [], flyingWinner: null, settling: null } : r));
           }
         }, 600);
       }, 2000);
@@ -1134,8 +1160,9 @@ function GameRoomPage() {
               <>
                 <div className="replay-status">
                   <span>
-                    Tricks — You: {replayCurrentPlayerData?.tricksWon || 0}, {replayOtherPlayerData?.name}:{" "}
-                    {replayOtherPlayerData?.tricksWon || 0}
+                    Tricks — You: {tricksShown(replayCurrentPlayerData, replay.settling)},{" "}
+                    {replayOtherPlayerData?.name}:{" "}
+                    {tricksShown(replayOtherPlayerData, replay.settling)}
                   </span>
                   <span>
                     {playerId === replay.currentPlayer
@@ -1161,8 +1188,8 @@ function GameRoomPage() {
                   flyingWinner={replay.flyingWinner}
                   deckId={deckId}
                   opponentName={replayOtherPlayerData?.name || "Opponent"}
-                  playerTricksWon={replayCurrentPlayerData?.tricksWon || 0}
-                  opponentTricksWon={replayOtherPlayerData?.tricksWon || 0}
+                  playerTricksWon={tricksShown(replayCurrentPlayerData, replay.settling)}
+                  opponentTricksWon={tricksShown(replayOtherPlayerData, replay.settling)}
                   compact
                 />
               </>
@@ -1333,7 +1360,7 @@ function GameRoomPage() {
             playerScore={currentPlayerData.score}
             opponentScore={otherPlayerData?.score ?? 0}
             opponentName={opponentName}
-            playerTricksWon={currentPlayerData.tricksWon || 0}
+            playerTricksWon={tricksShown(currentPlayerData, settlingTrick)}
             roundNumber={roundNumber}
             redealCount={redealCount}
             gamePhase={gamePhase}
@@ -1374,8 +1401,8 @@ function GameRoomPage() {
               deckId={deckId}
               opponentName={opponentName}
               opponentId={otherPlayerData?.id}
-              playerTricksWon={currentPlayerData.tricksWon || 0}
-              opponentTricksWon={otherPlayerData?.tricksWon || 0}
+              playerTricksWon={tricksShown(currentPlayerData, settlingTrick)}
+              opponentTricksWon={tricksShown(otherPlayerData, settlingTrick)}
               statusText={statusText}
               isYourTurn={
                 gamePhase === "playing" && playerId === currentPlayer && !currentTurnIsDummy
