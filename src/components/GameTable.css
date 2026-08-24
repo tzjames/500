@@ -421,15 +421,10 @@
     --card-fan-base: 24px;
   }
 
-  /* Stacked rather than level with each other: the hand above, the dummy
-     below, each against its own bezel. */
-  .seat-left {
-    top: 36%;
-  }
-
-  .seat-right {
-    top: 62%;
-  }
+  /* Left level with each other, at the shared 46%. They were stacked when each
+     fan was 344px across and the two collided; at 164px they sit side by side
+     with room to spare, and stacking only pushed the lower one down into the
+     trick pile in that corner. */
 
   /* Small enough to sit beside a fan rather than under it. The avatar already
      carries the initial, so the pill is a reminder, not a heading. */
