@@ -34,6 +34,9 @@ function GameTable4({
   teamNames = [],
   playedCards,
   flyToSeat,
+  // Phone layout: a card takes two taps, and the two piles come out of the
+  // seats to sit at the bottom corners.
+  phone = false,
   // Trick counts to show, seat by seat, held back while a won trick is still
   // flying to its pile — see shownTricks in GameRoom4Page. Falls back to the
   // live counts when there's nothing being animated.
@@ -92,6 +95,10 @@ function GameTable4({
       ? { count: teamTricks(seat.team), owner: sideName(seat.team) }
       : null;
   const myPile = me ? pileFor(me) : null;
+  // Which side's pile goes in the near corner. Yours if you have one; team 0
+  // otherwise, so a spectator still gets two piles rather than none.
+  const nearTeam = myTeam === null || myTeam === undefined ? 0 : myTeam;
+  const otherTeam = nearTeam === 0 ? 1 : 0;
 
   const renderSeat = (position) => {
     const seat = seatAt(position);
@@ -121,7 +128,7 @@ function GameTable4({
         ) : (
           <Fan count={seat.handCount} position={position} deck={deck} />
         )}
-        {seatPile && (
+        {seatPile && !phone && (
           <TrickPile
             className="pile4-seated"
             count={seatPile.count}
@@ -165,8 +172,27 @@ function GameTable4({
         <div className={`table4-status pill${isYourTurn ? " your-turn" : ""}`}>{statusText}</div>
       )}
 
-      {myPile && (
-        <TrickPile className="pile4-mine" count={myPile.count} owner={myPile.owner} />
+      {/* On a phone the two piles leave the seats and take a bottom corner
+          each, either side of the hand — "in front of the bidder" has nowhere
+          to be on a 402px screen, and both piles ended up in the same corner.
+          A spectator has no side of their own, so team 0 takes the right. */}
+      {phone ? (
+        <>
+          <TrickPile
+            className="pile4-floating pile4-theirs"
+            count={teamTricks(otherTeam)}
+            owner={sideName(otherTeam)}
+          />
+          <TrickPile
+            className="pile4-floating pile4-mine"
+            count={teamTricks(nearTeam)}
+            owner={sideName(nearTeam)}
+          />
+        </>
+      ) : (
+        myPile && (
+          <TrickPile className="pile4-mine" count={myPile.count} owner={myPile.owner} />
+        )
       )}
 
       <div className="seat4 seat4-bottom">
@@ -185,6 +211,7 @@ function GameTable4({
             playable={playable}
             deckId={deckId}
             deal={deal}
+            confirmTaps={phone}
           />
         )}
       </div>

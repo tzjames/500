@@ -16,6 +16,7 @@ import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
 import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
 import TableMenu from "../components/TableMenu";
+import MobileHud from "../components/MobileHud";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
 import { playSound, preloadSounds } from "../sounds";
@@ -207,7 +208,7 @@ function GameRoom4Page() {
   // Freezing can't do that whichever order they land in.
   // Below the panel breakpoint the side panels are hidden, so the table menu
   // carries them instead.
-  const { narrow } = useViewport();
+  const { narrow, phone } = useViewport();
 
   const [shownTricks, setShownTricks] = useState(null);
   useEffect(() => {
@@ -379,6 +380,17 @@ function GameRoom4Page() {
       />
     </div>
   ) : null;
+
+  // The chip strip's numbers, from the same held counts the piles read so the
+  // two can't disagree mid-animation. See shownTricks.
+  const teamTricksShown = (team) =>
+    (state.seats || []).reduce((total, seat) => {
+      if (seat.team !== team) return total;
+      const held = shownTricks && shownTricks[seat.seat];
+      return total + (held === undefined || held === null ? seat.tricksWon || 0 : held);
+    }, 0);
+  const myTeamNow = state.you?.team ?? 0;
+  const theirTeamNow = myTeamNow === 0 ? 1 : 0;
 
   const topBar = (subtitle) => (
     <div className="table-topbar">
@@ -810,6 +822,7 @@ function GameRoom4Page() {
         bidderSeat={b.currentBid?.seat ?? null}
         teamNames={state.teamNames || []}
         playedCards={cards}
+        phone={phone}
         flyToSeat={mine ? flyToSeat : null}
         shownTricks={mode === "replay" ? null : shownTricks}
         revealedHands={b.revealedHands || {}}
@@ -830,6 +843,22 @@ function GameRoom4Page() {
         {!narrow && contractPanel4}
 
         <div className="board-center">
+          {narrow && state.seats && (
+            <MobileHud
+              contractBid={state.currentBid?.bid}
+              you={{
+                label: "Your side",
+                score: state.teamScores?.[myTeamNow] ?? 0,
+                tricks: `${teamTricksShown(myTeamNow)} tricks`,
+              }}
+              them={{
+                label: "Them",
+                score: state.teamScores?.[theirTeamNow] ?? 0,
+                tricks: `${teamTricksShown(theirTeamNow)} tricks`,
+              }}
+            />
+          )}
+
           {board(state, {})}
 
           {state.phase === "bidding" && !deal && !state.you.blindPrompt && (
