@@ -16,7 +16,8 @@
   --card-hand: clamp(58px, 7.4vw, 116px);
   --card-dummy: clamp(42px, 5vw, 78px);
   --card-played: clamp(52px, 6vw, 88px);
-  --card-fan: clamp(28px, 3.2vw, 46px);
+  --card-fan-base: clamp(28px, 3.2vw, 46px);
+  --card-fan: var(--card-fan-base);
   /* Strip along the board's bottom-right kept clear of your hand, so your
      trick pile always has somewhere to sit beside the cards rather than on
      top of them. Wide enough for the pile and its caption plus the pile's
@@ -143,6 +144,13 @@
 
 /* The side fans tilt away from the viewer so they read as held rather than
    laid out. Mirrored left to right. */
+/* The partner's fan sits flat and further off, so it runs a little smaller —
+   the proportion the fixed widths used to carry. Scaling the variable rather
+   than the card keeps the overlap, which is a fraction of it, in step. */
+.fan-north {
+  --card-fan: calc(var(--card-fan-base) * 0.87);
+}
+
 .fan-left {
   transform: perspective(500px) rotateY(53deg) rotateZ(-10deg);
 }
@@ -388,5 +396,48 @@
     --pile-w: 30px;
     --pile-h: 43px;
     --pile-step: 2.3px;
+  }
+}
+
+/* ---- phones: the opponent's two fans ----
+   At 422px each side fan measured 344px across and the two seats overlapped
+   each other and their own name pills. Capping the fan's spread (see Fan in
+   GameTable.js) does most of the work; the rest is a smaller card, and putting
+   the two seats at different heights so they read as two hands rather than one
+   tangle. */
+@media (max-width: 620px) {
+  .game-table {
+    --card-fan-base: 24px;
+  }
+
+  /* Stacked rather than level with each other: the hand above, the dummy
+     below, each against its own bezel. */
+  .seat-left {
+    top: 36%;
+  }
+
+  .seat-right {
+    top: 62%;
+  }
+
+  /* Small enough to sit beside a fan rather than under it. The avatar already
+     carries the initial, so the pill is a reminder, not a heading. */
+  .seat-name {
+    padding: 2px 7px;
+    font-size: 9.5px;
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .seat-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .seat-id {
+    gap: 5px;
   }
 }

@@ -23,14 +23,16 @@
   margin-left: 0;
 }
 
-/* The three that came from the kitty sit proud of the rest, so you can see
-   what you were dealt without reading the badges. */
-.animated-hand .kitty-card.from-kitty {
-  --card-lift: 12px;
-}
-
+/* The three from the kitty are marked by their badge alone. They used to stand
+   12px proud of the hand as well, which meant three heights to read across the
+   row — hand, kitty, and marked-for-discard — when the only one that has to be
+   obvious at a glance is the last. Raised is now a single state and it means
+   one thing: this card is going back. */
 .animated-hand .kitty-card.marked {
-  --card-lift: 26px;
+  /* Written out rather than set through --card-lift, the variable Card's own
+     transform composes. These cards pass no rotation, so there's nothing to
+     compose with and the direct form says what it does. */
+  transform: translateY(-26px);
   opacity: 0.82;
   box-shadow: var(--shadow-card), inset 0 0 0 2px var(--danger);
 }

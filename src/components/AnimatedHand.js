@@ -38,8 +38,8 @@ function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit, deckId, sel
                 badge={badge}
                 badgeTone={isDiscard ? "discard" : "kitty"}
                 className={`kitty-card ${cardColor(card.suit)}${
-                  card.isKitty ? " from-kitty" : ""
-                }${isDiscard ? " marked" : ""}`}
+                  isDiscard ? " marked" : ""
+                }`}
               />
             );
           })}
