@@ -167,6 +167,14 @@
   .bid-cell-pts {
     font-size: 9.5px;
   }
+
+  /* The two buttons that end the auction, at the design's 52px. */
+  .bid-actions .btn-primary,
+  .bid-actions .btn-ghost,
+  .bid-submit,
+  .bid-pass {
+    min-height: 52px;
+  }
 }
 
 /* Selected cells invert to the amber fill; the suit glyph drops back to its own

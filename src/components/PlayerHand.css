@@ -124,3 +124,22 @@
   box-shadow: 0 22px 44px rgba(0, 0, 0, 0.55);
   z-index: 45;
 }
+
+/* ---- phones ----
+   One continuous fan on a 26px step. The suit gaps and the full-width card
+   each group started with cost more than a phone has to spare; the runs are
+   still legible from the order and the suit colours. Only the very first card
+   of the hand sits at its full width. */
+@media (max-width: 620px) {
+  .player-hand .hand-card {
+    margin-left: calc(var(--hand-step, 26px) - var(--card-w));
+  }
+
+  .hand-suit-group + .hand-suit-group {
+    margin-left: 6px;
+  }
+
+  .hand-suit-group:not(:first-child) .hand-card:first-child {
+    margin-left: calc(var(--hand-step, 26px) - var(--card-w));
+  }
+}

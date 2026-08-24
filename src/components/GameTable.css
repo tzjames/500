@@ -350,3 +350,43 @@
     --pile-step: 2.6px;
   }
 }
+
+/* ---- phones ----
+   Ten overlapping cards need about 350px of the 402 a phone gives you, and
+   they weren't getting it. Two things were taking the room: the 78px gutter
+   kept clear along the bottom-right for your trick pile, which left the hand
+   324px and pushed its centre 39px left of the screen's; and every suit group
+   starting a fresh card at full width, which costs three extra card-widths
+   across four groups. So the gutter goes, the pile moves up onto the cloth
+   where the designs put both piles anyway, and the hand becomes one continuous
+   fan — the suit runs still read, they just no longer each pay for a full card.
+
+   64px on a 28px step puts the fan at about 334px before rotation and 350
+   after, leaving roughly 26px clear at each bezel. */
+@media (max-width: 620px) {
+  .game-table {
+    --pile-gutter: 0px;
+    /* 58px on a 26px step puts a ten-card fan at about 310px of layout and 324
+       once the outer cards' rotation is counted — inside the 350px this board
+       leaves after its own padding, with room at each bezel. */
+    --card-hand: 58px;
+    --hand-step: 26px;
+  }
+
+  .seat-south {
+    right: 0;
+  }
+
+  /* Above the hand rather than beside it, and small enough to sit on the cloth
+     without reaching the felt's edge. */
+  .pile-mine {
+    right: 6px;
+    bottom: calc(var(--card-hand) * var(--card-ratio, 1.4) + 34px);
+  }
+
+  .pile-floating {
+    --pile-w: 30px;
+    --pile-h: 43px;
+    --pile-step: 2.3px;
+  }
+}
