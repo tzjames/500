@@ -373,6 +373,10 @@
    after, leaving roughly 26px clear at each bezel. */
 @media (max-width: 620px) {
   .game-table {
+    /* The row the two piles sit on: clear of the hand, and above the status
+       pill, which spans most of a phone's width and would otherwise run into
+       them. */
+    --pile-row: calc(var(--card-hand) * var(--card-ratio, 1.4) + 90px);
     --pile-gutter: 0px;
     /* 58px on a 26px step puts a ten-card fan at about 310px of layout and 324
        once the outer cards' rotation is counted — inside the 350px this board
@@ -385,11 +389,18 @@
     right: 0;
   }
 
-  /* Above the hand rather than beside it, and small enough to sit on the cloth
-     without reaching the felt's edge. */
+  /* Both piles at the bottom corners, either side of the hand and clear of the
+     status pill between them. Theirs is out of the opponent's seat on a phone
+     (see GameTable.js) precisely so it can be placed against the board rather
+     than against a seat that has itself moved. */
+  .pile-theirs {
+    left: 4px;
+    bottom: var(--pile-row);
+  }
+
   .pile-mine {
-    right: 6px;
-    bottom: calc(var(--card-hand) * var(--card-ratio, 1.4) + 34px);
+    right: 4px;
+    bottom: var(--pile-row);
   }
 
   .pile-floating {

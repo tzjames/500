@@ -1484,7 +1484,7 @@ function GameRoomPage() {
               deal={deal}
               exposed={exposed}
               onRetract={retractCard}
-              confirmTaps={phone}
+              phone={phone}
             />
 
             {gamePhase === "bidding" && !deal && (

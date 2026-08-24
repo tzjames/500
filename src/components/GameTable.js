@@ -47,7 +47,9 @@ function GameTable({
   deal = null,
   compact = false,
   // Phones commit a card on a second tap — see useTapToConfirm.
-  confirmTaps = false,
+  // Phone layout: a card takes two taps, and the trick piles come out of the
+  // seats to sit at the two bottom corners.
+  phone = false,
 }) {
   const deck = getDeck(deckId);
 
@@ -112,7 +114,7 @@ function GameTable({
         {/* The opponent's won tricks sit in flow beneath their fan rather than
             floating at fixed coordinates — that's what kept it colliding with
             their name pill once the seat grew or the window changed shape. */}
-        {holdsOpponentHand && (
+        {holdsOpponentHand && !phone && (
           <TrickPile className="pile-seated" count={opponentTricksWon} owner={opponentName} />
         )}
       </div>
@@ -121,6 +123,16 @@ function GameTable({
 
   return (
     <div className={`game-table${compact ? " compact" : ""}`}>
+      {/* On a phone both piles sit at the bottom corners, either side of the
+          hand, rather than one inside the opponent's seat and one in the near
+          corner — see the pile rules in GameTable.css. */}
+      {phone && (
+        <TrickPile
+          className="pile-floating pile-theirs"
+          count={opponentTricksWon}
+          owner={opponentName}
+        />
+      )}
       <TrickPile className="pile-floating pile-mine" count={playerTricksWon} owner="You" />
 
       <div className="seat seat-north">
@@ -135,7 +147,7 @@ function GameTable({
             trumpSuit={trumpSuit}
             isCurrentPlayer={isCurrentPlayerDummyTurn}
             deckId={deckId}
-            confirmTaps={confirmTaps}
+            confirmTaps={phone}
           />
         ) : (
           <Fan count={10} side="north" deck={deck} />
@@ -192,7 +204,7 @@ function GameTable({
           trumpSuit={trumpSuit}
           isCurrentPlayer={isCurrentPlayerHandTurn}
           deckId={deckId}
-          confirmTaps={confirmTaps}
+          confirmTaps={phone}
           deal={deal}
         />
       </div>
