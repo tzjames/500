@@ -8,6 +8,7 @@ import ContractPanel, { tricksStillNeeded } from "../components/ContractPanel";
 import LastTrickPanel from "../components/LastTrickPanel";
 import GameHelp from "../components/GameHelp";
 import MobileHud from "../components/MobileHud";
+import TableMenu from "../components/TableMenu";
 import BiddingInterface from "../components/BiddingInterface";
 import GameTable from "../components/GameTable";
 import AnimatedHand from "../components/AnimatedHand";
@@ -1371,10 +1372,21 @@ function GameRoomPage() {
             {currentPlayerData.name} vs {opponentName}
           </p>
         </div>
-        {/* Four controls won't sit beside the title on a phone — they wrapped
-            onto a second row and pushed the felt down. On a narrow screen the
-            picker moves into the details sheet instead. */}
-        {!narrow && (
+        {/* Four controls beside the title wrapped onto a second row and pushed
+            the felt down, so on a narrow screen they collapse into one menu
+            button — which also carries the panels there's no room for. */}
+        {narrow ? (
+          <TableMenu
+            locationId={locationId}
+            deckId={deckId}
+            feltId={feltId}
+            playerNames={playerNames}
+            onChange={handleSetGameSettings}
+          >
+            {contractPanel}
+            {sidePanels}
+          </TableMenu>
+        ) : (
           <ThemePicker
             locationId={locationId}
             deckId={deckId}
@@ -1441,17 +1453,7 @@ function GameRoomPage() {
                     ? "Contract made."
                     : `${tricksNeededNow} more trick${tricksNeededNow === 1 ? "" : "s"} to make the contract.`
                 }
-              >
-                <ThemePicker
-                  locationId={locationId}
-                  deckId={deckId}
-                  feltId={feltId}
-                  playerNames={playerNames}
-                  onChange={handleSetGameSettings}
-                />
-                {contractPanel}
-                {sidePanels}
-              </MobileHud>
+              />
             )}
 
             <GameTable

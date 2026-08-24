@@ -15,9 +15,11 @@ import ScoreHistoryModal from "../components/ScoreHistoryModal";
 import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
 import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
+import TableMenu from "../components/TableMenu";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
 import { playSound, preloadSounds } from "../sounds";
+import { useViewport } from "../useViewport";
 import "../App.css";
 import "./GameRoom4Page.css";
 
@@ -203,6 +205,10 @@ function GameRoom4Page() {
   // g4:trickResolved and the state carrying the increment are two separate
   // messages: in the gap between them, subtracting showed the winner one short.
   // Freezing can't do that whichever order they land in.
+  // Below the panel breakpoint the side panels are hidden, so the table menu
+  // carries them instead.
+  const { narrow } = useViewport();
+
   const [shownTricks, setShownTricks] = useState(null);
   useEffect(() => {
     if (pendingTrick) return;
@@ -339,6 +345,41 @@ function GameRoom4Page() {
     );
   }
 
+  // Read before the panels below, which reference it: a const holding JSX is
+  // evaluated where it stands, so declaring it later would be a temporal dead
+  // zone error the moment one of them rendered.
+  const claim = state.claim;
+
+  // Placed either side of the felt on a wide screen, or inside the table menu
+  // when the row has no room for them — one definition either way.
+  const contractPanel4 = state.seats ? (
+    <ContractPanel4
+      state={state}
+      onShowScoreHistory={() => setShowScoreHistory(true)}
+      canClaimRest={state.canClaimRest}
+      claimPending={Boolean(claim?.mine)}
+      onClaimRest={() => emit("g4:claimRest")}
+    />
+  ) : null;
+
+  const sidePanels4 = state.seats ? (
+    <div className="side-column">
+      <LastTrickPanel4
+        lastTrick={state.lastTrick}
+        seats={state.seats || []}
+        mySeat={state.you.seat}
+        deckId={deckId}
+      />
+      <GameHelp
+        variant="four"
+        trumpSuit={state.trumpSuit}
+        bid={state.currentBid?.bid}
+        options={state.options}
+        deckId={deckId}
+      />
+    </div>
+  ) : null;
+
   const topBar = (subtitle) => (
     <div className="table-topbar">
       <div>
@@ -349,14 +390,31 @@ function GameRoom4Page() {
         </h1>
         {subtitle && <p className="table-subtitle">{subtitle}</p>}
       </div>
-      <ThemePicker
-        locationId={locationId}
-        deckId={deckId}
-        feltId={feltId}
-        playerNames={playerNames}
-        onChange={handleSetGameSettings}
-        compact
-      />
+      {/* Four controls beside the title wrapped onto a second row — and with
+          two partnership names in the subtitle they pushed the felt a long way
+          down. On a narrow screen they collapse into one menu button, which
+          also carries the panels there's no room for. */}
+      {narrow ? (
+        <TableMenu
+          locationId={locationId}
+          deckId={deckId}
+          feltId={feltId}
+          playerNames={playerNames}
+          onChange={handleSetGameSettings}
+        >
+          {contractPanel4}
+          {sidePanels4}
+        </TableMenu>
+      ) : (
+        <ThemePicker
+          locationId={locationId}
+          deckId={deckId}
+          feltId={feltId}
+          playerNames={playerNames}
+          onChange={handleSetGameSettings}
+          compact
+        />
+      )}
     </div>
   );
 
@@ -763,20 +821,13 @@ function GameRoom4Page() {
     );
   };
 
-  const claim = state.claim;
 
   return (
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
       {topBar(state.teamNames ? `${state.teamNames[0]} vs ${state.teamNames[1]}` : null)}
 
       <div className="board-row">
-        <ContractPanel4
-          state={state}
-          onShowScoreHistory={() => setShowScoreHistory(true)}
-          canClaimRest={state.canClaimRest}
-          claimPending={Boolean(claim?.mine)}
-          onClaimRest={() => emit("g4:claimRest")}
-        />
+        {!narrow && contractPanel4}
 
         <div className="board-center">
           {board(state, {})}
@@ -835,21 +886,7 @@ function GameRoom4Page() {
           )}
         </div>
 
-        <div className="side-column">
-          <LastTrickPanel4
-            lastTrick={state.lastTrick}
-            seats={state.seats || []}
-            mySeat={state.you.seat}
-            deckId={deckId}
-          />
-          <GameHelp
-            variant="four"
-            trumpSuit={state.trumpSuit}
-            bid={state.currentBid?.bid}
-            options={state.options}
-            deckId={deckId}
-          />
-        </div>
+        {!narrow && sidePanels4}
       </div>
 
       {/* Blind bidding: asked once, when the auction reaches you, before you've

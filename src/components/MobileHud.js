@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { createPortal } from "react-dom";
+import React from "react";
 import { isRed } from "../cards";
 import "./MobileHud.css";
 
@@ -29,17 +28,12 @@ function Chip({ label, children, wide = false }) {
   );
 }
 
-// What the side panels carried, for screens too narrow to show them.
-//
-// Below 1280px the panels are hidden so the felt keeps its width, which used to
-// take the contract, both scores, the tricks still needed, the claim and concede
-// buttons and the help with them. The glanceable half — contract and both
-// sides' score and tricks — becomes a three-chip strip under the title, as in
-// the mobile designs. The half you only want occasionally keeps the real panels,
-// in a sheet behind one button, rather than being reinvented at a second size.
-function MobileHud({ contractBid, you, them, footnote, children }) {
-  const [open, setOpen] = useState(false);
-
+// The glanceable half of what the side panels carried, for screens too narrow
+// to show them: the contract, and both sides' score and tricks, as a three-chip
+// strip under the title as in the mobile designs. The panels themselves — the
+// contract with its claim and concede buttons, the last trick, the help — live
+// in the table menu, so there is one way in rather than two.
+function MobileHud({ contractBid, you, them, footnote }) {
   return (
     <>
       <div className="mobile-hud">
@@ -54,40 +48,10 @@ function MobileHud({ contractBid, you, them, footnote, children }) {
           {them.score}
           <span className="hud-chip-sub">{them.tricks}</span>
         </Chip>
-        <button
-          type="button"
-          className="hud-more"
-          onClick={() => setOpen(true)}
-          aria-label="Contract, last trick and help"
-        >
-          <span aria-hidden="true">⋯</span>
-        </button>
       </div>
 
       {footnote && <p className="mobile-hud-note">{footnote}</p>}
 
-      {open &&
-        createPortal(
-          // Portalled for the same reason the rules modal is: the board's card
-          // fans are 3D-transformed under preserve-3d, and a 3D rendering
-          // context paints by depth rather than z-index, so a sheet left inside
-          // it comes out under the hand.
-          <div className="hud-sheet-overlay" onClick={() => setOpen(false)}>
-            <div
-              className="hud-sheet"
-              role="dialog"
-              aria-label="Game details"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="hud-sheet-grip" aria-hidden="true" />
-              <div className="hud-sheet-body">{children}</div>
-              <button className="btn-ghost hud-sheet-close" onClick={() => setOpen(false)}>
-                Close
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
     </>
   );
 }

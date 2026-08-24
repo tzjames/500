@@ -35,12 +35,18 @@ export function useViewport() {
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return undefined;
     const lists = Object.values(QUERIES).map((q) => window.matchMedia(q));
-    const onChange = () => setState(read);
+    const onChange = () => setState(() => read());
     lists.forEach((list) => {
       // addListener is the deprecated spelling, kept for older Safari.
       if (list.addEventListener) list.addEventListener("change", onChange);
       else list.addListener(onChange);
     });
+    // And the resize event as well. Belt and braces: the two fire together in a
+    // normal browser, but not every environment that changes the viewport
+    // delivers both, and re-reading is cheap — the state only changes when a
+    // breakpoint is actually crossed.
+    window.addEventListener("resize", onChange);
+    window.addEventListener("orientationchange", onChange);
     // A breakpoint can have been crossed between first render and this effect.
     onChange();
     return () => {
@@ -48,6 +54,8 @@ export function useViewport() {
         if (list.removeEventListener) list.removeEventListener("change", onChange);
         else list.removeListener(onChange);
       });
+      window.removeEventListener("resize", onChange);
+      window.removeEventListener("orientationchange", onChange);
     };
   }, []);
 
