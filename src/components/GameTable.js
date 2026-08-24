@@ -46,6 +46,8 @@ function GameTable({
   onRetract,
   deal = null,
   compact = false,
+  // Phones commit a card on a second tap — see useTapToConfirm.
+  confirmTaps = false,
 }) {
   const deck = getDeck(deckId);
 
@@ -133,6 +135,7 @@ function GameTable({
             trumpSuit={trumpSuit}
             isCurrentPlayer={isCurrentPlayerDummyTurn}
             deckId={deckId}
+            confirmTaps={confirmTaps}
           />
         ) : (
           <Fan count={10} side="north" deck={deck} />
@@ -189,6 +192,7 @@ function GameTable({
           trumpSuit={trumpSuit}
           isCurrentPlayer={isCurrentPlayerHandTurn}
           deckId={deckId}
+          confirmTaps={confirmTaps}
           deal={deal}
         />
       </div>

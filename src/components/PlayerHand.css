@@ -113,3 +113,14 @@
     transition: none;
   }
 }
+
+/* Lifted and outlined while it waits for the confirm. Deliberately more than
+   the hover lift — this is a card held out of the hand, not one under the
+   pointer, and it has to read that way at arm's length. */
+.player-hand .hand-card.picked {
+  transform: rotate(var(--card-rotate, 0deg)) translateY(-24px);
+  outline: 2px solid rgba(255, 235, 200, 0.95);
+  outline-offset: 2px;
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.55);
+  z-index: 45;
+}

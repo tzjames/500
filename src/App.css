@@ -415,3 +415,20 @@
   font-weight: 400;
   margin: 0;
 }
+
+/* ---- narrow screens ----
+   The title keeps one line and the felt keeps its height. The theme picker has
+   moved into the details sheet by this width (see GameRoomPage), so there is
+   nothing to sit beside the title and nothing left to wrap. */
+@media (max-width: 1280px) {
+  .table-topbar {
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .table-subtitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

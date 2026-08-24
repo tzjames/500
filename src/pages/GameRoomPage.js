@@ -4,9 +4,10 @@ import { useAuth } from "../auth";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
 import ThemePicker from "../components/ThemePicker";
-import ContractPanel from "../components/ContractPanel";
+import ContractPanel, { tricksStillNeeded } from "../components/ContractPanel";
 import LastTrickPanel from "../components/LastTrickPanel";
 import GameHelp from "../components/GameHelp";
+import MobileHud from "../components/MobileHud";
 import BiddingInterface from "../components/BiddingInterface";
 import GameTable from "../components/GameTable";
 import AnimatedHand from "../components/AnimatedHand";
@@ -18,6 +19,7 @@ import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
 import { playSound, preloadSounds } from "../sounds";
+import { useViewport } from "../useViewport";
 import "../App.css";
 
 // A finished trick sits on the table for a beat, then flies to the winner.
@@ -187,6 +189,9 @@ function GameRoomPage() {
   // The trick on its way to a pile: credited by the server already, not yet
   // shown in that player's count. See tricksShown.
   const [settlingTrick, setSettlingTrick] = useState(null);
+  // Below the panel breakpoint the side panels are hidden, so their contents
+  // move into the chip strip and its sheet instead. See MobileHud.
+  const { narrow, phone } = useViewport();
   // Tracks the server's log seq of the last "cardPlayed" we actually saw, so
   // a dropped broadcast (a connectivity blip that doesn't fully disconnect)
   // shows up as a gap instead of silently leaving stale face-down cards in
@@ -1296,6 +1301,63 @@ function GameRoomPage() {
 
   const isDiscarding = isKittyPhase && playerId === gameState.currentBid?.player;
 
+  const tricksNeededNow = tricksStillNeeded({
+    currentBid: gameState.currentBid,
+    playerIsBidder: gameState.currentBid?.player === playerId,
+    playerTricksWon: tricksShown(currentPlayerData, settlingTrick),
+  });
+
+  // Placed either side of the felt on a wide screen, or stacked inside the
+  // phone sheet when the row has no room for them — one definition either way.
+  const contractPanel = (
+    <ContractPanel
+      currentBid={gameState.currentBid}
+      bidderName={
+        gameState.players.find((p) => p.id === gameState.currentBid?.player)?.name
+      }
+      playerIsBidder={gameState.currentBid?.player === playerId}
+      playerScore={currentPlayerData.score}
+      opponentScore={otherPlayerData?.score ?? 0}
+      opponentName={opponentName}
+      playerTricksWon={tricksShown(currentPlayerData, settlingTrick)}
+      roundNumber={roundNumber}
+      redealCount={redealCount}
+      gamePhase={gamePhase}
+      dealerIsYou={gameState.dealerId === playerId}
+      trumpSuit={gameState.trumpSuit}
+      friendly={gameState.friendly}
+      onShowScoreHistory={() => setShowScoreHistory(true)}
+      canClaimRest={
+        gamePhase === "playing" && playerId === currentPlayer && playedCards.length === 0
+      }
+      waitingForClaimResponse={waitingForClaimResponse}
+      claimStatusMessage={claimStatusMessage}
+      onClaimRest={handleClaimRest}
+      canResign={gamePhase === "playing" && Boolean(gameState.currentBid)}
+      canRedeal={gamePhase === "playing"}
+      offerPending={waitingForOfferResponse}
+      onOfferResign={() => setConfirmOffer("resign")}
+      onOfferRedeal={() => setConfirmOffer("redeal")}
+    />
+  );
+
+  const sidePanels = (
+    <div className="side-column">
+      <LastTrickPanel
+        lastTrick={lastTrick}
+        playerId={playerId}
+        deckId={deckId}
+        opponentName={opponentName}
+      />
+      <GameHelp
+        variant="two"
+        trumpSuit={gameState.trumpSuit}
+        bid={gameState.currentBid?.bid}
+        deckId={deckId}
+      />
+    </div>
+  );
+
   return (
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed={isDiscarding}>
       <div className="table-topbar">
@@ -1309,14 +1371,19 @@ function GameRoomPage() {
             {currentPlayerData.name} vs {opponentName}
           </p>
         </div>
-        <ThemePicker
-          locationId={locationId}
-          deckId={deckId}
-          feltId={feltId}
-          playerNames={playerNames}
-          onChange={handleSetGameSettings}
-          compact
-        />
+        {/* Four controls won't sit beside the title on a phone — they wrapped
+            onto a second row and pushed the felt down. On a narrow screen the
+            picker moves into the details sheet instead. */}
+        {!narrow && (
+          <ThemePicker
+            locationId={locationId}
+            deckId={deckId}
+            feltId={feltId}
+            playerNames={playerNames}
+            onChange={handleSetGameSettings}
+            compact
+          />
+        )}
       </div>
 
       {isDiscarding ? (
@@ -1351,37 +1418,42 @@ function GameRoomPage() {
         </div>
       ) : (
         <div className="board-row">
-          <ContractPanel
-            currentBid={gameState.currentBid}
-            bidderName={
-              gameState.players.find((p) => p.id === gameState.currentBid?.player)?.name
-            }
-            playerIsBidder={gameState.currentBid?.player === playerId}
-            playerScore={currentPlayerData.score}
-            opponentScore={otherPlayerData?.score ?? 0}
-            opponentName={opponentName}
-            playerTricksWon={tricksShown(currentPlayerData, settlingTrick)}
-            roundNumber={roundNumber}
-            redealCount={redealCount}
-            gamePhase={gamePhase}
-            dealerIsYou={gameState.dealerId === playerId}
-            trumpSuit={gameState.trumpSuit}
-            friendly={gameState.friendly}
-            onShowScoreHistory={() => setShowScoreHistory(true)}
-            canClaimRest={
-              gamePhase === "playing" && playerId === currentPlayer && playedCards.length === 0
-            }
-            waitingForClaimResponse={waitingForClaimResponse}
-            claimStatusMessage={claimStatusMessage}
-            onClaimRest={handleClaimRest}
-            canResign={gamePhase === "playing" && Boolean(gameState.currentBid)}
-            canRedeal={gamePhase === "playing"}
-            offerPending={waitingForOfferResponse}
-            onOfferResign={() => setConfirmOffer("resign")}
-            onOfferRedeal={() => setConfirmOffer("redeal")}
-          />
+          {!narrow && contractPanel}
 
           <div className="board-center">
+            {narrow && (
+              <MobileHud
+                contractBid={gameState.currentBid?.bid}
+                you={{
+                  label: "You",
+                  score: currentPlayerData.score,
+                  tricks: `${tricksShown(currentPlayerData, settlingTrick)} tricks`,
+                }}
+                them={{
+                  label: opponentName,
+                  score: otherPlayerData?.score ?? 0,
+                  tricks: `${tricksShown(otherPlayerData, settlingTrick)} tricks`,
+                }}
+                footnote={
+                  tricksNeededNow === null
+                    ? null
+                    : tricksNeededNow === 0
+                    ? "Contract made."
+                    : `${tricksNeededNow} more trick${tricksNeededNow === 1 ? "" : "s"} to make the contract.`
+                }
+              >
+                <ThemePicker
+                  locationId={locationId}
+                  deckId={deckId}
+                  feltId={feltId}
+                  playerNames={playerNames}
+                  onChange={handleSetGameSettings}
+                />
+                {contractPanel}
+                {sidePanels}
+              </MobileHud>
+            )}
+
             <GameTable
               playedCards={playedCards}
               opponentHandSize={otherPlayerData?.handSize || 0}
@@ -1410,6 +1482,7 @@ function GameRoomPage() {
               deal={deal}
               exposed={exposed}
               onRetract={retractCard}
+              confirmTaps={phone}
             />
 
             {gamePhase === "bidding" && !deal && (
@@ -1460,20 +1533,7 @@ function GameRoomPage() {
             )}
           </div>
 
-          <div className="side-column">
-            <LastTrickPanel
-              lastTrick={lastTrick}
-              playerId={playerId}
-              deckId={deckId}
-              opponentName={opponentName}
-            />
-            <GameHelp
-              variant="two"
-              trumpSuit={gameState.trumpSuit}
-              bid={gameState.currentBid?.bid}
-              deckId={deckId}
-            />
-          </div>
+          {!narrow && sidePanels}
         </div>
       )}
 

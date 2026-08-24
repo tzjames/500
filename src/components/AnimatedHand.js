@@ -2,6 +2,7 @@ import React from "react";
 import Card from "./Card";
 import { getDeck } from "../theme";
 import { groupHand, cardColor, indexInHand } from "../cards";
+import { useViewport } from "../useViewport";
 import "./AnimatedHand.css";
 
 // The kitty-discard hand: your ten plus the three from the kitty, thirteen in
@@ -11,6 +12,12 @@ import "./AnimatedHand.css";
 // filters on — while the display order comes from the usual suit grouping.
 function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit, deckId, selectedBadge = "Discard" }) {
   const deck = getDeck(deckId);
+  const { phone } = useViewport();
+  // On a phone each card shows only its leftmost 44px, and "Discard" is wider
+  // than that however tightly it's set — three marked cards ran their badges
+  // into each other. "Throw" fits, and says the same thing. A caller that named
+  // its own badge keeps it.
+  const badgeLabel = phone && selectedBadge === "Discard" ? "Throw" : selectedBadge;
 
   return (
     <div className="animated-hand">
@@ -19,7 +26,7 @@ function AnimatedHand({ hand, selectedCards, onCardClick, trumpSuit, deckId, sel
           {group.map((card, indexInGroup) => {
             const cardIndex = indexInHand(hand, card);
             const isDiscard = selectedCards.includes(cardIndex);
-            const badge = isDiscard ? selectedBadge : card.isKitty ? "Kitty" : null;
+            const badge = isDiscard ? badgeLabel : card.isKitty ? "Kitty" : null;
             return (
               <Card
                 key={`${card.suit}-${card.value}-${indexInGroup}`}

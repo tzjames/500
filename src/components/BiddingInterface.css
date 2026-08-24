@@ -78,9 +78,13 @@
 
 /* ---- the level × suit grid ---- */
 
+/* minmax(0, 1fr) rather than 1fr: a bare 1fr floors at the track's min-content,
+   and a cell reading "10NT 520" is wider than a fifth of a phone. The columns
+   held their size and the cells spilled out to the right instead, which put the
+   whole NT column off the side of the screen with no way to scroll to it. */
 .bid-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -88,6 +92,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 3px;
+  min-width: 0;
   height: 36px;
   padding: 0 9px;
   border-radius: 9px;
@@ -132,6 +138,35 @@
   font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   opacity: 0.45;
+}
+
+.bid-cell-label {
+  flex: 0 0 auto;
+}
+
+/* ---- phones ----
+   Touch targets first: the design puts bid cells at 46px and the misère row at
+   48, both above the 44px minimum for something tapped repeatedly. The grid
+   also loses its horizontal padding so five columns have the room to stay
+   legible at 402px. */
+@media (max-width: 620px) {
+  .bid-cell {
+    height: 46px;
+    padding: 0 7px;
+    border-radius: 10px;
+  }
+
+  .bid-cell-level {
+    font-size: 14px;
+  }
+
+  .bid-cell-suit {
+    font-size: 15px;
+  }
+
+  .bid-cell-pts {
+    font-size: 9.5px;
+  }
 }
 
 /* Selected cells invert to the amber fill; the suit glyph drops back to its own

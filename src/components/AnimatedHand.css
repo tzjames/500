@@ -38,3 +38,35 @@
 .animated-hand .kitty-card:hover {
   z-index: 40;
 }
+
+/* ---- phones ----
+   The discard screen is the one place you have to pick a specific card out of
+   thirteen, and at the shared size each showed only 31px of itself — under the
+   44px a finger needs, on the screen where a mis-tap costs you the wrong card.
+   The design's answer is a 44px step, which is what this is: the step is set
+   from the card width so the two can't drift apart.
+
+   Suit groups still wrap as units rather than splitting into fixed rows of
+   seven and six. The grouping is what makes a hand of thirteen readable enough
+   to choose from, and it seemed the wrong thing to trade away for tidier rows.
+
+   70px is the widest card that lets eight of a suit — more than a 13-card hand
+   realistically holds — sit in one row at 402px without reaching a bezel. */
+@media (max-width: 620px) {
+  .animated-hand {
+    gap: 10px 10px;
+    padding-top: 26px;
+  }
+
+  .animated-hand .kitty-card {
+    --card-w: 70px;
+    margin-left: calc(44px - var(--card-w));
+  }
+
+  /* Deliberately NOT raised above their neighbours, though the design does
+     raise them so the badges clear each other. Every card overlaps the next by
+     26px, so a raised card covers the left 26px of the one after it — which is
+     the very strip you have to tap to reach that card. Marking one card then
+     made the next tap land back on it and un-mark it. Natural order keeps each
+     card's own 44px on top, which matters more than an unclipped badge. */
+}
