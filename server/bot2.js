@@ -121,6 +121,44 @@ function misereRisk(hand) {
 const DUMMY_HELP = 4.0;
 const KITTY_HELP = 0.5;
 
+// Roughly how many of the ten tricks this hand takes *defending* against a
+// contract in `trumpSuit`. Our trumps in their suit still win tricks, so the
+// same estimate serves — plus the dummy we haven't been dealt yet.
+function defensiveTricks(hand, trumpSuit) {
+  const own = trumpSuit ? expectedTricks(hand, trumpSuit) : expectedTricksNoTrumps(hand);
+  return own + DUMMY_HELP;
+}
+
+// Would passing right now lose the game outright?
+//
+// A pass with a bid standing ends the auction on the spot (room.js placeBid), so
+// it hands the opponent that contract. If they are within 200 of home *and* the
+// contract on the table carries them there, passing is conceding the game — and
+// the non-bidder never loses points, so there is no risk on their side at all.
+//
+// Both halves are needed. The 200 band alone fires on hands where the standing
+// bid couldn't take them out anyway, and bidding a defensive six there just
+// gives away points for nothing.
+function passingLosesTheGame(game, playerId) {
+  const standing = game.currentBid;
+  if (!standing || standing.player === playerId) return false;
+  const them = game.players.find((p) => p.id !== playerId);
+  if (them.score < 300) return false;
+  return them.score + standing.points >= 500;
+}
+
+// The cheapest bid that keeps us in the auction without opening the back door.
+// Going one off is recoverable; -500 is not, and neither is letting them out.
+// Nothing is returned when every legal bid would risk the game just as surely as
+// passing would, in which case passing is no worse.
+function defensiveBid(game, playerId, legal) {
+  const me = game.players.find((p) => p.id === playerId);
+  const affordable = legal
+    .filter((bid) => !bid.special && me.score - bid.points > -500)
+    .sort((a, b) => a.points - b.points);
+  return affordable[0] || null;
+}
+
 // The robot's call. `floorPoints` is the standing bid's value — this game's
 // auction lives in room.js, so it has to be passed in.
 function chooseBid(game, playerId, floorPoints = 0) {
@@ -154,7 +192,25 @@ function chooseBid(game, playerId, floorPoints = 0) {
   const bestSuit = suitBids.sort((a, b) => b.points - a.points)[0];
   const bestSpecial = specialBids.sort((a, b) => a.points - b.points)[0];
 
-  if (!bestSuit && !bestSpecial) return "Pass";
+  if (!bestSuit && !bestSpecial) {
+    // Nothing here is worth a contract on its own merits. But if passing would
+    // hand them the game, bid anyway — unless the hand is good enough defending
+    // their suit to expect to set them, in which case passing beats bidding.
+    if (passingLosesTheGame(game, playerId)) {
+      const standing = game.currentBid;
+      const suit = standing.bid.split(" ")[1];
+      const level = Number(standing.bid.split(" ")[0]);
+      const theirTrump = REAL_SUITS.includes(suit) ? suit : null;
+      // They need `level` of the ten, so we set them by taking 11 - level.
+      const canDefend =
+        Number.isFinite(level) && defensiveTricks(hand, theirTrump) >= 11 - level;
+      if (!canDefend) {
+        const rescue = defensiveBid(game, playerId, legal);
+        if (rescue) return rescue.bid;
+      }
+    }
+    return "Pass";
+  }
   if (!bestSuit) return bestSpecial.bid;
   if (!bestSpecial) return bestSuit.bid;
   return bestSpecial.points > bestSuit.points ? bestSpecial.bid : bestSuit.bid;
