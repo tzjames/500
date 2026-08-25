@@ -20,6 +20,12 @@ importers:
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
+      cors:
+        specifier: ^2.8.6
+        version: 2.8.6
+      express:
+        specifier: ^4.22.2
+        version: 4.22.2
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
