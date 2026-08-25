@@ -1431,11 +1431,25 @@ class Room {
     if (this.pendingOffer && this.otherPlayerId(this.pendingOffer.fromPlayerId) === id) {
       return { kind: "offer", userId: id };
     }
+    // An offer of the robot's own is out with the other player. Nothing here is
+    // the robot's to do until it comes back — placeBid only checks whose turn it
+    // is, so without this it would answer its own question by bidding.
+    if (this.pendingOffer && this.pendingOffer.fromPlayerId === id) return null;
     if ((this.gamePhase === "roundEnd" || this.gamePhase === "gameOver") && this.roundEnd) {
       // The next hand waits on both players saying they're ready.
       return this.roundEnd.readyUserIds.has(id) ? null : { kind: "ready", userId: id };
     }
     if (this.gamePhase === "bidding" && this.currentBidder === id) {
+      // Offering to throw the hand in comes before calling on it — the same
+      // conditions offerPass enforces for a human, so the robot can't ask for
+      // something the button wouldn't have offered.
+      const canOffer =
+        this.gameSettings.showOfferPassButton &&
+        !this.offerPassDeclined &&
+        this.biddingHistory.length === 0;
+      if (canOffer && bot2.wantsToOfferPass(this.game, id)) {
+        return { kind: "offerPass", userId: id };
+      }
       return { kind: "bid", userId: id };
     }
     if (this.gamePhase === "kitty" && this.game.currentBid?.player === id) {
@@ -1513,6 +1527,11 @@ class Room {
           ? bot2.chooseBid(game, actor.userId, 0) === "Pass"
           : true;
       this.respondToOffer(socket, accept);
+      return;
+    }
+
+    if (actor.kind === "offerPass") {
+      this.offerPass(socket);
       return;
     }
 

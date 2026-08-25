@@ -45,15 +45,8 @@ function runAuction(game, bots, dealerId) {
   // keep bidding is bounded by the bid ladder, so this can't spin.
   for (let guard = 0; guard < 64; guard++) {
     const floor = game.currentBid ? game.currentBid.points : 0;
-    const call = bots[bidder].chooseBid(game, bidder, floor, {
-      myScore: game.players.find((p) => p.id === bidder).score,
-      opponentScore: game.players.find((p) => p.id !== bidder).score,
-      biddingHistory: history,
-      // Nothing here can accept an offered pass, so a robot that would rather
-      // redeal than bid is told the offer is unavailable and must choose
-      // between passing and bidding for real.
-      canOfferPass: false,
-    });
+    // Scores are read off game.players, so the bot needs nothing else from here.
+    const call = bots[bidder].chooseBid(game, bidder, floor);
 
     if (call === "Pass") {
       history.push({ player: bidder, bid: "Pass", points: 0 });

@@ -216,6 +216,25 @@ function chooseBid(game, playerId, floorPoints = 0) {
   return bestSpecial.points > bestSuit.points ? bestSpecial.bid : bestSuit.bid;
 }
 
+// Would the robot rather throw the hand in than open the auction?
+//
+// Opening with a pass isn't the safe move it looks like. room.js ends the
+// auction the moment one side has passed and the other bids, so a pass here
+// hands the opponent the contract at whatever level they fancy — and if they are
+// close to home, that can be the game, from a hand the robot never got to
+// contest. Offering a pass costs nothing: accepted, the hand is redealt with the
+// score untouched; declined, the auction comes back with the robot still to
+// speak and it bids for real.
+//
+// Only worth asking when they are close enough for it to matter, which is the
+// same 200 that passingLosesTheGame uses. The room only offers this on the
+// opening call and only once a hand, so it can't turn into nagging.
+function wantsToOfferPass(game, playerId) {
+  const them = game.players.find((p) => p.id !== playerId);
+  if (!them || them.score < 300) return false;
+  return chooseBid(game, playerId, 0) === "Pass";
+}
+
 // ---- the kitty ----
 
 // The ten to keep out of hand-plus-kitty. Same shape as the four-player robot's:
@@ -491,6 +510,7 @@ function acceptsClaim(game, playerId) {
 
 module.exports = {
   chooseBid,
+  wantsToOfferPass,
   chooseDiscard,
   choosePlay,
   acceptsClaim,
