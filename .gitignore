@@ -24,3 +24,7 @@ yarn-error.log*
 
 # card art source bundles — the converted packs live in public/cards/
 *.zip
+
+# training scratch: model checkpoints and run logs from the RL pipeline
+/ai/__pycache__
+/ai/runs
