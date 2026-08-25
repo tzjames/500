@@ -46,6 +46,10 @@ function GameTable({
   onRetract,
   deal = null,
   compact = false,
+  // Phones commit a card on a second tap — see useTapToConfirm.
+  // Phone layout: a card takes two taps, and the trick piles come out of the
+  // seats to sit at the two bottom corners.
+  phone = false,
 }) {
   const deck = getDeck(deckId);
 
@@ -110,7 +114,7 @@ function GameTable({
         {/* The opponent's won tricks sit in flow beneath their fan rather than
             floating at fixed coordinates — that's what kept it colliding with
             their name pill once the seat grew or the window changed shape. */}
-        {holdsOpponentHand && (
+        {holdsOpponentHand && !phone && (
           <TrickPile className="pile-seated" count={opponentTricksWon} owner={opponentName} />
         )}
       </div>
@@ -119,6 +123,16 @@ function GameTable({
 
   return (
     <div className={`game-table${compact ? " compact" : ""}`}>
+      {/* On a phone both piles sit at the bottom corners, either side of the
+          hand, rather than one inside the opponent's seat and one in the near
+          corner — see the pile rules in GameTable.css. */}
+      {phone && (
+        <TrickPile
+          className="pile-floating pile-theirs"
+          count={opponentTricksWon}
+          owner={opponentName}
+        />
+      )}
       <TrickPile className="pile-floating pile-mine" count={playerTricksWon} owner="You" />
 
       <div className="seat seat-north">
@@ -133,6 +147,7 @@ function GameTable({
             trumpSuit={trumpSuit}
             isCurrentPlayer={isCurrentPlayerDummyTurn}
             deckId={deckId}
+            confirmTaps={phone}
           />
         ) : (
           <Fan count={10} side="north" deck={deck} />
@@ -189,6 +204,7 @@ function GameTable({
           trumpSuit={trumpSuit}
           isCurrentPlayer={isCurrentPlayerHandTurn}
           deckId={deckId}
+          confirmTaps={phone}
           deal={deal}
         />
       </div>
@@ -200,18 +216,33 @@ function GameTable({
 // cards, so the fan widens at the top. Any cards in `exposed` — played and
 // then taken back — are drawn face up at the end of the fan, since the holder
 // has already shown them.
+// How wide the whole fan opens, in degrees. Held at a total rather than a
+// per-card step: nine degrees a card is right for three or four, but a
+// ten-card hand at the same step opens to eighty and its bounding box gets
+// wider than half the screen — which is what had the two side seats
+// overlapping each other and their own name pills on a phone.
+const FAN_SPREAD_DEG = 44;
+const FAN_STEP_MAX_DEG = 9;
+
 function Fan({ count, side, exposed = [], deck }) {
-  const width = side === "north" ? 40 : 46;
   const total = Math.max(0, count);
   const shown = exposed.slice(0, total);
   const backs = Math.max(0, total - shown.length);
+  const step =
+    total > 1
+      ? Math.min(FAN_STEP_MAX_DEG, FAN_SPREAD_DEG / (total - 1))
+      : 0;
 
+  // width={null} leaves the size to CSS, which reads --card-fan — the same
+  // variable the overlap is a fraction of. Passing a fixed width here meant the
+  // two disagreed: as the viewport narrowed, --card-fan shrank the overlap
+  // while the cards stayed 46px, so the fan spread out instead of tightening.
   return (
     <div className={`fan fan-${side}`}>
       {Array.from({ length: backs }).map((_, i) => {
         const offset = i - (total - 1) / 2;
         return (
-          <Card key={`back-${i}`} faceDown width={width} rotate={offset * 9} className="fan-card" />
+          <Card key={`back-${i}`} faceDown width={null} rotate={offset * step} className="fan-card" />
         );
       })}
       {shown.map((card, i) => {
@@ -221,8 +252,8 @@ function Fan({ count, side, exposed = [], deck }) {
             key={`shown-${card.suit}-${card.value}`}
             card={card}
             deck={deck}
-            width={width}
-            rotate={offset * 9}
+            width={null}
+            rotate={offset * step}
             disabled
             className="fan-card fan-card-exposed"
           />

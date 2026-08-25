@@ -8,15 +8,19 @@ import GameTable4 from "../components/GameTable4";
 import BiddingInterface4 from "../components/BiddingInterface4";
 import ContractPanel4 from "../components/ContractPanel4";
 import LastTrickPanel4 from "../components/LastTrickPanel4";
+import GameHelp from "../components/GameHelp";
 import RoundEnd4Modal from "../components/RoundEnd4Modal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import ScoreHistoryModal from "../components/ScoreHistoryModal";
 import AnimatedHand from "../components/AnimatedHand";
 import Confetti from "../components/Confetti";
 import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
+import TableMenu from "../components/TableMenu";
+import MobileHud from "../components/MobileHud";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
 import { playSound, preloadSounds } from "../sounds";
+import { useViewport } from "../useViewport";
 import "../App.css";
 import "./GameRoom4Page.css";
 
@@ -193,6 +197,30 @@ function GameRoom4Page() {
     ];
   }, [state, dealKey]);
 
+  // What the piles show. The server credits a trick the moment it resolves and
+  // pushes the new count straight away, but the pile shouldn't grow until the
+  // cards have actually flown into it — so the counts are held at what they were
+  // until the animation finishes.
+  //
+  // Held as a snapshot rather than by subtracting one from the winner, because
+  // g4:trickResolved and the state carrying the increment are two separate
+  // messages: in the gap between them, subtracting showed the winner one short.
+  // Freezing can't do that whichever order they land in.
+  // Below the panel breakpoint the side panels are hidden, so the table menu
+  // carries them instead.
+  const { narrow, phone } = useViewport();
+
+  const [shownTricks, setShownTricks] = useState(null);
+  useEffect(() => {
+    if (pendingTrick) return;
+    const seats = state?.seats;
+    if (!seats || seats.length === 0) return;
+    setShownTricks((prev) => {
+      if (prev && seats.every((s) => prev[s.seat] === (s.tricksWon || 0))) return prev;
+      return Object.fromEntries(seats.map((s) => [s.seat, s.tricksWon || 0]));
+    });
+  }, [state, pendingTrick]);
+
   // A card hitting the table. Counted as cards played in the whole hand rather
   // than the length of the live trick: two snapshots can arrive in one render,
   // and at a trick boundary the live trick then appears to *shrink* — 4 cards
@@ -318,6 +346,52 @@ function GameRoom4Page() {
     );
   }
 
+  // Read before the panels below, which reference it: a const holding JSX is
+  // evaluated where it stands, so declaring it later would be a temporal dead
+  // zone error the moment one of them rendered.
+  const claim = state.claim;
+
+  // Placed either side of the felt on a wide screen, or inside the table menu
+  // when the row has no room for them — one definition either way.
+  const contractPanel4 = state.seats ? (
+    <ContractPanel4
+      state={state}
+      onShowScoreHistory={() => setShowScoreHistory(true)}
+      canClaimRest={state.canClaimRest}
+      claimPending={Boolean(claim?.mine)}
+      onClaimRest={() => emit("g4:claimRest")}
+    />
+  ) : null;
+
+  const sidePanels4 = state.seats ? (
+    <div className="side-column">
+      <LastTrickPanel4
+        lastTrick={state.lastTrick}
+        seats={state.seats || []}
+        mySeat={state.you.seat}
+        deckId={deckId}
+      />
+      <GameHelp
+        variant="four"
+        trumpSuit={state.trumpSuit}
+        bid={state.currentBid?.bid}
+        options={state.options}
+        deckId={deckId}
+      />
+    </div>
+  ) : null;
+
+  // The chip strip's numbers, from the same held counts the piles read so the
+  // two can't disagree mid-animation. See shownTricks.
+  const teamTricksShown = (team) =>
+    (state.seats || []).reduce((total, seat) => {
+      if (seat.team !== team) return total;
+      const held = shownTricks && shownTricks[seat.seat];
+      return total + (held === undefined || held === null ? seat.tricksWon || 0 : held);
+    }, 0);
+  const myTeamNow = state.you?.team ?? 0;
+  const theirTeamNow = myTeamNow === 0 ? 1 : 0;
+
   const topBar = (subtitle) => (
     <div className="table-topbar">
       <div>
@@ -328,14 +402,31 @@ function GameRoom4Page() {
         </h1>
         {subtitle && <p className="table-subtitle">{subtitle}</p>}
       </div>
-      <ThemePicker
-        locationId={locationId}
-        deckId={deckId}
-        feltId={feltId}
-        playerNames={playerNames}
-        onChange={handleSetGameSettings}
-        compact
-      />
+      {/* Four controls beside the title wrapped onto a second row — and with
+          two partnership names in the subtitle they pushed the felt a long way
+          down. On a narrow screen they collapse into one menu button, which
+          also carries the panels there's no room for. */}
+      {narrow ? (
+        <TableMenu
+          locationId={locationId}
+          deckId={deckId}
+          feltId={feltId}
+          playerNames={playerNames}
+          onChange={handleSetGameSettings}
+        >
+          {contractPanel4}
+          {sidePanels4}
+        </TableMenu>
+      ) : (
+        <ThemePicker
+          locationId={locationId}
+          deckId={deckId}
+          feltId={feltId}
+          playerNames={playerNames}
+          onChange={handleSetGameSettings}
+          compact
+        />
+      )}
     </div>
   );
 
@@ -731,7 +822,9 @@ function GameRoom4Page() {
         bidderSeat={b.currentBid?.seat ?? null}
         teamNames={state.teamNames || []}
         playedCards={cards}
+        phone={phone}
         flyToSeat={mine ? flyToSeat : null}
+        shownTricks={mode === "replay" ? null : shownTricks}
         revealedHands={b.revealedHands || {}}
         statusText={statusText}
         isYourTurn={yourTurn}
@@ -741,22 +834,31 @@ function GameRoom4Page() {
     );
   };
 
-  const claim = state.claim;
 
   return (
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
       {topBar(state.teamNames ? `${state.teamNames[0]} vs ${state.teamNames[1]}` : null)}
 
       <div className="board-row">
-        <ContractPanel4
-          state={state}
-          onShowScoreHistory={() => setShowScoreHistory(true)}
-          canClaimRest={state.canClaimRest}
-          claimPending={Boolean(claim?.mine)}
-          onClaimRest={() => emit("g4:claimRest")}
-        />
+        {!narrow && contractPanel4}
 
         <div className="board-center">
+          {narrow && state.seats && (
+            <MobileHud
+              contractBid={state.currentBid?.bid}
+              you={{
+                label: "Your side",
+                score: state.teamScores?.[myTeamNow] ?? 0,
+                tricks: `${teamTricksShown(myTeamNow)} tricks`,
+              }}
+              them={{
+                label: "Them",
+                score: state.teamScores?.[theirTeamNow] ?? 0,
+                tricks: `${teamTricksShown(theirTeamNow)} tricks`,
+              }}
+            />
+          )}
+
           {board(state, {})}
 
           {state.phase === "bidding" && !deal && !state.you.blindPrompt && (
@@ -813,12 +915,7 @@ function GameRoom4Page() {
           )}
         </div>
 
-        <LastTrickPanel4
-          lastTrick={state.lastTrick}
-          seats={state.seats || []}
-          mySeat={state.you.seat}
-          deckId={deckId}
-        />
+        {!narrow && sidePanels4}
       </div>
 
       {/* Blind bidding: asked once, when the auction reaches you, before you've

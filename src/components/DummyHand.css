@@ -53,3 +53,13 @@
   border-radius: 12px;
   box-shadow: 0 0 0 2px var(--amber-ring);
 }
+
+/* Held out, waiting for the confirm. The dummy sits along the top edge, so it
+   drops toward the felt rather than lifting off it. */
+.dummy-hand .dummy-card.picked {
+  transform: translateY(14px);
+  outline: 2px solid rgba(255, 235, 200, 0.95);
+  outline-offset: 2px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.5);
+  z-index: 45;
+}

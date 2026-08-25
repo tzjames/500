@@ -215,3 +215,19 @@
   writing-mode: vertical-rl;
   text-orientation: upright;
 }
+
+/* ---- phones ----
+   In the kitty each card shows only its leftmost 44px, so a badge centred on
+   the card box sits mostly under the next card and collides with its
+   neighbour's badge — three marked cards read as "DISCAR DISCAR DISCARD".
+   Centred on the visible sliver instead, and tightened enough to fit inside
+   it. The design makes the same point: centre the badge on the sliver, not the
+   card. */
+@media (max-width: 620px) {
+  .animated-hand .pc-badge {
+    left: 22px;
+    padding: 2px 5px;
+    font-size: 8px;
+    letter-spacing: 0.06em;
+  }
+}

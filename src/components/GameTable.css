@@ -16,7 +16,8 @@
   --card-hand: clamp(58px, 7.4vw, 116px);
   --card-dummy: clamp(42px, 5vw, 78px);
   --card-played: clamp(52px, 6vw, 88px);
-  --card-fan: clamp(28px, 3.2vw, 46px);
+  --card-fan-base: clamp(28px, 3.2vw, 46px);
+  --card-fan: var(--card-fan-base);
   /* Strip along the board's bottom-right kept clear of your hand, so your
      trick pile always has somewhere to sit beside the cards rather than on
      top of them. Wide enough for the pile and its caption plus the pile's
@@ -143,6 +144,13 @@
 
 /* The side fans tilt away from the viewer so they read as held rather than
    laid out. Mirrored left to right. */
+/* The partner's fan sits flat and further off, so it runs a little smaller —
+   the proportion the fixed widths used to carry. Scaling the variable rather
+   than the card keeps the overlap, which is a fraction of it, in step. */
+.fan-north {
+  --card-fan: calc(var(--card-fan-base) * 0.87);
+}
+
 .fan-left {
   transform: perspective(500px) rotateY(53deg) rotateZ(-10deg);
 }
@@ -348,5 +356,94 @@
     --pile-w: 34px;
     --pile-h: 49px;
     --pile-step: 2.6px;
+  }
+}
+
+/* ---- phones ----
+   Ten overlapping cards need about 350px of the 402 a phone gives you, and
+   they weren't getting it. Two things were taking the room: the 78px gutter
+   kept clear along the bottom-right for your trick pile, which left the hand
+   324px and pushed its centre 39px left of the screen's; and every suit group
+   starting a fresh card at full width, which costs three extra card-widths
+   across four groups. So the gutter goes, the pile moves up onto the cloth
+   where the designs put both piles anyway, and the hand becomes one continuous
+   fan — the suit runs still read, they just no longer each pay for a full card.
+
+   64px on a 28px step puts the fan at about 334px before rotation and 350
+   after, leaving roughly 26px clear at each bezel. */
+@media (max-width: 620px) {
+  .game-table {
+    /* The row the two piles sit on: clear of the hand, and above the status
+       pill, which spans most of a phone's width and would otherwise run into
+       them. */
+    --pile-row: calc(var(--card-hand) * var(--card-ratio, 1.4) + 90px);
+    --pile-gutter: 0px;
+    /* 58px on a 26px step puts a ten-card fan at about 310px of layout and 324
+       once the outer cards' rotation is counted — inside the 350px this board
+       leaves after its own padding, with room at each bezel. */
+    --card-hand: 58px;
+    --hand-step: 26px;
+  }
+
+  .seat-south {
+    right: 0;
+  }
+
+  /* Both piles at the bottom corners, either side of the hand and clear of the
+     status pill between them. Theirs is out of the opponent's seat on a phone
+     (see GameTable.js) precisely so it can be placed against the board rather
+     than against a seat that has itself moved. */
+  .pile-theirs {
+    left: 4px;
+    bottom: var(--pile-row);
+  }
+
+  .pile-mine {
+    right: 4px;
+    bottom: var(--pile-row);
+  }
+
+  .pile-floating {
+    --pile-w: 30px;
+    --pile-h: 43px;
+    --pile-step: 2.3px;
+  }
+}
+
+/* ---- phones: the opponent's two fans ----
+   At 422px each side fan measured 344px across and the two seats overlapped
+   each other and their own name pills. Capping the fan's spread (see Fan in
+   GameTable.js) does most of the work; the rest is a smaller card, and putting
+   the two seats at different heights so they read as two hands rather than one
+   tangle. */
+@media (max-width: 620px) {
+  .game-table {
+    --card-fan-base: 24px;
+  }
+
+  /* Left level with each other, at the shared 46%. They were stacked when each
+     fan was 344px across and the two collided; at 164px they sit side by side
+     with room to spare, and stacking only pushed the lower one down into the
+     trick pile in that corner. */
+
+  /* Small enough to sit beside a fan rather than under it. The avatar already
+     carries the initial, so the pill is a reminder, not a heading. */
+  .seat-name {
+    padding: 2px 7px;
+    font-size: 9.5px;
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .seat-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .seat-id {
+    gap: 5px;
   }
 }

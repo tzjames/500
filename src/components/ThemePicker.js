@@ -33,6 +33,10 @@ function ThemePicker({
   // offered when the room is exactly them — see deckAllowed in theme.js.
   playerNames = [],
   compact = false,
+  // One control per row with a label beside it, for the table menu. Inline in
+  // the top bar there's no room for labels; in a sheet there is, and four bare
+  // controls in a row don't say what they do.
+  stacked = false,
 }) {
   const location = getLocation(locationId);
   const felt = getFeltMode(feltId);
@@ -60,7 +64,9 @@ function ThemePicker({
   };
 
   return (
-    <div className={`theme-picker${compact ? " compact" : ""}`}>
+    <div
+      className={`theme-picker${compact ? " compact" : ""}${stacked ? " stacked" : ""}`}
+    >
       <label className="theme-select-wrap">
         <span className="theme-dot" style={{ background: location.dot }} />
         <select
@@ -101,6 +107,26 @@ function ThemePicker({
 
       {/* Cycles shown -> faded -> hidden. The icon is the table itself, so its
           own fill tells you which state you're in without a label. */}
+      {stacked && (
+        <div className="theme-row">
+          <span className="theme-row-label">Table</span>
+          <FeltToggle felt={felt} onChange={onChange} />
+          <span className="theme-row-label" style={{ textAlign: "right" }}>
+            Sound
+          </span>
+          <SoundToggle sound={sound} onToggle={toggleSound} />
+        </div>
+      )}
+      {!stacked && <FeltToggle felt={felt} onChange={onChange} />}
+      {!stacked && <SoundToggle sound={sound} onToggle={toggleSound} />}
+    </div>
+  );
+}
+
+// Pulled out so the inline row and the stacked menu can each place them without
+// a second copy of the icon.
+function FeltToggle({ felt, onChange }) {
+  return (
       <button
         type="button"
         className="felt-toggle"
@@ -123,11 +149,16 @@ function ThemePicker({
         </svg>
       </button>
 
-      {/* Personal, not room-wide — see `sound` above. */}
+  );
+}
+
+// Personal, not room-wide — see `sound` in ThemePicker.
+function SoundToggle({ sound, onToggle }) {
+  return (
       <button
         type="button"
         className="felt-toggle"
-        onClick={toggleSound}
+        onClick={onToggle}
         title={sound ? "Sound on — click to mute" : "Muted — click to unmute"}
         aria-label={sound ? "Sound on. Click to mute." : "Muted. Click to unmute."}
         aria-pressed={sound}
@@ -169,7 +200,6 @@ function ThemePicker({
           )}
         </svg>
       </button>
-    </div>
   );
 }
 

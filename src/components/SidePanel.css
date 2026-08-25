@@ -1,5 +1,5 @@
 .side-panel {
-  width: 212px;
+  width: var(--side-panel-w, 212px);
   flex: 0 0 auto;
   padding: 14px 16px 16px;
   border-radius: 14px;

@@ -323,3 +323,41 @@
 .table4-status.your-turn {
   box-shadow: 0 0 0 2px var(--amber-ring);
 }
+
+/* ---- phones ----
+   Same problem and same answer as the two-player table: the 78px pile gutter
+   left the hand too little of a 402px screen and pushed its centre off-side,
+   so the gutter goes and the pile moves up onto the cloth. The hand's own
+   sizing lives in PlayerHand.css, shared by both tables. */
+@media (max-width: 620px) {
+  .table4 {
+    --pile-row: calc(var(--card-hand) * var(--card-ratio, 1.5) + 90px);
+    --pile-gutter4: 0px;
+    --card-hand: 58px;
+    --hand-step: 26px;
+  }
+
+  .seat4-bottom {
+    right: 0;
+  }
+
+  /* One row for the pair, above the status pill — which sits at +40 and spans
+     most of a phone's width, so it would otherwise run straight into them. */
+  .pile4-floating {
+    position: absolute;
+    z-index: 2;
+    --pile-w: 30px;
+    --pile-h: 43px;
+    --pile-step: 2.3px;
+  }
+
+  .pile4-theirs {
+    left: 4px;
+    bottom: var(--pile-row);
+  }
+
+  .pile4-mine {
+    right: 4px;
+    bottom: var(--pile-row);
+  }
+}
