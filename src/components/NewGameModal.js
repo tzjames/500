@@ -32,9 +32,11 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
   }, [settings]);
 
   // A robot at the table makes the game friendly regardless of this checkbox
-  // — see isFriendlyGame on the server — so ticking "start against robots"
-  // shows it checked and locked, rather than let the two disagree.
-  const forcedFriendly = mode === 4 && fillWithBots;
+  // — see isFriendlyGame on the server — so ticking "start against a robot"
+  // shows it checked and locked, rather than let the two disagree. This
+  // applies at both table sizes: a two-player game seats one robot, a
+  // four-player game seats three.
+  const forcedFriendly = fillWithBots;
 
   const start = () => {
     setStarting(true);
@@ -87,6 +89,22 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
         <label className="ng-check">
           <input
             type="checkbox"
+            checked={fillWithBots}
+            onChange={(e) => setFillWithBots(e.target.checked)}
+          />
+          <span>
+            <b>{mode === 4 ? "Start now against robots" : "Start now against a robot"}</b>
+            <span className="ng-note">
+              {mode === 4
+                ? "The other three seats are filled with robots and the hand is dealt straight away."
+                : "The other seat is filled with a robot and the hand is dealt straight away."}
+            </span>
+          </span>
+        </label>
+
+        <label className="ng-check">
+          <input
+            type="checkbox"
             checked={friendly || forcedFriendly}
             disabled={forcedFriendly}
             onChange={(e) => setFriendly(e.target.checked)}
@@ -95,7 +113,7 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
             <b>Friendly game</b>
             <span className="ng-note">
               {forcedFriendly
-                ? "Playing against robots always makes it friendly — nobody's Elo rating moves."
+                ? `Playing against ${mode === 4 ? "robots" : "a robot"} always makes it friendly — nobody's Elo rating moves.`
                 : "Doesn't affect anyone's Elo rating, win or lose."}
             </span>
           </span>
@@ -121,21 +139,6 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
               </div>
             </fieldset>
 
-            <label className="ng-check">
-              <input
-                type="checkbox"
-                checked={fillWithBots}
-                onChange={(e) => setFillWithBots(e.target.checked)}
-              />
-              <span>
-                <b>Start now against robots</b>
-                <span className="ng-note">
-                  The other three seats are filled with robots and the hand is dealt
-                  straight away.
-                </span>
-              </span>
-            </label>
-
             <HouseRulesToggle
               options={options}
               open={showRules}
@@ -150,7 +153,7 @@ function NewGameModal({ remembered, loadingDefaults, onStart, onCancel, error })
 
         <div className="ng-actions">
           <button className="btn-primary" onClick={start} disabled={starting}>
-            {mode === 4 && fillWithBots ? "Deal against robots" : "Start"}
+            {fillWithBots ? (mode === 4 ? "Deal against robots" : "Deal against a robot") : "Start"}
           </button>
           <button className="btn-ghost" onClick={onCancel}>
             Cancel

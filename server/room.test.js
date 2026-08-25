@@ -414,6 +414,32 @@ test("only someone sitting at the table may seat a robot", () => {
   assert.equal(room.game, null);
 });
 
+// /api/games seats a robot in the second chair up front (rather than through
+// addBot) when a two-player game is started with "against a robot" ticked.
+// The game document it hands to Room already has both slots filled, so this
+// is what the host's very first join sees — addBot is never called.
+test("a two-player game created with its robot seat pre-filled deals as soon as the host joins", () => {
+  const io = fakeIo();
+  const room = new Room("game-1", io, {
+    visibility: "private",
+    friendly: true,
+    playerSlots: [null, { userId: "bot:1", name: "Ada (robot)", isBot: true }],
+    status: "waiting",
+    roundNumber: 1,
+    scoreHistory: [],
+    snapshot: {},
+  });
+
+  room.handleJoin(fakeSocket("u0", "Alice"));
+
+  assert.ok(room.slots.every(Boolean), "both chairs are taken");
+  assert.equal(room.botSlot().isBot, true);
+  assert.equal(room.slots.length, 2, "still a two-player table, not four");
+  assert.ok(room.game, "the hand is dealt as soon as the only human sits down");
+  assert.equal(room.gamePhase, "bidding");
+  room.dispose();
+});
+
 // The real test of the wiring. A robot's turn can begin after a bid, a discard,
 // a card, a trick resolving, a round ending or an offer being answered. Nothing
 // here tells the watcher what happened — it is only ever asked "is there
