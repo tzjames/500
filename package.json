@@ -8,6 +8,8 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.5.0",
     "react": "^18.3.1",
@@ -29,6 +31,11 @@
     "client": "PORT=3002 react-scripts start",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "start:prod": "node server/server.js"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router/dom$": "react-router/dist/development/dom-export.js"
+    }
   },
   "eslintConfig": {
     "extends": [

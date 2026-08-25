@@ -2,6 +2,17 @@ import React from "react";
 import { isRed } from "../cards";
 import "./SidePanel.css";
 
+// How many more tricks the bidder needs, or null when the question doesn't
+// apply. Exported because the phone's chip strip shows the same number and the
+// two must not be able to disagree.
+export function tricksStillNeeded({ currentBid, playerIsBidder, playerTricksWon }) {
+  const bid = currentBid?.bid;
+  if (!bid || !playerIsBidder || bid.includes("Misere") || bid.includes("Nullo")) return null;
+  const level = Number(bid.split(" ")[0]);
+  if (!Number.isFinite(level)) return null;
+  return Math.max(0, level - (playerTricksWon || 0));
+}
+
 // Left panel: the standing contract, the score, and how the round is going.
 // Replaces the old "Game Status" list — the trick counts it used to carry now
 // live on the felt as physical piles, so this panel keeps only what a pile
@@ -37,10 +48,7 @@ function ContractPanel({
 
   // Misère contracts are made by winning nothing, so "tricks still needed" is
   // meaningless for them — the bidder's target is zero and any trick kills it.
-  const tricksNeeded =
-    currentBid && !isMisere && playerIsBidder
-      ? Math.max(0, Number(level) - playerTricksWon)
-      : null;
+  const tricksNeeded = tricksStillNeeded({ currentBid, playerIsBidder, playerTricksWon });
 
   // Only shown while the round is live: it's a note about this round's
   // bidding, not something to carry onto the round-end screen.

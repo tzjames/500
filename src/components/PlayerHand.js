@@ -1,5 +1,6 @@
 import React from "react";
 import Card from "./Card";
+import { useTapToConfirm, PlayConfirm } from "./PlayConfirm";
 import { getDeck } from "../theme";
 import { groupHand, cardColor } from "../cards";
 import "./PlayerHand.css";
@@ -21,8 +22,15 @@ function PlayerHand({
   // whole hand is playable on your turn, which is how the two-player game has
   // always worked — it checks legality on the server and reports back.
   playable = null,
+  // Phones play a card in two taps — see useTapToConfirm.
+  confirmTaps = false,
 }) {
   const deck = getDeck(deckId);
+  const tap = useTapToConfirm({
+    enabled: confirmTaps && isCurrentPlayer,
+    onPlay: onPlayCard,
+    hand,
+  });
   const isPlayable = (card) =>
     !playable || playable.some((c) => c.suit === card.suit && c.value === card.value);
   const groups = groupHand(hand, trumpSuit);
@@ -51,6 +59,7 @@ function PlayerHand({
                 }
               : {};
             const canPlay = isCurrentPlayer && isPlayable(card);
+            const pending = tap.isPending(card);
             return (
               <Card
                 key={`${card.suit}-${card.value}-${indexInGroup}`}
@@ -61,17 +70,20 @@ function PlayerHand({
                 rotate={offset * 2.1}
                 lift={-Math.abs(offset) * 4}
                 disabled={!canPlay}
-                onClick={canPlay ? onPlayCard : undefined}
+                onClick={canPlay ? tap.click : undefined}
                 revealed={deal ? deal.revealed : null}
                 style={dealVars}
                 className={`hand-card ${cardColor(card.suit)}${
                   deal ? " dealing" : ""
-                }${isCurrentPlayer && !canPlay ? " unplayable" : ""}`}
+                }${isCurrentPlayer && !canPlay ? " unplayable" : ""}${
+                  pending ? " picked" : ""
+                }`}
               />
             );
           })}
         </div>
       ))}
+      <PlayConfirm card={tap.pending} onConfirm={tap.confirm} onCancel={tap.cancel} />
     </div>
   );
 }

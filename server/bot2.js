@@ -121,6 +121,44 @@ function misereRisk(hand) {
 const DUMMY_HELP = 4.0;
 const KITTY_HELP = 0.5;
 
+// Roughly how many of the ten tricks this hand takes *defending* against a
+// contract in `trumpSuit`. Our trumps in their suit still win tricks, so the
+// same estimate serves — plus the dummy we haven't been dealt yet.
+function defensiveTricks(hand, trumpSuit) {
+  const own = trumpSuit ? expectedTricks(hand, trumpSuit) : expectedTricksNoTrumps(hand);
+  return own + DUMMY_HELP;
+}
+
+// Would passing right now lose the game outright?
+//
+// A pass with a bid standing ends the auction on the spot (room.js placeBid), so
+// it hands the opponent that contract. If they are within 200 of home *and* the
+// contract on the table carries them there, passing is conceding the game — and
+// the non-bidder never loses points, so there is no risk on their side at all.
+//
+// Both halves are needed. The 200 band alone fires on hands where the standing
+// bid couldn't take them out anyway, and bidding a defensive six there just
+// gives away points for nothing.
+function passingLosesTheGame(game, playerId) {
+  const standing = game.currentBid;
+  if (!standing || standing.player === playerId) return false;
+  const them = game.players.find((p) => p.id !== playerId);
+  if (them.score < 300) return false;
+  return them.score + standing.points >= 500;
+}
+
+// The cheapest bid that keeps us in the auction without opening the back door.
+// Going one off is recoverable; -500 is not, and neither is letting them out.
+// Nothing is returned when every legal bid would risk the game just as surely as
+// passing would, in which case passing is no worse.
+function defensiveBid(game, playerId, legal) {
+  const me = game.players.find((p) => p.id === playerId);
+  const affordable = legal
+    .filter((bid) => !bid.special && me.score - bid.points > -500)
+    .sort((a, b) => a.points - b.points);
+  return affordable[0] || null;
+}
+
 // The robot's call. `floorPoints` is the standing bid's value — this game's
 // auction lives in room.js, so it has to be passed in.
 function chooseBid(game, playerId, floorPoints = 0) {
@@ -154,10 +192,47 @@ function chooseBid(game, playerId, floorPoints = 0) {
   const bestSuit = suitBids.sort((a, b) => b.points - a.points)[0];
   const bestSpecial = specialBids.sort((a, b) => a.points - b.points)[0];
 
-  if (!bestSuit && !bestSpecial) return "Pass";
+  if (!bestSuit && !bestSpecial) {
+    // Nothing here is worth a contract on its own merits. But if passing would
+    // hand them the game, bid anyway — unless the hand is good enough defending
+    // their suit to expect to set them, in which case passing beats bidding.
+    if (passingLosesTheGame(game, playerId)) {
+      const standing = game.currentBid;
+      const suit = standing.bid.split(" ")[1];
+      const level = Number(standing.bid.split(" ")[0]);
+      const theirTrump = REAL_SUITS.includes(suit) ? suit : null;
+      // They need `level` of the ten, so we set them by taking 11 - level.
+      const canDefend =
+        Number.isFinite(level) && defensiveTricks(hand, theirTrump) >= 11 - level;
+      if (!canDefend) {
+        const rescue = defensiveBid(game, playerId, legal);
+        if (rescue) return rescue.bid;
+      }
+    }
+    return "Pass";
+  }
   if (!bestSuit) return bestSpecial.bid;
   if (!bestSpecial) return bestSuit.bid;
   return bestSpecial.points > bestSuit.points ? bestSpecial.bid : bestSuit.bid;
+}
+
+// Would the robot rather throw the hand in than open the auction?
+//
+// Opening with a pass isn't the safe move it looks like. room.js ends the
+// auction the moment one side has passed and the other bids, so a pass here
+// hands the opponent the contract at whatever level they fancy — and if they are
+// close to home, that can be the game, from a hand the robot never got to
+// contest. Offering a pass costs nothing: accepted, the hand is redealt with the
+// score untouched; declined, the auction comes back with the robot still to
+// speak and it bids for real.
+//
+// Only worth asking when they are close enough for it to matter, which is the
+// same 200 that passingLosesTheGame uses. The room only offers this on the
+// opening call and only once a hand, so it can't turn into nagging.
+function wantsToOfferPass(game, playerId) {
+  const them = game.players.find((p) => p.id !== playerId);
+  if (!them || them.score < 300) return false;
+  return chooseBid(game, playerId, 0) === "Pass";
 }
 
 // ---- the kitty ----
@@ -239,6 +314,44 @@ function isTopRemaining(game, playerId, card) {
   );
 }
 
+// Each hand at the table is its own seat — a player's own hand and their dummy
+// hold different cards and show out separately.
+const seatKey = (seat) => `${seat.playerId}|${seat.isDummy ? "dummy" : "hand"}`;
+
+// Which suits each seat has shown out of. A seat that couldn't follow a lead
+// holds none of that suit, and a hand only ever gets shorter, so that holds for
+// the rest of the deal.
+function shownVoids(game) {
+  const size = game.seats ? game.seats.length : 4;
+  const voids = new Map();
+  for (let i = 0; i < game.playedCards.length; i += size) {
+    const trick = game.playedCards.slice(i, i + size);
+    const leadSuit = game.getLeadSuit(trick[0]);
+    for (const play of trick.slice(1)) {
+      if (getEffectiveSuit(play.card, game.trumpSuit) === leadSuit) continue;
+      const k = seatKey(play);
+      if (!voids.has(k)) voids.set(k, new Set());
+      voids.get(k).add(leadSuit);
+    }
+  }
+  return voids;
+}
+
+// Is there an opponent trump left to draw? Unseen trumps aren't the question —
+// they might all be sitting in your own dummy, and drawing then bleeds your own
+// side: the trump you lead and the one your dummy has to follow with are two
+// tricks the opponent never had to beat. Once both of their hands have shown out
+// of trumps, side suits come first — losing one to them is how you or your dummy
+// gets a void of your own, and a ruff back into control.
+function theyHoldTrumps(game, playerId) {
+  const trump = game.trumpSuit;
+  if (!liveAgainstMe(game, playerId).some((card) => countsAsTrump(card, trump))) return false;
+  const voids = shownVoids(game);
+  return (game.seats || [])
+    .filter((seat) => seat.playerId !== playerId)
+    .some((seat) => !voids.get(seatKey(seat))?.has(trump));
+}
+
 function trickLeader(game) {
   if (game.currentTrick.length === 0) return null;
   const leadSuit = game.getLeadSuit(game.currentTrick[0]);
@@ -274,18 +387,56 @@ function nominateSuit(hand) {
   return counts[0].suit;
 }
 
+// Lead low out of the longest suit and keep the honours back, off a side suit
+// where there is one.
+function lowLeadFromLength(game, legal) {
+  const trump = game.trumpSuit;
+  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
+  const pool = sideSuits.length > 0 ? sideSuits : legal;
+  const byLength = {};
+  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
+  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
+  const fromLongest = pool.filter((card) => card.suit === longest);
+  return lowest(fromLongest.length > 0 ? fromLongest : pool, game);
+}
+
+// The lead once nothing the opponent holds can ruff. Every trump left in hand is
+// a trick whenever you care to take it, so the lead stops being about trumps and
+// starts being about the rest of the hand.
+function leadNothingToRuffWith(game, playerId, legal) {
+  const trump = game.trumpSuit;
+  const trumps = legal.filter((card) => countsAsTrump(card, trump));
+  const side = legal.filter((card) => !countsAsTrump(card, trump));
+
+  // Cash a side winner ahead of a trump. It takes the trick just the same, and
+  // it makes them follow suit rather than handing them a free discard to throw a
+  // loser on.
+  const sideWinners = side.filter((card) => isTopRemaining(game, playerId, card));
+  if (sideWinners.length > 0) return { card: highest(sideWinners, game) };
+
+  // Trumps and one odd card: run the trumps and keep the odd one for last. They
+  // have to find a discard every round, not knowing which suit to keep guarded.
+  if (side.length === 1 && trumps.length > 0) return { card: highest(trumps, game) };
+
+  if (side.length > 0) return { card: lowLeadFromLength(game, side) };
+  return { card: highest(trumps, game) };
+}
+
 function chooseLead(game, playerId, hand, legal) {
   if (isAvoidingTricks(game, playerId)) return { card: lowest(legal, game) };
 
   const trump = game.trumpSuit;
   const onContract = game.currentBid && game.currentBid.player === playerId;
 
+  if (trump && !theyHoldTrumps(game, playerId)) {
+    return leadNothingToRuffWith(game, playerId, legal);
+  }
+
   // Declaring with trumps: pull the opponent's trumps while you still hold the
   // top of the suit. Both of your hands can draw, so this applies from either.
   if (onContract && trump) {
     const trumps = legal.filter((card) => countsAsTrump(card, trump));
-    const theyHoldTrumps = liveAgainstMe(game, playerId).some((card) => countsAsTrump(card, trump));
-    if (theyHoldTrumps && trumps.length > 0) {
+    if (trumps.length > 0) {
       const top = highest(trumps, game);
       if (trumps.length >= 4 || isTopRemaining(game, playerId, top)) return { card: top };
     }
@@ -294,13 +445,7 @@ function chooseLead(game, playerId, hand, legal) {
   const winners = legal.filter((card) => !isJoker(card) && isTopRemaining(game, playerId, card));
   if (winners.length > 0) return { card: highest(winners, game) };
 
-  const sideSuits = legal.filter((card) => !isJoker(card) && !countsAsTrump(card, trump));
-  const pool = sideSuits.length > 0 ? sideSuits : legal;
-  const byLength = {};
-  for (const card of pool) byLength[card.suit] = (byLength[card.suit] || 0) + 1;
-  const longest = Object.keys(byLength).sort((a, b) => byLength[b] - byLength[a])[0];
-  const fromLongest = pool.filter((card) => card.suit === longest);
-  return { card: lowest(fromLongest.length > 0 ? fromLongest : pool, game) };
+  return { card: lowLeadFromLength(game, legal) };
 }
 
 function chooseFollow(game, playerId, hand, legal) {
@@ -365,6 +510,7 @@ function acceptsClaim(game, playerId) {
 
 module.exports = {
   chooseBid,
+  wantsToOfferPass,
   chooseDiscard,
   choosePlay,
   acceptsClaim,

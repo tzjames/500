@@ -99,10 +99,26 @@ function chooseBid(game, seat) {
   if (legal.length === 0) return "Pass";
 
   // A bid is for the partnership's tricks, so the count has to allow for the
-  // hand across the table. An unseen hand is worth about two and a half tricks
-  // on average — pitch this much lower and the robot passes on almost
-  // everything, which leaves a table of them redealing all night.
-  const PARTNER_HELP = 3.2;
+  // hand across the table.
+  //
+  // Swept with ai/selfplay4.js rather than reasoned about, the way DUMMY_HELP
+  // was for the two-player robot. Win rate is against 3.2 over 2000 games; the
+  // other two columns are each value played against itself over 400:
+  //
+  //     help   vs 3.2   passed out   contract made
+  //     2.6     38.8%        41.0%            92.1%   passes on almost everything
+  //     3.2        —         14.4%            83.7%   ← was here
+  //     3.5     53.4%         6.0%            80.8%   ← here
+  //     3.8     52.8%         1.6%            73.9%   never redeals
+  //     4.4     44.4%         0.0%            59.6%
+  //     5.0     24.6%         0.0%            42.9%   bids everything and goes off
+  //
+  // Note this settles higher than the two-player robot's 60%-made target: with a
+  // partner and two defenders scoring ten a trick, a contract that goes off pays
+  // the other side twice, so the four-player game rewards the safer bid. 3.5 and
+  // 3.8 are within each other's error bars on win rate — 3.5 takes it for
+  // leaving the auction some texture, where 3.8 has all but stopped passing.
+  const PARTNER_HELP = 3.5;
   const estimates = {};
   for (const suit of BID_SUITS) {
     estimates[suit] =
@@ -222,6 +238,41 @@ function isTopRemaining(game, seat, card) {
   );
 }
 
+// Which suits each seat has shown out of. A seat that couldn't follow a lead
+// holds none of that suit, and a hand only ever gets shorter, so that holds for
+// the rest of the deal. Every trick is the same length — a solo partner folds
+// before a card is played — so the plays chunk straight into tricks.
+function shownVoids(game) {
+  const size = game.activeSeats().length;
+  const voids = new Map();
+  for (let i = 0; i < game.playedCards.length; i += size) {
+    const trick = game.playedCards.slice(i, i + size);
+    const leadSuit = game.getLeadSuit(trick[0]);
+    for (const play of trick.slice(1)) {
+      if (getEffectiveSuit(play.card, game.trumpSuit) === leadSuit) continue;
+      if (!voids.has(play.seat)) voids.set(play.seat, new Set());
+      voids.get(play.seat).add(leadSuit);
+    }
+  }
+  return voids;
+}
+
+// Is there an opponent trump left to draw? Unseen trumps aren't the question —
+// they might all be sitting in your own partner's hand, and once both opponents
+// have shown out, a trump lead only makes your partner follow with one of
+// theirs: two of your side's trumps spent on a trick the defence couldn't have
+// taken either way. Play a side suit instead — losing one to them is how you or
+// your partner comes by a void, and a ruff back into control.
+function opponentsHoldTrumps(game, seat) {
+  const trump = game.trumpSuit;
+  if (!unseenCards(game, seat).some((card) => countsAsTrump(card, trump))) return false;
+  const voids = shownVoids(game);
+  return game
+    .activeSeats()
+    .filter((other) => game.teamOf(other) !== game.teamOf(seat))
+    .some((other) => !voids.get(other)?.has(trump));
+}
+
 // Who is winning the trick as it stands, and by how much.
 function trickLeader(game) {
   if (game.currentTrick.length === 0) return null;
@@ -333,6 +384,31 @@ function lowLeadFromLength(game, legal) {
   return lowest(fromLongest.length > 0 ? fromLongest : pool, game);
 }
 
+// The lead once nothing the opponents hold can ruff. Every trump left in hand is
+// a trick whenever you care to take it, so the lead stops being about trumps and
+// starts being about the rest of the hand.
+function leadNothingToRuffWith(game, seat, legal) {
+  const trump = game.trumpSuit;
+  const trumps = legal.filter((card) => countsAsTrump(card, trump));
+  const side = legal.filter((card) => !countsAsTrump(card, trump));
+
+  // Cash a side winner ahead of a trump. It takes the trick just the same, and
+  // it makes the opponents follow suit rather than handing them a free discard
+  // to throw a loser on.
+  const sideWinners = side.filter((card) => isTopRemaining(game, seat, card));
+  if (sideWinners.length > 0) return { card: highest(sideWinners, game) };
+
+  // Trumps and one odd card: run the trumps and keep the odd one for last. They
+  // have to find a discard every round, not knowing which suit to keep guarded,
+  // and the card they throw is often the one that was holding yours off.
+  if (side.length === 1 && trumps.length > 0) return { card: highest(trumps, game) };
+
+  // Nothing to cash: lead low from a side suit and leave the trumps where they
+  // are, since no card out there can take one off you later.
+  if (side.length > 0) return { card: lowLeadFromLength(game, side) };
+  return { card: highest(trumps, game) };
+}
+
 function chooseLead(game, seat, legal) {
   const avoiding = isAvoidingTricks(game, seat);
   if (avoiding) return { card: lowest(legal, game) };
@@ -350,14 +426,17 @@ function chooseLead(game, seat, legal) {
   const onContract =
     game.currentBid && game.teamOf(seat) === game.teamOf(game.currentBid.seat);
 
+  if (trump && !opponentsHoldTrumps(game, seat)) {
+    return leadNothingToRuffWith(game, seat, legal);
+  }
+
   // Declaring side with trumps: pull the opponents' trumps out while you still
   // hold the top of the suit, which is the whole of basic 500 declarer play.
   if (onContract && trump) {
     const trumps = legal.filter((card) => countsAsTrump(card, trump));
-    const opponentsHoldTrumps = unseenCards(game, seat).some((card) => countsAsTrump(card, trump));
     // Worth doing off the top of the suit, or off length — a losing trump lead
     // from five still strips the defenders and clears the way for the rest.
-    if (opponentsHoldTrumps && trumps.length > 0) {
+    if (trumps.length > 0) {
       const top = highest(trumps, game);
       if (trumps.length >= 4 || isTopRemaining(game, seat, top)) return { card: top };
     }

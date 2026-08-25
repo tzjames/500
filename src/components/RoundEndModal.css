@@ -31,9 +31,13 @@
   margin: 6px 0 22px;
 }
 
+/* minmax(0, 1fr), not 1fr: a partnership's name is two player names and an
+   ampersand, and a bare 1fr floors at that min-content width — so with long
+   names the boxes held their size and the second one ran off the side of the
+   card. */
 .round-result-boxes {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   margin-bottom: 22px;
 }
@@ -43,6 +47,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  min-width: 0;
   padding: 18px 20px;
   border-radius: 16px;
   background: var(--surface);
@@ -59,6 +64,10 @@
 .round-result-name {
   font-size: 13px;
   font-weight: 700;
+  min-width: 0;
+  /* Robot names have no spaces to break at, so let it break anywhere rather
+     than push the score out of the box. */
+  overflow-wrap: anywhere;
 }
 
 /* Total and swing are set at the same size; the colour on the swing is what
@@ -141,4 +150,41 @@
   display: flex;
   gap: 10px;
   justify-content: center;
+}
+
+/* ---- phones ----
+   Two score boxes side by side leave neither enough room once the names are
+   real, so they stack — as the mobile designs have them. The chart comes down
+   to the design's proportions and the figures with it. */
+@media (max-width: 620px) {
+  .round-result-modal {
+    padding: 22px 18px 18px;
+    border-radius: 18px;
+  }
+
+  .round-result-boxes {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .round-result-box {
+    padding: 13px 15px;
+  }
+
+  .round-result-total,
+  .round-result-delta {
+    font-size: 26px;
+  }
+
+  .round-result-headline {
+    font-size: clamp(22px, 7vw, 30px);
+    margin-bottom: 16px;
+  }
+
+  .round-end-buttons .btn-primary,
+  .round-end-buttons .btn-ghost {
+    width: 100%;
+    min-height: 48px;
+  }
 }

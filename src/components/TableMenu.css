@@ -1,0 +1,84 @@
+/* One button in the top bar, in place of four controls needing two rows. */
+.table-menu-button {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--ink);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.table-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 10, 12, 0.62);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1450;
+}
+
+.table-menu-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-radius: 22px 22px 0 0;
+  background: var(--panel-dense);
+  border: 1px solid var(--panel-border-strong);
+  border-bottom: none;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.table-menu-grip {
+  display: block;
+  width: 42px;
+  height: 4px;
+  margin: 4px auto 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.table-menu-title {
+  margin: 0 2px 10px;
+}
+
+/* The panels below the settings. They're built as fixed-width columns for the
+   board, so in here they take the sheet's width instead. */
+.table-menu-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Width only. The panel is a block element and lays its rows out vertically —
+   forcing display:flex here turned it into a single squeezed row that ran off
+   the side of the sheet. */
+.table-menu-panels .side-panel,
+.table-menu-panels .side-column {
+  width: auto;
+  /* On the board they're pinned to the top of the row; in here they should
+     fill the sheet, and align-self: flex-start was leaving them shrink-wrapped
+     at about half its width. */
+  align-self: stretch;
+}
+
+.table-menu-close {
+  width: 100%;
+  margin-top: 16px;
+  min-height: 48px;
+  font-size: 14px;
+}

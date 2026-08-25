@@ -11,9 +11,13 @@
   margin-bottom: 6px;
 }
 
+/* Wraps rather than running off the side: a four-player legend is two
+   partnership names, each of them two player names joined by an ampersand. */
 .score-chart-legend {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-width: 0;
   font-size: 11.5px;
   opacity: 0.8;
 }
@@ -22,7 +26,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+/* The name gives way before the row does. */
+.score-chart-legend-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .score-chart-swatch {

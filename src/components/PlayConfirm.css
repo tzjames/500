@@ -1,0 +1,74 @@
+/* The confirm bar. Fixed above the bottom edge, clear of the home indicator,
+   and wide enough to be hit without aiming. */
+.play-confirm {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 10px;
+  z-index: 1300;
+}
+
+.play-confirm-go {
+  flex: 1 1 auto;
+  min-height: 52px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--amber, rgba(255, 235, 200, 0.94));
+  color: #14181b;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  /* Static label plus an interpolated value: a flex row with nowrap, because a
+     grid stacks them onto two lines — a trap the design handoff calls out. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+  animation: play-confirm-pulse 2.2s ease-out infinite;
+}
+
+/* The card is lifted and waiting; the pulse is what says the move isn't made
+   yet. */
+@keyframes play-confirm-pulse {
+  0% { box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(255, 225, 170, 0.45); }
+  70% { box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 10px rgba(255, 225, 170, 0); }
+  100% { box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(255, 225, 170, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-confirm-go {
+    animation: none;
+  }
+}
+
+/* Red suits keep their colour against the amber fill rather than the dark felt,
+   so this is the ink red, not the on-dark red. */
+.play-confirm-go .red {
+  color: #c0392b;
+}
+
+.play-confirm-go .black {
+  color: #1a2024;
+}
+
+.play-confirm-cancel {
+  flex: 0 0 auto;
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(10, 14, 17, 0.72);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

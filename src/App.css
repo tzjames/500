@@ -46,6 +46,10 @@
    middle column is the only one that flexes, so the panels keep their width as
    the window narrows. */
 .board-row {
+  /* One definition of how wide a side panel is, so the last-trick box and the
+     help controls under it can't drift apart — anything in the column that
+     wanted to be wider used to widen the whole column with it. */
+  --side-panel-w: 212px;
   display: flex;
   align-items: stretch;
   gap: 16px;
@@ -61,12 +65,27 @@
   flex-direction: column;
 }
 
+/* The right-hand column: the last trick, with the help controls under it. A
+   column rather than a bare panel because the two want to line up to the same
+   width and stay together when the row wraps them out of sight. */
+.side-column {
+  flex: 0 0 auto;
+  width: var(--side-panel-w, 212px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: flex-start;
+  min-height: 0;
+  z-index: 5;
+}
+
 /* Panels are a nicety, not load-bearing — drop them before the table gets
    squeezed. The threshold is set by the widest thing on the felt: a ten-card
    hand needs roughly 695px at this breakpoint's card size, and two 212px
    panels plus gaps leave less than that below ~1240px. */
 @media (max-width: 1280px) {
-  .board-row > .side-panel {
+  .board-row > .side-panel,
+  .board-row > .side-column {
     display: none;
   }
 }
@@ -395,4 +414,21 @@
   font-size: 24px;
   font-weight: 400;
   margin: 0;
+}
+
+/* ---- narrow screens ----
+   The title keeps one line and the felt keeps its height. The theme picker has
+   moved into the details sheet by this width (see GameRoomPage), so there is
+   nothing to sit beside the title and nothing left to wrap. */
+@media (max-width: 1280px) {
+  .table-topbar {
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .table-subtitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }

@@ -293,6 +293,77 @@ test("the robot doesn't overtake its own dummy", () => {
   assert.equal(key(bot2.choosePlay(game, 1, false).card), key(c("A", "♥")), "should take the trick");
 });
 
+// A trick where a trump was led and both of player 2's hands threw hearts on it.
+// Each hand at the table shows out separately, so it takes both of them before
+// the opponent is known to be out of trumps altogether.
+function opponentOutOfTrumps(game) {
+  game.playedCards = [
+    { playerId: 1, isDummy: false, card: c("A", "♠") },
+    { playerId: 2, isDummy: false, card: c("5", "♥") },
+    { playerId: 1, isDummy: true, card: c("6", "♠") },
+    { playerId: 2, isDummy: true, card: c("7", "♥") },
+  ];
+}
+
+test("the declarer stops drawing trumps once the opponent has shown out of them", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  game.players[0].hand = [
+    c("K", "♠"), c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("4", "♥"), c("3", "♥"),
+  ];
+
+  const choice = bot2.choosePlay(game, 1, false);
+  assert.ok(
+    !["♠", "Joker"].includes(choice.card.suit),
+    `led ${key(choice.card)} with no trumps left against it`
+  );
+});
+
+test("a trump still gets drawn while one of the opponent's hands might hold one", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  // Their dummy followed the trump lead instead of discarding, so that hand
+  // could still be holding one and the draw is still worth it.
+  game.playedCards[3] = { playerId: 2, isDummy: true, card: c("8", "♠") };
+  game.players[0].hand = [
+    c("K", "♠"), c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("4", "♥"), c("3", "♥"),
+  ];
+
+  assert.equal(bot2.choosePlay(game, 1, false).card.suit, "♠");
+});
+
+test("a side winner is cashed ahead of a trump when nothing can ruff", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  // The Joker led that trick and is gone, so the right bower is the best trump
+  // left and takes the trick for certain — but so does the ace of diamonds, and
+  // nothing can take the bower off you later.
+  game.playedCards[0] = { playerId: 1, isDummy: false, card: JOKER };
+  game.players[0].hand = [c("J", "♠"), c("A", "♦"), c("3", "♥")];
+
+  assert.equal(key(bot2.choosePlay(game, 1, false).card), key(c("A", "♦")));
+});
+
+test("trumps are run first when only one odd card is left beside them", () => {
+  const game = new Game500();
+  game.trumpSuit = "♠";
+  game.currentBid = { player: 1, bid: "8 ♠", points: 240 };
+  game.setupSeats(1, false);
+  opponentOutOfTrumps(game);
+  game.players[0].hand = [c("9", "♠"), c("8", "♠"), c("3", "♥")];
+
+  assert.equal(bot2.choosePlay(game, 1, false).card.suit, "♠");
+});
+
 test("a Misère bidder ducks as high as it can without winning", () => {
   const game = new Game500();
   game.currentBid = { player: 1, bid: "Misere", points: 250 };
@@ -353,4 +424,69 @@ test("the robot can't see its own dummy until it has played a card", () => {
   const after = bot2.liveAgainstMe(build(9), 1).map(key);
   assert.ok(!after.includes(key(c("A", "♠"))), "own dummy should be known now");
   assert.ok(!after.includes(key(c("K", "♠"))));
+});
+
+// ---- bidding with the game on the line ----
+
+// Honours but no length and nothing in any trump: chooseBid passes on this from
+// a level scoreline, and misereRisk is far too high to duck out instead. So in
+// every test below, a call other than Pass can only have come from the endgame
+// rule.
+const NO_DEFENCE = [
+  c("Q", "♠"), c("10", "♠"), c("9", "♠"), c("8", "♠"), c("Q", "♣"),
+  c("10", "♣"), c("9", "♣"), c("8", "♣"), c("7", "♦"), c("6", "♦"),
+];
+
+function facing(hand, standingBid, myScore, theirScore) {
+  const game = new Game500();
+  game.players[0].hand = [...hand];
+  game.players[0].score = myScore;
+  game.players[1].score = theirScore;
+  if (standingBid) {
+    game.currentBid = { player: 2, bid: standingBid, points: bidInfo(standingBid).points };
+  }
+  return game;
+}
+
+test("the endgame rule leaves an ordinary auction alone", () => {
+  assert.equal(bot2.chooseBid(facing(NO_DEFENCE, null, 0, 0), 1, 0), "Pass");
+  // Their bid stands, but from 0 it takes them nowhere near home.
+  assert.equal(bot2.chooseBid(facing(NO_DEFENCE, "6 ♥", 0, 0), 1, 100), "Pass");
+});
+
+// Passing with a bid standing ends the auction on the spot (room.js placeBid),
+// so it hands them the contract — and 440 + 100 is the game. Bidding probably
+// loses the hand, but a hand is recoverable and the game is not.
+test("the robot won't pass a contract that would win them the game", () => {
+  const call = bot2.chooseBid(facing(NO_DEFENCE, "6 ♥", 0, 440), 1, 100);
+  assert.notEqual(call, "Pass", "440 + 100 is 540 — passing concedes the game");
+  assert.ok(bidLegality(call, 100).ok, `${call} has to beat the standing 100`);
+});
+
+// The other half of the rule. Being inside 200 is not enough on its own: from
+// 340 a six-heart contract leaves them 60 short, so there is nothing to stop and
+// a defensive bid would only give away points.
+test("being within 200 isn't enough on its own to bid them up", () => {
+  assert.equal(bot2.chooseBid(facing(NO_DEFENCE, "6 ♥", 0, 340), 1, 100), "Pass");
+});
+
+// A defensive bid is one you expect to go off in, and going off far enough is
+// the back door — which loses the game just as surely as letting them make it.
+test("the robot won't bid itself out through the back door", () => {
+  // Every legal call is worth at least 120 here, and -400 can't afford any of
+  // them, so it passes rather than lose the game by its own hand.
+  assert.equal(bot2.chooseBid(facing(NO_DEFENCE, "6 ♥", -400, 440), 1, 100), "Pass");
+});
+
+// Enough in their suit to expect to set them is a reason to pass, not bid: let
+// them buy the contract and take it off them.
+test("a hand that can defend their suit passes rather than bidding", () => {
+  const defends = [
+    c("Q", "♠"), c("9", "♠"), c("J", "♥"), c("8", "♥"), c("Q", "♦"),
+    c("7", "♦"), c("J", "♣"), c("6", "♣"), c("5", "♣"), c("4", "♣"),
+  ];
+  // J♥ is the left bower against diamonds and Q♦ is a trump honour, which with
+  // an unseen dummy is about five tricks — they need six and won't get there.
+  assert.ok(bot2.expectedTricks(defends, "♦") > 1);
+  assert.equal(bot2.chooseBid(facing(defends, "6 ♦", 0, 440), 1, 80), "Pass");
 });

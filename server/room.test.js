@@ -414,6 +414,32 @@ test("only someone sitting at the table may seat a robot", () => {
   assert.equal(room.game, null);
 });
 
+// /api/games seats a robot in the second chair up front (rather than through
+// addBot) when a two-player game is started with "against a robot" ticked.
+// The game document it hands to Room already has both slots filled, so this
+// is what the host's very first join sees — addBot is never called.
+test("a two-player game created with its robot seat pre-filled deals as soon as the host joins", () => {
+  const io = fakeIo();
+  const room = new Room("game-1", io, {
+    visibility: "private",
+    friendly: true,
+    playerSlots: [null, { userId: "bot:1", name: "Ada (robot)", isBot: true }],
+    status: "waiting",
+    roundNumber: 1,
+    scoreHistory: [],
+    snapshot: {},
+  });
+
+  room.handleJoin(fakeSocket("u0", "Alice"));
+
+  assert.ok(room.slots.every(Boolean), "both chairs are taken");
+  assert.equal(room.botSlot().isBot, true);
+  assert.equal(room.slots.length, 2, "still a two-player table, not four");
+  assert.ok(room.game, "the hand is dealt as soon as the only human sits down");
+  assert.equal(room.gamePhase, "bidding");
+  room.dispose();
+});
+
 // The real test of the wiring. A robot's turn can begin after a bid, a discard,
 // a card, a trick resolving, a round ending or an offer being answered. Nothing
 // here tells the watcher what happened — it is only ever asked "is there
@@ -434,6 +460,15 @@ function playWithRobot(t, { maxTicks = 6000 } = {}) {
   const humanTurn = () => {
     const game = room.game;
     if (!game) return false;
+
+    // The robot can start an offer of its own now, and it will sit and wait for
+    // the answer. A real client puts that in front of the player as a modal they
+    // have to deal with; without the same here the table hangs, which is a
+    // property of this fake human rather than of the room.
+    if (room.pendingOffer && room.pendingOffer.fromPlayerId !== humanId) {
+      room.respondToOffer(human, false);
+      return true;
+    }
 
     if ((room.gamePhase === "roundEnd" || room.gamePhase === "gameOver") && room.roundEnd) {
       if (!room.roundEnd.readyUserIds.has(humanId)) {
@@ -556,4 +591,77 @@ test("the watcher re-arms itself and stops when the humans leave", (t) => {
   } finally {
     t.mock.timers.reset();
   }
+});
+
+// ---- offering a pass ----
+
+// The robot on lead with a hand it doesn't fancy and the game nearly gone.
+// Rigging the hand rather than dealing for it: chooseBid has to want to pass, or
+// the offer never comes up.
+function tableWithBotOnLead(t) {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { room, human } = newSoloRoom();
+  room.addBot(fakeSocket("u0", "Alice"));
+  const botId = room.botSlot().userId;
+
+  // Honours without length: too much in it to duck out on a Misère, not enough
+  // to bid on. Same shape bot2.test.js uses for a hand worth nothing.
+  room.game.players.find((p) => p.id === botId).hand = [
+    { value: "Q", suit: "♠" }, { value: "9", suit: "♠" }, { value: "J", suit: "♥" },
+    { value: "8", suit: "♥" }, { value: "Q", suit: "♦" }, { value: "7", suit: "♦" },
+    { value: "J", suit: "♣" }, { value: "6", suit: "♣" }, { value: "5", suit: "♣" },
+    { value: "4", suit: "♣" },
+  ];
+  room.gamePhase = "bidding";
+  room.currentBidder = botId;
+  room.biddingHistory = [];
+  return { room, human, botId };
+}
+
+test("the robot offers a pass rather than opening one with the game nearly gone", (t) => {
+  const { room, human, botId } = tableWithBotOnLead(t);
+  room.game.players.find((p) => p.id !== botId).score = 460;
+
+  const actor = room.botActor();
+  assert.equal(actor?.kind, "offerPass");
+  room.runBotTurn(actor);
+  assert.equal(room.pendingOffer?.type, "pass");
+  assert.equal(room.pendingOffer.fromPlayerId, botId);
+
+  // Its own offer is outstanding, so it must sit still — placeBid only checks
+  // whose turn it is, and answering your own question by bidding is not an
+  // auction anyone can follow.
+  assert.equal(room.botActor(), null, "nothing to do until the offer is answered");
+
+  // Declined, it goes back to bidding and never asks twice.
+  room.respondToOffer(human, false);
+  assert.equal(room.offerPassDeclined, true);
+  assert.equal(room.botActor()?.kind, "bid");
+  room.dispose();
+});
+
+test("the robot opens normally when the score isn't close", (t) => {
+  const { room, botId } = tableWithBotOnLead(t);
+  room.game.players.find((p) => p.id !== botId).score = 40;
+  assert.equal(room.botActor()?.kind, "bid", "nothing at stake — just call");
+  room.dispose();
+});
+
+// The button is a table setting, and the robot is held to the same one.
+test("the robot won't offer a pass the table has switched off", (t) => {
+  const { room, botId } = tableWithBotOnLead(t);
+  room.game.players.find((p) => p.id !== botId).score = 460;
+  room.gameSettings.showOfferPassButton = false;
+  assert.equal(room.botActor()?.kind, "bid");
+  room.dispose();
+});
+
+// offerPass is an opening-call thing: once a bid is in, a pass ends the auction
+// instead of redealing, so the offer would mean something quite different.
+test("the robot doesn't offer a pass once the auction has started", (t) => {
+  const { room, botId } = tableWithBotOnLead(t);
+  room.game.players.find((p) => p.id !== botId).score = 460;
+  room.biddingHistory = [{ player: "u0", bid: "6 ♠", points: 40 }];
+  assert.equal(room.botActor()?.kind, "bid");
+  room.dispose();
 });
