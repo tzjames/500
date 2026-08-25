@@ -29,6 +29,11 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "start:prod": "node server/server.js"
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-router/dom$": "react-router/dist/development/dom-export.js"
+    }
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
