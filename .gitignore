@@ -34,3 +34,4 @@ yarn-error.log*
 # training scratch: model checkpoints and run logs from the RL pipeline
 /ai/__pycache__
 /ai/runs
+/ai/.venv
