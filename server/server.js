@@ -93,11 +93,13 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
   const playerSlots = [host, ...Array(seats - 1).fill(null)];
 
   // Starting against robots fills the empty seats now, so the table is complete
-  // the moment the host walks in and the game deals itself. Partners are drawn
-  // rather than chosen in that case: picking between three identical robots
-  // isn't a decision worth a screen.
+  // the moment the host walks in and the game deals itself. This applies at
+  // both table sizes — a two-player game gets one robot opponent, a
+  // four-player game gets three. Partners are drawn rather than chosen in the
+  // four-player case: picking between three identical robots isn't a
+  // decision worth a screen.
   const seating = fillWithBots ? "random" : partnerMode === "random" ? "random" : "choose";
-  const withBots = mode === 4 && Boolean(fillWithBots);
+  const withBots = Boolean(fillWithBots);
 
   if (withBots) {
     const taken = [host.name];
