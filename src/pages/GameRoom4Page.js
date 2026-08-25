@@ -839,26 +839,34 @@ function GameRoom4Page() {
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
       {topBar(state.teamNames ? `${state.teamNames[0]} vs ${state.teamNames[1]}` : null)}
 
+      {/* Above the board row rather than inside it: the centred panels are
+          positioned against the felt, and from in here the score sat under
+          them. */}
+      {narrow && state.seats && (
+        <MobileHud
+          contractBid={state.currentBid?.bid}
+          contractHolder={
+            state.currentBid?.seat === state.you?.seat
+              ? "You"
+              : state.seats.find((s) => s.seat === state.currentBid?.seat)?.name
+          }
+          you={{
+            label: "Your side",
+            score: state.teamScores?.[myTeamNow] ?? 0,
+            tricks: `${teamTricksShown(myTeamNow)} tricks`,
+          }}
+          them={{
+            label: "Them",
+            score: state.teamScores?.[theirTeamNow] ?? 0,
+            tricks: `${teamTricksShown(theirTeamNow)} tricks`,
+          }}
+        />
+      )}
+
       <div className="board-row">
         {!narrow && contractPanel4}
 
         <div className="board-center">
-          {narrow && state.seats && (
-            <MobileHud
-              contractBid={state.currentBid?.bid}
-              you={{
-                label: "Your side",
-                score: state.teamScores?.[myTeamNow] ?? 0,
-                tricks: `${teamTricksShown(myTeamNow)} tricks`,
-              }}
-              them={{
-                label: "Them",
-                score: state.teamScores?.[theirTeamNow] ?? 0,
-                tricks: `${teamTricksShown(theirTeamNow)} tricks`,
-              }}
-            />
-          )}
-
           {board(state, {})}
 
           {state.phase === "bidding" && !deal && !state.you.blindPrompt && (

@@ -1359,6 +1359,36 @@ function GameRoomPage() {
     </div>
   );
 
+  // Sits above the board row rather than inside it: the centred panels are
+  // positioned against the felt, and from in here the score sat under them.
+  const mobileHud = (
+    <MobileHud
+      contractBid={gameState.currentBid?.bid}
+      contractHolder={
+        gameState.currentBid?.player === playerId
+          ? "You"
+          : gameState.players.find((p) => p.id === gameState.currentBid?.player)?.name
+      }
+      you={{
+        label: "You",
+        score: currentPlayerData.score,
+        tricks: `${tricksShown(currentPlayerData, settlingTrick)} tricks`,
+      }}
+      them={{
+        label: opponentName,
+        score: otherPlayerData?.score ?? 0,
+        tricks: `${tricksShown(otherPlayerData, settlingTrick)} tricks`,
+      }}
+      footnote={
+        tricksNeededNow === null
+          ? null
+          : tricksNeededNow === 0
+          ? "Contract made."
+          : `${tricksNeededNow} more trick${tricksNeededNow === 1 ? "" : "s"} to make the contract.`
+      }
+    />
+  );
+
   return (
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed={isDiscarding}>
       <div className="table-topbar">
@@ -1398,6 +1428,8 @@ function GameRoomPage() {
         )}
       </div>
 
+      {narrow && !isDiscarding && mobileHud}
+
       {isDiscarding ? (
         <div className="kitty-screen">
           <div>
@@ -1433,29 +1465,6 @@ function GameRoomPage() {
           {!narrow && contractPanel}
 
           <div className="board-center">
-            {narrow && (
-              <MobileHud
-                contractBid={gameState.currentBid?.bid}
-                you={{
-                  label: "You",
-                  score: currentPlayerData.score,
-                  tricks: `${tricksShown(currentPlayerData, settlingTrick)} tricks`,
-                }}
-                them={{
-                  label: opponentName,
-                  score: otherPlayerData?.score ?? 0,
-                  tricks: `${tricksShown(otherPlayerData, settlingTrick)} tricks`,
-                }}
-                footnote={
-                  tricksNeededNow === null
-                    ? null
-                    : tricksNeededNow === 0
-                    ? "Contract made."
-                    : `${tricksNeededNow} more trick${tricksNeededNow === 1 ? "" : "s"} to make the contract.`
-                }
-              />
-            )}
-
             <GameTable
               playedCards={playedCards}
               opponentHandSize={otherPlayerData?.handSize || 0}

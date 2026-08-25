@@ -33,12 +33,15 @@ function Chip({ label, children, wide = false }) {
 // strip under the title as in the mobile designs. The panels themselves — the
 // contract with its claim and concede buttons, the last trick, the help — live
 // in the table menu, so there is one way in rather than two.
-function MobileHud({ contractBid, you, them, footnote }) {
+function MobileHud({ contractBid, contractHolder, you, them, footnote }) {
   return (
     <>
       <div className="mobile-hud">
         <Chip label="Contract">
           <ContractValue bid={contractBid} />
+          {contractBid && contractHolder && (
+            <span className="hud-chip-sub hud-chip-who">{contractHolder}</span>
+          )}
         </Chip>
         <Chip label={you.label} wide>
           {you.score}
