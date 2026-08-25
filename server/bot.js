@@ -99,10 +99,26 @@ function chooseBid(game, seat) {
   if (legal.length === 0) return "Pass";
 
   // A bid is for the partnership's tricks, so the count has to allow for the
-  // hand across the table. An unseen hand is worth about two and a half tricks
-  // on average — pitch this much lower and the robot passes on almost
-  // everything, which leaves a table of them redealing all night.
-  const PARTNER_HELP = 3.2;
+  // hand across the table.
+  //
+  // Swept with ai/selfplay4.js rather than reasoned about, the way DUMMY_HELP
+  // was for the two-player robot. Win rate is against 3.2 over 2000 games; the
+  // other two columns are each value played against itself over 400:
+  //
+  //     help   vs 3.2   passed out   contract made
+  //     2.6     38.8%        41.0%            92.1%   passes on almost everything
+  //     3.2        —         14.4%            83.7%   ← was here
+  //     3.5     53.4%         6.0%            80.8%   ← here
+  //     3.8     52.8%         1.6%            73.9%   never redeals
+  //     4.4     44.4%         0.0%            59.6%
+  //     5.0     24.6%         0.0%            42.9%   bids everything and goes off
+  //
+  // Note this settles higher than the two-player robot's 60%-made target: with a
+  // partner and two defenders scoring ten a trick, a contract that goes off pays
+  // the other side twice, so the four-player game rewards the safer bid. 3.5 and
+  // 3.8 are within each other's error bars on win rate — 3.5 takes it for
+  // leaving the auction some texture, where 3.8 has all but stopped passing.
+  const PARTNER_HELP = 3.5;
   const estimates = {};
   for (const suit of BID_SUITS) {
     estimates[suit] =
