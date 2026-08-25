@@ -44,6 +44,7 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
+  min-width: 0;
   font-size: 19px;
   line-height: 1.1;
   white-space: nowrap;
@@ -63,6 +64,12 @@
   font-weight: 600;
   opacity: 0.6;
   white-space: nowrap;
+}
+
+/* The bidder's name is the one chip value that isn't ours to keep short. */
+.hud-chip-who {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 

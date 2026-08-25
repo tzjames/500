@@ -137,9 +137,13 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, "../build")));
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
+// The "catchall" handler: for any request that doesn't match one above, send
+// back React's index.html file. Anything with a file extension got past the
+// static middleware, so it is genuinely missing and gets a 404 — answering it
+// with HTML and a 200 turns a browser holding a stale index.html into an
+// unreadable script error instead of a plain missing-file.
 app.get("*", (req, res) => {
+  if (path.extname(req.path)) return res.sendStatus(404);
   res.sendFile(path.join(__dirname, "../build/index.html"));
 });
 
