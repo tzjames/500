@@ -59,13 +59,17 @@ function AuthForm() {
   );
 }
 
-// The game has never settled on a name. One is picked per visit.
+// One is picked per visit. They used to enumerate the ways 500 can be dealt,
+// which stopped meaning much once the site was more than one game.
 const TAGLINES = [
-  "Two-handed, with dummies",
-  "Five-handed, four-player, two-person, two-handed, five hundred",
-  "Two players, two dummies",
-  "Two-player, two-handed, four-player, five-handed",
-  "Four players, two partnerships, one kitty",
+  "Play with friends or with yourself",
+  "Win tricks and influence people",
+  "Trick based card games",
+  "Honest trick based card games",
+  "Our cards are a lot less sticky",
+  "Now with less sticky cards!",
+  "Tricky games, sticky people",
+  "because no one wants to deal",
 ];
 
 function statusLabel(game, userId) {
@@ -213,7 +217,13 @@ function HomePage() {
     <ThemedTable locationId={DEFAULT_LOCATION} deckId={DEFAULT_DECK} feltId={DEFAULT_FELT} plain scrolling>
       <div className="home-page">
         <header className="home-header">
-          <h1 className="serif">500</h1>
+          <img
+            className="home-logo"
+            src="/brand/logo-dark-bg.png"
+            alt="Tricky Games"
+            width="810"
+            height="301"
+          />
           <p className="home-tagline">{tagline}</p>
         </header>
 

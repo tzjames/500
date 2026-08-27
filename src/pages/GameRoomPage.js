@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
 import ThemePicker from "../components/ThemePicker";
+import BrandMark from "../components/BrandMark";
 import ContractPanel, { tricksStillNeeded } from "../components/ContractPanel";
 import LastTrickPanel from "../components/LastTrickPanel";
 import GameHelp from "../components/GameHelp";
@@ -952,11 +953,7 @@ function GameRoomPage() {
       return (
         <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
           <div className="table-topbar">
-            <h1 className="table-title">
-            <Link to="/" className="table-home-link" title="Back to your games">
-              500
-            </Link>
-          </h1>
+            <BrandMark />
             <ThemePicker
               locationId={locationId}
               deckId={deckId}
@@ -1393,11 +1390,7 @@ function GameRoomPage() {
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed={isDiscarding}>
       <div className="table-topbar">
         <div>
-          <h1 className="table-title">
-            <Link to="/" className="table-home-link" title="Back to your games">
-              500
-            </Link>
-          </h1>
+          <BrandMark />
           <p className="table-subtitle">
             {currentPlayerData.name} vs {opponentName}
           </p>
