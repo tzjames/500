@@ -67,6 +67,8 @@ const TAGLINES = [
   "Trick based card games",
   "Honest trick based card games",
   "Our cards are a lot less sticky",
+  "Now with less sticky cards!",
+  "Tricky games, sticky people",
   "because no one wants to deal",
 ];
 
