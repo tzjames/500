@@ -16,12 +16,21 @@
   margin: 0;
 }
 
+/* Loose artwork on transparency, so it needs no panel of its own — it sits
+   straight on the backdrop the way the title it replaced did. */
+.home-logo {
+  display: block;
+  width: min(360px, 86%);
+  height: auto;
+  margin: 0 auto;
+}
+
 .home-tagline {
   font-size: 12.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   opacity: 0.55;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
 }
 
 .home-invite-note {

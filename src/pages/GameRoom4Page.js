@@ -4,6 +4,7 @@ import { useAuth } from "../auth";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
 import ThemePicker from "../components/ThemePicker";
+import BrandMark from "../components/BrandMark";
 import GameTable4 from "../components/GameTable4";
 import BiddingInterface4 from "../components/BiddingInterface4";
 import ContractPanel4 from "../components/ContractPanel4";
@@ -395,11 +396,7 @@ function GameRoom4Page() {
   const topBar = (subtitle) => (
     <div className="table-topbar">
       <div>
-        <h1 className="table-title">
-          <Link to="/" className="table-home-link" title="Back to your games">
-            500
-          </Link>
-        </h1>
+        <BrandMark />
         {subtitle && <p className="table-subtitle">{subtitle}</p>}
       </div>
       {/* Four controls beside the title wrapped onto a second row — and with

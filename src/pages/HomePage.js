@@ -213,7 +213,13 @@ function HomePage() {
     <ThemedTable locationId={DEFAULT_LOCATION} deckId={DEFAULT_DECK} feltId={DEFAULT_FELT} plain scrolling>
       <div className="home-page">
         <header className="home-header">
-          <h1 className="serif">500</h1>
+          <img
+            className="home-logo"
+            src="/brand/logo-dark-bg.png"
+            alt="Tricky Games"
+            width="810"
+            height="301"
+          />
           <p className="home-tagline">{tagline}</p>
         </header>
 

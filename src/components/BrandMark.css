@@ -1,0 +1,23 @@
+.brand-mark {
+  display: inline-block;
+  line-height: 0;
+  transition: opacity 0.15s ease;
+}
+
+.brand-mark:hover {
+  opacity: 0.85;
+}
+
+.brand-mark img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+
+/* Smaller on a phone, where the top bar is one 40px row and the mark shares it
+   with the table menu button. */
+@media (max-width: 620px) {
+  .brand-mark img {
+    height: 32px;
+  }
+}
