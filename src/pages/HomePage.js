@@ -59,13 +59,15 @@ function AuthForm() {
   );
 }
 
-// The game has never settled on a name. One is picked per visit.
+// One is picked per visit. They used to enumerate the ways 500 can be dealt,
+// which stopped meaning much once the site was more than one game.
 const TAGLINES = [
-  "Two-handed, with dummies",
-  "Five-handed, four-player, two-person, two-handed, five hundred",
-  "Two players, two dummies",
-  "Two-player, two-handed, four-player, five-handed",
-  "Four players, two partnerships, one kitty",
+  "Play with friends or with yourself",
+  "Win tricks and influence people",
+  "Trick based card games",
+  "Honest trick based card games",
+  "Our cards are a lot less sticky",
+  "because no one wants to deal",
 ];
 
 function statusLabel(game, userId) {
