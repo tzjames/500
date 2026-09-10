@@ -32,6 +32,22 @@ function won(game, userId) {
 // order, which is what the room persisted when the table was seated.
 function tableFor(game, userId) {
   const slots = (game.playerSlots || []).filter(Boolean);
+  if (game.gameType === "euchre") {
+    const seats = game.snapshot?.game?.players || [];
+    const mySeat = seats.find((seat) => game.playerSlots?.[seat.seat]?.userId === userId);
+    // Standard and Bid Euchre have partnerships at a four-seat table. Set-Back
+    // has no team field, so every other player remains an opponent.
+    if (mySeat && mySeat.team !== null && mySeat.team !== undefined) {
+      const partnerSeat = seats.find((seat) => seat.team === mySeat.team && seat.seat !== mySeat.seat);
+      const partner = partnerSeat ? game.playerSlots?.[partnerSeat.seat] || null : null;
+      const opponents = seats
+        .filter((seat) => seat.team !== mySeat.team)
+        .map((seat) => game.playerSlots?.[seat.seat])
+        .filter(Boolean);
+      return { partner, opponents };
+    }
+    return { partner: null, opponents: slots.filter((slot) => slot.userId !== userId) };
+  }
   if (game.mode !== 4) {
     const opponent = slots.find((s) => s.userId !== userId);
     return { partner: null, opponents: opponent ? [opponent] : [] };
@@ -67,11 +83,11 @@ const byPlayed = (a, b) => b.wins + b.losses - (a.wins + a.losses);
 // both a marked-friendly game and a robot one). Either says the same thing.
 const isFriendlyRound = (round) => Boolean(round.friendly ?? round.withBots);
 
-async function statsFor(userId, mode, includeFriendly = false) {
+async function statsFor(userId, mode, includeFriendly = false, gameType = "500") {
   const [allGames, allRounds, elo] = await Promise.all([
-    db.finishedGamesForUser(userId, mode),
-    db.roundsBidBy(userId, mode),
-    db.eloForUser(userId),
+    db.finishedGamesForUser(userId, mode, gameType),
+    db.roundsBidBy(userId, mode, gameType),
+    db.eloForUser(userId, gameType),
   ]);
 
   // A friendly game — marked that way, or with a robot at the table — is
@@ -92,6 +108,9 @@ async function statsFor(userId, mode, includeFriendly = false) {
   // partner alone, which is the question people actually argue about.
   const tables = new Map();
   const partners = new Map();
+  // Euchre keeps a record per rule set as well: winning at Set-Back says
+  // nothing much about how you do at the standard game.
+  const variants = new Map();
 
   for (const game of games) {
     const isWin = won(game, userId);
@@ -99,7 +118,20 @@ async function statsFor(userId, mode, includeFriendly = false) {
     const { partner, opponents } = tableFor(game, userId);
     const opponentNames = opponents.map((o) => o.name).sort();
 
-    if (mode === 4) {
+    if (gameType === "euchre") {
+      tally(variants, game.variant || "northAmerican", game.variant || "northAmerican", isWin);
+      if (opponents.length) {
+        const opponentIds = opponents.map((opponent) => opponent.userId).sort();
+        const key = `${partner?.userId || "solo"}|${opponentIds.join("|")}`;
+        const row = tally(tables, key, null, isWin);
+        row.opponentNames = opponentNames;
+        row.partnerName = partner?.name || null;
+        row.label = partner
+          ? `with ${partner.name} v ${opponentNames.join(" & ")}`
+          : `v ${opponentNames.join(" & ")}`;
+      }
+      if (partner) tally(partners, partner.userId, partner.name, isWin).label = partner.name;
+    } else if (mode === 4) {
       if (partner && opponents.length === 2) {
         const key = `${partner.userId}|${opponents.map((o) => o.userId).sort().join("|")}`;
         const row = tally(tables, key, null, isWin);
@@ -142,7 +174,7 @@ async function statsFor(userId, mode, includeFriendly = false) {
     }
   }
 
-  const bidList = (mode === 4 ? ALL_FOUR_PLAYER_BIDS : TWO_PLAYER_BIDS).map((b) => {
+  const bidList = (gameType === "500" ? (mode === 4 ? ALL_FOUR_PLAYER_BIDS : TWO_PLAYER_BIDS) : []).map((b) => {
     const row = bids.get(b.bid);
     return {
       bid: b.bid,
@@ -155,8 +187,24 @@ async function statsFor(userId, mode, includeFriendly = false) {
     };
   });
 
+  // Euchre has no bid ladder to chart, so its own figures stand in: how often
+  // the hands you called came home, and how the lone ones went.
+  const euchre =
+    gameType !== "euchre"
+      ? null
+      : {
+          called: bidRounds.length,
+          made: bidRounds.filter((r) => r.made).length,
+          marches: bidRounds.filter((r) => r.marched).length,
+          alone: bidRounds.filter((r) => r.alone).length,
+          aloneMade: bidRounds.filter((r) => r.alone && r.made).length,
+          variants: [...variants.values()].sort(byPlayed),
+        };
+
   return {
     mode,
+    gameType,
+    euchre,
     elo: elo[mode],
     includeFriendly,
     games: games.length,

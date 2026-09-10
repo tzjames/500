@@ -1,0 +1,269 @@
+{
+  "_comment": "Euchre's rule sets and house rules, drawn from https://en.wikipedia.org/wiki/Euchre. Data only, shared by the picker on the Euchre home page and the validator in server/euchreOptions.js so the two can never disagree. `variants` are whole rule sets — a table plays exactly one. `options` are the article's listed rule variations; each one's `applies` names the rule sets it means anything in, and the rest of the game ignores it.",
+  "variants": [
+    {
+      "id": "northAmerican",
+      "label": "North American",
+      "note": "The standard game: 24 cards, five each, order up or name your own.",
+      "modes": [2, 3, 4],
+      "deck": 24,
+      "cards": 5,
+      "target": 10,
+      "teams": true,
+      "alone": true,
+      "detail": "The game most people mean by Euchre. A 24-card pack (9 to ace), five cards each and a four-card kitty with its top card turned for trump. The eldest hand may order up the turned suit or pass; if everyone passes, a second round lets anyone name a different suit. Whoever makes trump must win three of the five tricks for a point, all five for two, and may play the hand alone with their partner's cards face down — a lone hand that sweeps is worth four. Fail to make three and the other side is credited two for the euchre. Game is ten points."
+    },
+    {
+      "id": "british",
+      "label": "British",
+      "note": "Twenty-five cards with the Benny as top trump, game to eleven.",
+      "modes": [4],
+      "deck": 25,
+      "cards": 5,
+      "target": 11,
+      "teams": true,
+      "alone": true,
+      "partnerMustGoAlone": true,
+      "detail": "The British game adds a joker — the Benny — which is always the highest trump whatever suit is called. Game is eleven rather than ten, and the dealer's partner may not order up to play alongside the dealer: they either pass or go alone. If the Benny itself is turned up, the dealer names the trump suit outright. A defender who goes alone and takes three tricks scores four."
+    },
+    {
+      "id": "earliest",
+      "label": "Earliest rules (1844)",
+      "note": "The 1844 game: a 32-card Piquet pack and a five-point target.",
+      "modes": [2, 3, 4],
+      "deck": 32,
+      "cards": 5,
+      "target": 5,
+      "teams": true,
+      "alone": true,
+      "detail": "Euchre as first written down, played by two, three or four with a 32-card French pack (7 to ace) and still five cards each. Trump is made exactly as in the modern game, but the target is five points, so a single march decides a great deal. Going alone was announced as \"cards away\" and a lone march scored four."
+    },
+    {
+      "id": "threeHanded",
+      "label": "Three-handed",
+      "note": "Three players for themselves, seven cards each, game to ten.",
+      "modes": [3],
+      "deck": 24,
+      "cards": 7,
+      "target": 10,
+      "teams": false,
+      "detail": "Three players, no partnerships, seven cards each and a three-card kitty. The maker needs four of the seven tricks for a point, six for two and all seven for four. Euchre the maker and the defender with the most tricks takes two — or, if the two defenders tie, one each. Game is ten."
+    },
+    {
+      "id": "bid",
+      "label": "Bid Euchre",
+      "note": "Auction for tricks, then name trump or no trump. Start at 21, race to zero.",
+      "modes": [3, 4],
+      "deck": 24,
+      "target": 0,
+      "start": 21,
+      "countdown": true,
+      "auction": true,
+      "teams": false,
+      "detail": "Also called Auction Euchre, Pepper or Hasenpfeffer. The whole pack is dealt out with no kitty, and instead of a turned card there is an auction: each player in turn bids the number of tricks they will take, or passes. The high bidder names trump — or no trump, played high or with the nines as the best cards. Everyone starts at 21 and comes down by one for every trick they take, and the first to zero wins. Miss your bid and you go up five, and anybody who stays in the hand and takes no trick at all is set five as well."
+    },
+    {
+      "id": "setback",
+      "label": "Set-Back",
+      "note": "Everyone plays alone from a 32-card pack, racing down from five.",
+      "modes": [2, 3, 4],
+      "deck": 32,
+      "cards": 5,
+      "target": 0,
+      "start": 5,
+      "countdown": true,
+      "teams": false,
+      "detail": "Recorded in Arkansas in 1843 and printed in the American Hoyle twenty years later. A 32-card pack, five cards each, trump made from a turned card as usual — but there are no partnerships, so the maker is always alone against everybody else. Each player starts at five and comes down one for every trick they take; the first to zero wins. Take no trick at all and you go back up one, and a maker who fails to take three is set two."
+    }
+  ],
+  "groups": [
+    { "id": "table", "label": "The pack" },
+    { "id": "calling", "label": "Making trump" },
+    { "id": "play", "label": "Play" },
+    { "id": "scoring", "label": "Scoring and winning" }
+  ],
+  "options": [
+    {
+      "id": "target",
+      "group": "scoring",
+      "type": "choice",
+      "label": "Game is",
+      "default": "variant",
+      "applies": ["northAmerican", "british", "earliest", "threeHanded"],
+      "choices": [
+        { "value": "variant", "label": "Standard" },
+        { "value": "5", "label": "5" },
+        { "value": "7", "label": "7" },
+        { "value": "10", "label": "10" },
+        { "value": "11", "label": "11" }
+      ],
+      "help": "Five, seven, ten or eleven points. Standard is whatever the rule set itself says.",
+      "detail": "How long a game runs is the most regional thing about Euchre. Ten is standard across most of North America, eleven in Australia, New Zealand and Britain, and the earliest printed rules played to five. Nothing else changes — the same hands score the same points, there are just fewer or more of them to win. Leave this on Standard and the table plays to whatever its rule set says: ten for the North American game and three-handed, eleven for the British one, five for the 1844 rules."
+    },
+    {
+      "id": "extraCards",
+      "group": "table",
+      "type": "choice",
+      "label": "Extra cards",
+      "default": "none",
+      "applies": ["northAmerican", "threeHanded", "bid"],
+      "choices": [
+        { "value": "none", "label": "None" },
+        { "value": "eights", "label": "Add the 8s" },
+        { "value": "sevens", "label": "Add 8s and 7s" }
+      ],
+      "help": "A bigger pack makes it much harder to count the trumps still out.",
+      "detail": "The standard pack is 24 cards, nine to ace. Adding the eights makes 28 and adding the sevens as well makes 32. Good players at a 24-card table know almost exactly which trumps are still out by the second trick; the extra cards take that away, which makes ordering up on a thin hand far riskier and leading trumps far less reliable. In Bid Euchre a bigger pack also means more cards each, so the bidding goes higher."
+    },
+    {
+      "id": "benny",
+      "group": "table",
+      "type": "bool",
+      "label": "Play with the Benny",
+      "default": false,
+      "applies": ["northAmerican", "threeHanded", "earliest"],
+      "help": "Adds a joker that is always the highest trump, whatever suit is called.",
+      "detail": "The British game's joker, in a pack that would not normally have one. The Benny is trump in every hand and beats both bowers, so whoever holds it has one certain trick and the maker never quite knows the top trump is theirs. If the Benny is turned up as the trump card, the dealer names the suit outright rather than anyone ordering it up."
+    },
+    {
+      "id": "stickTheDealer",
+      "group": "calling",
+      "type": "bool",
+      "label": "Stick the dealer",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest", "threeHanded", "setback", "bid"],
+      "help": "Nobody may throw the hand in — if it comes back round, the dealer must take it.",
+      "detail": "Also called screwing the dealer. Normally, if everyone passes twice the hand is thrown in and redealt. With this on the dealer isn't allowed to pass on the second round: they have to name a suit, however bad the hand is, and in Bid Euchre they are landed with a bid of one trick. It gets rid of dead deals entirely and makes the deal itself a liability, which shifts a surprising amount of the game — the seats before the dealer can afford to pass on hands they would otherwise have to call."
+    },
+    {
+      "id": "farmersHand",
+      "group": "calling",
+      "type": "bool",
+      "label": "Farmer's hand",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest", "threeHanded", "setback"],
+      "help": "Nothing but nines and tens lets you demand a redeal, or swap three cards with the kitty.",
+      "detail": "A hand of nothing but nines and tens is unplayable, so it gets a way out. Declare a farmer's hand and you may either force the deal to be scrapped and dealt again, or \"go under\" — put three of your cards face down and take the three cards under the turned card instead. Going under is usually the better of the two, since the hand you get can hardly be worse and might be the one that wins the deal."
+    },
+    {
+      "id": "aceNoFace",
+      "group": "calling",
+      "type": "bool",
+      "label": "Ace, no face",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest", "threeHanded", "setback"],
+      "help": "An ace with no picture cards gets the same escape as a farmer's hand.",
+      "detail": "The same relief as a farmer's hand, for a hand that holds an ace but no jack, queen or king. Declare it and you may either demand a redeal or exchange three of your cards for the three under the turned card. At a three-handed table this is often played as an automatic misdeal instead — turn it on there and the choice is still yours."
+    },
+    {
+      "id": "partnerMustGoAlone",
+      "group": "calling",
+      "type": "bool",
+      "label": "Dealer's partner must go alone",
+      "default": false,
+      "applies": ["northAmerican", "earliest"],
+      "help": "The dealer's partner may not order up to play alongside them — pass, or go alone.",
+      "detail": "Standard in Britain, Canada, Australia and much of New Zealand, and the rule the British game here always uses. The dealer's partner is the one seat that gains most from ordering up, because the dealer gets the turned card; requiring them to play alone if they want it takes that cheap call away. Americans generally allow it — \"I assist\" — and play as partners as normal."
+    },
+    {
+      "id": "trumpNeedsMore",
+      "group": "calling",
+      "type": "bool",
+      "label": "No calling on a bare bower",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest", "threeHanded", "setback"],
+      "help": "You may not make trump if a lone jack is all the trump you would hold.",
+      "detail": "A hand whose only trump is a jack has the right bower or the left and nothing to back it up, and calling on it is the classic way to be euchred. Some tables forbid it outright: to make a suit trump you must hold at least one other card in it. Where it applies, breaking the rule is treated about as seriously as a revoke."
+    },
+    {
+      "id": "defendAlone",
+      "group": "play",
+      "type": "bool",
+      "label": "Defending alone",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest"],
+      "help": "Against a lone hand, one defender may send their partner out too — four points if they euchre it.",
+      "detail": "When the maker goes alone, a defender may answer by going alone as well, before a card is led. Their partner's cards go face down beside the maker's partner's, and it becomes one hand against one. Take three tricks and the defenders score four instead of two; take fewer and the lone maker collects as usual. It is a rare call and usually a losing one, but it is the only way to make a lone march cost the maker something."
+    },
+    {
+      "id": "partnersBest",
+      "group": "play",
+      "type": "bool",
+      "label": "Partner's best",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest"],
+      "help": "A lone hand swaps its worst card for the best card in the partner's hand.",
+      "detail": "Going alone means playing five cards against ten, which is a hard bargain even with the right bower. This softens it: before the first card is led, the lone player passes their worst card across and takes their partner's best in exchange. The partner is still out of the hand. It makes lone calls a good deal more common, and lone marches with them."
+    },
+    {
+      "id": "pointOnPartner",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Point on partner",
+      "default": false,
+      "applies": ["northAmerican", "earliest"],
+      "help": "The dealer's partner making trump and bringing it home scores an extra point, and the deal stays put.",
+      "detail": "A reward for stealing the deal: if the dealer's partner is the one who makes trump and their side then makes the contract, they take one point on top of whatever the hand scored, and the same dealer deals the next hand instead of the deal passing on. It only pays out when the hand is made — steal the deal and get euchred and you have simply given away two points and kept the bad seat."
+    },
+    {
+      "id": "robson",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Robson rules",
+      "default": false,
+      "applies": ["northAmerican", "british", "earliest"],
+      "help": "A march can be taken off the other side's score instead, and a turned jack invites a blind lone hand.",
+      "detail": "Two rules that travel together. A march may be scored by subtracting from the other side rather than adding to your own, which is worth having when they are at the bridge and you are not; here that deduction is taken automatically whenever they have the points to lose. And when the dealer turns a jack, the dealer may declare a blind lone hand before looking at their cards at all — bring it home and it is five points rather than four, and fail and the defenders take one."
+    },
+    {
+      "id": "noTrumpBids",
+      "group": "calling",
+      "type": "bool",
+      "label": "No-trump contracts",
+      "default": true,
+      "applies": ["bid"],
+      "help": "The high bidder may name no trump, played high or with the nines as the best cards.",
+      "detail": "Instead of a suit, the high bidder may call no trump: there are no bowers, no ruffs, and every trick goes to the highest card of the suit led. Low no trump turns the ranking upside down, so the nines are the best cards in the pack and the aces the worst — a hand full of rubbish suddenly plays itself. Both are usually worth bidding a trick or two higher than the same hand in a suit."
+    },
+    {
+      "id": "folding",
+      "group": "play",
+      "type": "bool",
+      "label": "Folding allowed",
+      "default": true,
+      "applies": ["bid", "setback"],
+      "help": "Drop out of the hand rather than risk being set, at the cost of scoring nothing.",
+      "detail": "A player who cannot see a trick in their hand may throw it in and sit the deal out. They score nothing, but they cannot be set for taking no tricks either, which is the whole point — the penalty for staying in with nothing is worse than the lost chance. In Set-Back this is throwing up the hand. The bidder may never fold."
+    },
+    {
+      "id": "declare",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Declaring for the march",
+      "default": false,
+      "applies": ["setback"],
+      "help": "The maker may declare for every trick: win the game outright, or double their score.",
+      "detail": "A maker who thinks the hand is unbeatable may declare, which stakes the game on it. Take all the tricks and the game is over there and then, whatever the scores were. Drop one and the declarer's score is doubled instead of coming down, which in a race to zero is usually fatal."
+    },
+    {
+      "id": "defendersDeduct",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Euchre pays the defenders",
+      "default": false,
+      "applies": ["setback"],
+      "help": "A euchred maker goes up two and everyone else comes down two.",
+      "detail": "Ordinarily setting the maker puts two points on the maker and nothing else happens. With this on the defenders also take two off their own scores, on top of the tricks they made, which makes a loose call ruinous and gives three players a reason to gang up on the maker rather than fight each other for tricks."
+    },
+    {
+      "id": "bidPartners",
+      "group": "table",
+      "type": "bool",
+      "label": "Bid Euchre in partnerships",
+      "default": false,
+      "applies": ["bid"],
+      "help": "Four-handed Bid Euchre played as two partnerships rather than four individuals.",
+      "detail": "Bid Euchre is most often a partnership game, and this is that: partners sit opposite, bid for the pair and keep one score between them. The auction, the no-trump contracts and the race down from 21 all work exactly as they do for individuals, but a side's tricks are pooled — so the bidder's partner playing to make the contract matters as much as anything else in the game. Individuals is the Indiana game, and the one the article describes in detail."
+    }
+  ]
+}

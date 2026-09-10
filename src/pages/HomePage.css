@@ -16,15 +16,6 @@
   margin: 0;
 }
 
-/* Loose artwork on transparency, so it needs no panel of its own — it sits
-   straight on the backdrop the way the title it replaced did. */
-.home-logo {
-  display: block;
-  width: min(360px, 86%);
-  height: auto;
-  margin: 0 auto;
-}
-
 /* Set as written rather than as a label. These read as lines rather than
    captions — one of them opens on a deliberate lowercase — and uppercase with
    0.14em of tracking flattened both the casing and the joke. */
@@ -35,16 +26,34 @@
   margin: 12px 0 0;
 }
 
-.home-invite-note {
-  margin: 0 0 14px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--positive-fill);
-  border: 1px solid var(--positive-border);
-  font-size: 12.5px;
-  line-height: 1.5;
-  text-align: center;
+/* The site mark over a game's own title: small, and clearly a step above it in
+   the hierarchy rather than competing with it. */
+.home-brand {
+  margin-bottom: 18px;
+  opacity: 0.8;
 }
+
+.game-kicker {
+  margin: 0 0 6px;
+  color: var(--amber);
+}
+
+.game-title {
+  margin: 0;
+  font-size: clamp(54px, 10vw, 86px);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+.game-variant {
+  margin-right: 7px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
 
 /* ---- auth ---- */
 
@@ -113,6 +122,33 @@
 }
 
 /* ---- signed in ---- */
+
+/* What the game is, above the fold on its own page: two short paragraphs and
+   the way into the rules. The first thing a newcomer reads. */
+.home-about {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.home-about p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.78;
+}
+
+.home-rules-button {
+  width: 100%;
+  padding: 9px 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 .home-welcome {
   display: flex;

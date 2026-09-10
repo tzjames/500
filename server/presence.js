@@ -1,4 +1,5 @@
 const db = require("./db");
+const { gameTypeOf } = require("./gameTypes");
 const { isFriendlyGame } = require("./friendly");
 
 // Who's about, and which public tables are looking for players. Entirely
@@ -80,11 +81,13 @@ class Presence {
         const filled = slots.filter(Boolean);
         return {
           id: doc._id,
-          mode: doc.mode === 4 ? 4 : 2,
+          gameType: gameTypeOf(doc.gameType),
+          variant: doc.variant || null,
+          mode: Number(doc.mode) || 2,
           hostName: (filled[0] || {}).name || "Someone",
           players: filled.map((s) => ({ name: s.name, isBot: Boolean(s.isBot) })),
           seatsTaken: filled.length,
-          seats: doc.mode === 4 ? 4 : 2,
+          seats: (room && room.slots.length) || (doc.playerSlots || []).length || Number(doc.mode) || 2,
           options: doc.options || null,
           friendly: isFriendlyGame({ friendly: room ? room.friendly : doc.friendly, playerSlots: slots }),
           createdAt: doc.createdAt,

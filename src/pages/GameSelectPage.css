@@ -1,0 +1,111 @@
+/* The chooser's game cards. A grid rather than a row, so a third and fourth
+   game drop in underneath without anything being re-laid-out by hand. */
+
+/* Wider than a game's own page, which is a single column of lists. */
+.home-page.select-page {
+  width: min(760px, 100%);
+}
+
+/* Loose artwork on transparency, so it needs no panel of its own — it sits
+   straight on the backdrop the way the title it replaced did. */
+.home-logo {
+  display: block;
+  width: min(360px, 86%);
+  height: auto;
+  margin: 0 auto;
+}
+
+.home-invite-note {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--positive-fill);
+  border: 1px solid var(--positive-border);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.game-picker {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.game-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 22px 18px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+
+.game-card:hover {
+  border-color: var(--amber-ring);
+  background: rgba(255, 235, 200, 0.09);
+  transform: translateY(-2px);
+}
+
+.game-card-kicker {
+  margin: 0 0 6px;
+  color: var(--amber);
+}
+
+.game-card h3 {
+  margin: 0;
+  font-size: clamp(34px, 4.4vw, 48px);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.game-card-blurb {
+  /* Pushes the facts row to the bottom edge, so two cards of unequal blurb
+     length still line their numbers up. */
+  flex: 1;
+  margin: 12px 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  opacity: 0.75;
+}
+
+.game-card-facts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.game-card-facts b {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* The divider between two facts, rather than a character that would need
+   spacing either side of it. */
+.game-card-facts i {
+  width: 1px;
+  height: 11px;
+  margin: 0 5px;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.game-picker-note {
+  margin: 14px 0 0;
+}

@@ -1,0 +1,47 @@
+/* The Rules and Trumps controls, sitting under the line of game state at the
+   top of a Euchre table. Deliberately quiet: they are reference, not play. */
+
+.eu-help {
+  flex: none;
+}
+
+.eu-help-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.eu-help-button {
+  padding: 5px 12px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* One line, so it can sit over the felt without covering the board. */
+.eu-trump-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 2px;
+  margin: 8px 0 0;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: rgba(12, 10, 8, 0.62);
+  border: 1px solid var(--panel-border);
+  font-family: var(--serif);
+  font-size: 15px;
+}
+
+.eu-trump-line.live {
+  background: rgba(255, 235, 200, 0.09);
+  border-color: var(--amber-ring);
+}
+
+.eu-trump-cap {
+  margin-right: 9px;
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}

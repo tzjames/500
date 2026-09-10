@@ -139,7 +139,7 @@ function RoundEndModal({
             {/* This screen covers the top bar, so without its own way out the
                 only route home was the browser's back button. The game keeps
                 its place — you rejoin from the list. */}
-            <Link to="/" className="round-end-leave">
+            <Link to="/500" className="round-end-leave">
               Leave for now
             </Link>
           </div>

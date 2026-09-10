@@ -1,18 +1,23 @@
 import React from "react";
 import OptionInfo from "./OptionInfo";
-import { OPTION_GROUPS, optionsByGroup, defaultOptions, changedOptionLabels } from "../gameOptions";
+import { definitions as fiveHundred } from "../gameOptions";
 import "./NewGameModal.css";
 
 // The house-rule editor, shared by the new-game screen and the waiting room —
 // the host can still change the rules while the table fills up, and it should be
 // the same list of switches in both places. `readOnly` renders it for everyone
 // else, who can see what they're sitting down to but not change it.
-function HouseRules({ options, onChange, readOnly = false }) {
+//
+// `definitions` is which game's rules these are: 500's by default, or the set a
+// Euchre variant offers. Both games describe their options the same way, so
+// this only needs the groups, the options in each and the defaults.
+function HouseRules({ options, onChange, readOnly = false, definitions = fiveHundred }) {
+  const { groups, optionsByGroup, defaultOptions } = definitions;
   const set = (id, value) => onChange({ ...options, [id]: value });
 
   return (
     <div className="ng-rules">
-      {OPTION_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.id} className="ng-rules-group">
           <p className="overline">{group.label}</p>
           {optionsByGroup(group.id).map((option) =>
@@ -85,8 +90,8 @@ function HouseRules({ options, onChange, readOnly = false }) {
 
 // The button that opens the list, with a word on how far the table has strayed
 // from the standard rules.
-export function HouseRulesToggle({ options, open, onToggle, loading = false }) {
-  const changed = changedOptionLabels(options).length;
+export function HouseRulesToggle({ options, open, onToggle, loading = false, definitions = fiveHundred }) {
+  const changed = definitions.changedOptionLabels(options).length;
   return (
     <button type="button" className="ng-rules-toggle" onClick={onToggle} aria-expanded={open}>
       House rules

@@ -1,0 +1,85 @@
+/* The last trick's corner of the board. The fanning itself is SidePanel.css's
+   .last-trick, shared with the 500 boards; this only places it and gives it a
+   ground to sit on, since it is over the felt rather than in a side panel. */
+
+.eu-last-trick {
+  position: absolute;
+  right: 2%;
+  bottom: 8px;
+  z-index: 6;
+  width: max-content;
+  padding: 7px 10px 5px;
+  border-radius: 12px;
+  background: rgba(12, 10, 8, 0.66);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.eu-last-trick.open {
+  border-color: var(--amber-ring);
+  background: rgba(12, 10, 8, 0.9);
+}
+
+.eu-last-trick .overline {
+  margin: 0 0 5px;
+  font-size: 9px;
+}
+
+/* Narrower than the 500 panel's, which has a whole column to fill. */
+.eu-last-trick .last-trick {
+  height: 54px;
+  width: auto;
+  --last-trick-card: 34px;
+}
+
+.eu-last-trick .last-trick-slot {
+  margin-left: -22px;
+}
+
+/* Needs the class on the element as well: the collapsed height above is as
+   specific as the shared .last-trick.open rule and would otherwise clip it. */
+.eu-last-trick .last-trick.open {
+  height: auto;
+  --last-trick-card: 52px;
+  gap: 8px 6px;
+}
+
+.eu-last-trick-note {
+  margin: 4px 0 0;
+  max-width: 130px;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.62;
+}
+
+/* On a phone the corner is wanted by the hand, so it sits above the name plate
+   and stays collapsed until tapped. */
+@media (max-width: 720px) {
+  .eu-last-trick {
+    right: 6px;
+    bottom: calc(var(--hand-depth) + 14px);
+    padding: 5px 8px 4px;
+  }
+
+  .eu-last-trick .last-trick {
+    height: 42px;
+    --last-trick-card: 26px;
+  }
+
+  .eu-last-trick .last-trick.open {
+    height: auto;
+    --last-trick-card: 42px;
+  }
+
+  /* Collapsed, it is just the stack and its label: the phone board has no width
+     to spare beside the hand, and the note is only wanted once it is open. */
+  .eu-last-trick:not(.open) .eu-last-trick-note {
+    display: none;
+  }
+
+  .eu-last-trick-note {
+    max-width: 104px;
+  }
+}

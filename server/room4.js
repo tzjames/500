@@ -5,15 +5,8 @@ const { sanitizeOptions } = require("./gameOptions");
 const { isFriendlyGame } = require("./friendly");
 const bot = require("./bot");
 
-// Mirrors of the client's theme registry (src/theme.js) — see room.js, which
-// keeps the same list for the two-player game.
-const LOCATION_IDS = [
-  "falls", "zanzibar", "samana", "canyon", "sierras", "serengeti",
-  "plain-falls", "plain-zanzibar", "plain-samana", "plain-canyon",
-  "plain-sierras", "plain-serengeti",
-];
-const { DECK_IDS, DEFAULT_DECK, deckAllowed } = require("./decks");
-const FELT_IDS = ["solid", "faded", "hidden"];
+const { DEFAULT_DECK, applyTableTheme } = require("./tableTheme");
+const { handsFromLog, attachResults, newestFirst } = require("./handHistory");
 
 // How long a robot pauses before acting, so a table of them is watchable. The
 // longer wait is for the beat after a trick, which the client spends showing
@@ -410,6 +403,7 @@ class Room4 {
 
   redealSameDealer() {
     this.redealCount += 1;
+    this.logEvent("throwIn", {});
     this.deal(this.game.dealerSeat);
   }
 
@@ -1055,13 +1049,7 @@ class Room4 {
 
   setGameSettings(socket, settings) {
     if (!this.slotOf(socket.userId)) return;
-    const next = { ...this.gameSettings };
-    if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
-    if (DECK_IDS.includes(settings.deck) && deckAllowed(settings.deck, this.playerNames())) {
-      next.deck = settings.deck;
-    }
-    if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
-    this.gameSettings = next;
+    this.gameSettings = applyTableTheme(this.gameSettings, settings, this.playerNames());
     this.persist();
     this.broadcast();
   }
@@ -1190,6 +1178,40 @@ class Room4 {
       const choice = bot.choosePlay(game, seat);
       if (choice) this.applyPlay(seat, choice.card, choice.nominatedSuit, null, mode);
     }
+  }
+
+  // The bidding, hand by hand: who bid what, who bought it, and how the hand
+  // finished. Plays are left out — the tricks are on the board as they happen,
+  // whereas the auction is what goes by too fast to read against robots.
+  // Named apart from this.biddingHistory, which is the live auction's own list.
+  biddingRecord() {
+    const hands = handsFromLog(this.log, {
+      keep: (type) => ["bid", "bidWon", "redeal", "throwIn"].includes(type),
+    });
+    attachResults(hands, (round) => this.roundResults?.get?.(round) || null);
+    return newestFirst(hands).map((hand) => ({
+      round: hand.round,
+      thrownIn: hand.thrownIn,
+      dealerId: hand.deal.dealerId ?? null,
+      calls: hand.calls.map((entry) => ({
+        type: entry.type,
+        userId: entry.userId ?? null,
+        bid: entry.bid ?? null,
+        points: entry.points ?? null,
+        trumpSuit: entry.trumpSuit ?? null,
+      })),
+      result: hand.result || null,
+    }));
+  }
+
+  // The scored outcome of each round, read back off the log's own result entries
+  // so nothing has to be kept aside for this.
+  get roundResults() {
+    const byRound = new Map();
+    for (const entry of this.log) {
+      if (entry.type === "result") byRound.set(entry.round, entry);
+    }
+    return byRound;
   }
 
   // ---- state broadcast ----
@@ -1352,6 +1374,7 @@ class Room4 {
       you: { userId, seated: Boolean(slot) },
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
+      biddingRecord: this.biddingRecord(),
       winner: this.winner,
       roundResult: this.lastRoundResult,
     };

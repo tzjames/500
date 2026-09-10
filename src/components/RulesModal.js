@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { isRed } from "../cards";
 import { VARIANTS, BID_TABLE, bidValue, trumpOrder } from "../rules";
@@ -54,11 +54,16 @@ function specialsFor(variant, options) {
 // The rules of the game actually in front of you: the right pack, the right way
 // to reach a Misère, and for a four-player table the house rules it was started
 // with. Written to be skimmed mid-hand rather than read end to end.
-function RulesModal({ variant = "four", trumpSuit, bid, options, onClose }) {
-  const v = VARIANTS[variant] || VARIANTS.four;
-  const specials = specialsFor(variant, options);
-  const houseChanges = variant === "four" ? changedOptionLabels(options) : [];
-  const live = trumpSuit ? trumpOrder(trumpSuit, variant) : [];
+//
+// Off the home page there is no table, so `choosable` lets the reader switch
+// between the two sizes of game and everything below re-reads from their pick.
+function RulesModal({ variant = "four", trumpSuit, bid, options, choosable = false, onClose }) {
+  const [shown, setShown] = useState(variant);
+  const id = choosable ? shown : variant;
+  const v = VARIANTS[id] || VARIANTS.four;
+  const specials = specialsFor(id, options);
+  const houseChanges = id === "four" ? changedOptionLabels(options) : [];
+  const live = trumpSuit ? trumpOrder(trumpSuit, id) : [];
 
   // Portalled to the body rather than rendered where it sits in the tree. The
   // help buttons live inside the table, whose card fans are 3D-transformed under
@@ -74,7 +79,27 @@ function RulesModal({ variant = "four", trumpSuit, bid, options, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <p className="overline">How to play</p>
-        <h2 className="serif rules-title">{v.name}</h2>
+        <h2 className="serif rules-title">{choosable ? "500" : v.name}</h2>
+
+        {choosable && (
+          <div className="rules-switch" role="tablist" aria-label="Table size">
+            {[
+              { id: "four", label: "Four players" },
+              { id: "two", label: "Two players" },
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="tab"
+                aria-selected={id === option.id}
+                className={`rules-switch-tab${id === option.id ? " on" : ""}`}
+                onClick={() => setShown(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <section className="rules-section">
           <h3>The table</h3>
@@ -167,10 +192,23 @@ function RulesModal({ variant = "four", trumpSuit, bid, options, onClose }) {
           </p>
         </section>
 
-        {variant === "four" && (
+        {id === "four" && (
           <section className="rules-section">
-            <h3>This table&apos;s house rules</h3>
-            {houseChanges.length === 0 ? (
+            <h3>{choosable ? "House rules" : "This table's house rules"}</h3>
+            {choosable ? (
+              <>
+                <p>
+                  The four-player game has {OPTIONS.length} switches, drawn from
+                  the variants 500 is played with. Whoever starts the table picks
+                  them, and they are listed on the table itself.
+                </p>
+                <ul className="rules-list">
+                  {OPTIONS.map((option) => (
+                    <li key={option.id}>{option.label}</li>
+                  ))}
+                </ul>
+              </>
+            ) : houseChanges.length === 0 ? (
               <p>
                 Everything is at its default — {OPTIONS.length} switches, none of
                 them touched.

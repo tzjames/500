@@ -147,7 +147,7 @@ function RoundEnd4Modal({
           </p>
           {ready && <p className="round-end-waiting">Waiting for the others…</p>}
           {/* See RoundEndModal: this screen hides the top bar's link home. */}
-          <Link to="/" className="round-end-leave">
+          <Link to="/500" className="round-end-leave">
             Leave for now
           </Link>
         </div>

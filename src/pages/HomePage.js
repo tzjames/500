@@ -1,76 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import * as api from "../api";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
 import NewGameModal from "../components/NewGameModal";
-import { changedOptionLabels } from "../gameOptions";
+import BrandMark from "../components/BrandMark";
+import PresenceStrip from "../components/PresenceStrip";
+import AuthForm from "../components/AuthForm";
+import RulesModal from "../components/RulesModal";
+import EuchreRulesModal from "../components/EuchreRulesModal";
+import { getGame, seatsLabel } from "../games";
+import { getVariant } from "../euchreOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "./HomePage.css";
 
-function AuthForm() {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState("login");
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    try {
-      if (mode === "login") await login(name.trim(), password);
-      else await register(name.trim(), password);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  return (
-    <div className="auth-form panel">
-      <h2 className="serif">{mode === "login" ? "Log in" : "Create an account"}</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" className="btn-primary">
-          {mode === "login" ? "Log in" : "Sign up"}
-        </button>
-      </form>
-      {error && <p className="auth-error">{error}</p>}
-      <button
-        className="auth-toggle"
-        onClick={() => setMode(mode === "login" ? "register" : "login")}
-      >
-        {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
-      </button>
-    </div>
-  );
-}
-
-// One is picked per visit. They used to enumerate the ways 500 can be dealt,
-// which stopped meaning much once the site was more than one game.
-const TAGLINES = [
-  "Play with friends or with yourself",
-  "Win tricks and influence people",
-  "Trick based card games",
-  "Honest trick based card games",
-  "Our cards are a lot less sticky",
-  "Now with less sticky cards!",
-  "Tricky games, sticky people",
-  "because no one wants to deal",
-];
+// Which game's rules panel to open. The panels differ enough — 500 has a bid
+// schedule, Euchre has six rule sets — that they are separate components, so
+// this is the one place a new game needs adding.
+const RULES = {
+  "500": (props) => <RulesModal choosable {...props} />,
+  euchre: (props) => <EuchreRulesModal choosable {...props} />,
+};
 
 function statusLabel(game, userId) {
   if (game.status === "finished") {
@@ -80,7 +31,7 @@ function statusLabel(game, userId) {
   }
   if (game.status === "waiting") {
     const taken = (game.playerSlots || []).filter(Boolean).length;
-    const seats = game.mode === 4 ? 4 : 2;
+    const seats = game.mode;
     return `Waiting — ${taken} of ${seats} seated`;
   }
   return `In progress — round ${game.roundNumber}`;
@@ -90,8 +41,23 @@ function tableLabel(game, userId) {
   const others = (game.playerSlots || [])
     .filter((s) => s && s.userId !== userId)
     .map((s) => s.name);
-  if (others.length === 0) return game.mode === 4 ? "Four-player table" : "No opponent yet";
-  return `${game.mode === 4 ? "with" : "vs"} ${others.join(", ")}`;
+  if (others.length === 0) return game.mode === 2 ? "No opponent yet" : `${seatsLabel(game.mode)} table`;
+  return `${game.mode === 2 ? "vs" : "with"} ${others.join(", ")}`;
+}
+
+// This game's own heading. The brand mark above it is the way back to the
+// chooser; the wordmark itself is the game's, not the site's.
+function Hero({ game, tagline }) {
+  return (
+    <header className="home-header">
+      <div className="home-brand">
+        <BrandMark title="All games" />
+      </div>
+      <p className="overline game-kicker">{game.kicker}</p>
+      <h1 className="serif game-title">{game.name}</h1>
+      <p className="home-tagline">{tagline}</p>
+    </header>
+  );
 }
 
 // Whether a table counts towards Elo — friendly covers both one marked that
@@ -104,31 +70,10 @@ function RatedBadge({ friendly }) {
   );
 }
 
-// Live counts along the top: who's about and what they're doing.
-function PresenceStrip({ presence }) {
-  const stats = presence || { online: 0, playing: 0, waiting: 0, games: 0 };
-  const entries = [
-    { label: "logged in", value: stats.online },
-    { label: "playing", value: stats.playing },
-    { label: "free", value: stats.waiting },
-    { label: stats.games === 1 ? "game running" : "games running", value: stats.games },
-  ];
-  return (
-    <ul className="presence-strip">
-      {entries.map((entry) => (
-        <li key={entry.label}>
-          <b className="serif">{entry.value}</b>
-          <span>{entry.label}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function HomePage() {
+function HomePage({ gameType = "500" }) {
+  const game = getGame(gameType);
   const { session, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [games, setGames] = useState([]);
   const [records, setRecords] = useState([]);
   const [error, setError] = useState("");
@@ -136,41 +81,37 @@ function HomePage() {
   const [showNewGame, setShowNewGame] = useState(false);
   const [remembered, setRemembered] = useState({});
   const [loadingDefaults, setLoadingDefaults] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   // Chosen once when the page mounts, not per render — otherwise it would
   // shuffle every time the games list or the record came back.
   const [tagline] = useState(
-    () => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]
+    () => game.taglines[Math.floor(Math.random() * game.taglines.length)]
   );
 
   const socket = useMemo(() => (session ? getSocket(session.token) : null), [session]);
 
-  // Set when a protected route sent us here to authenticate (see
-  // GameRoomPage) — typically an invite link opened by someone without an
-  // account yet. Logging in or signing up hands them straight on to it.
-  const redirectTo = location.state?.from;
-
-  useEffect(() => {
-    if (session && redirectTo) navigate(redirectTo, { replace: true });
-  }, [session, redirectTo, navigate]);
-
   const loadGames = useCallback(() => {
     if (!session) return;
     api
-      .listGames(session.token)
+      .listGames(session.token, gameType)
       .then(setGames)
       .catch((err) => setError(err.message));
-  }, [session]);
+  }, [session, gameType]);
 
-  useEffect(() => {
-    loadGames();
+  const loadRecord = useCallback(() => {
     if (!session) return;
     // The record is a nicety — if it fails, the page is still usable, so it
     // doesn't get to set the page-level error.
     api
-      .getRecord(session.token)
+      .getRecord(session.token, gameType)
       .then(setRecords)
       .catch(() => setRecords([]));
-  }, [session, loadGames]);
+  }, [session, gameType]);
+
+  useEffect(() => {
+    loadGames();
+    loadRecord();
+  }, [loadGames, loadRecord]);
 
   // The lobby is pushed rather than polled: the server broadcasts to everyone
   // watching whenever somebody connects, sits down or starts a table.
@@ -193,11 +134,8 @@ function HomePage() {
     setShowNewGame(true);
     setError("");
     setLoadingDefaults(true);
-    Promise.all([
-      api.getGameDefaults(session.token, 2).catch(() => ({})),
-      api.getGameDefaults(session.token, 4).catch(() => ({})),
-    ])
-      .then(([two, four]) => setRemembered({ 2: two, 4: four }))
+    Promise.all(game.modes.map((mode) => api.getGameDefaults(session.token, mode, gameType).catch(() => ({}))))
+      .then((byMode) => setRemembered(Object.fromEntries(game.modes.map((mode, i) => [mode, byMode[i]]))))
       .finally(() => setLoadingDefaults(false));
   };
 
@@ -211,79 +149,79 @@ function HomePage() {
     }
   };
 
+  const openTables = lobby.tables.filter((table) => table.gameType === gameType);
+  const Rules = RULES[gameType];
+
   // The home screen is a document rather than a fixed board, so the shell
   // scrolls and skips the tilted felt — just the backdrop wash behind it.
   return (
     <ThemedTable locationId={DEFAULT_LOCATION} deckId={DEFAULT_DECK} feltId={DEFAULT_FELT} plain scrolling>
       <div className="home-page">
-        <header className="home-header">
-          <img
-            className="home-logo"
-            src="/brand/logo-dark-bg.png"
-            alt="Tricky Games"
-            width="810"
-            height="301"
-          />
-          <p className="home-tagline">{tagline}</p>
-        </header>
+        <Hero game={game} tagline={tagline} />
+
+        {/* What the game is, for anyone who hasn't played it — and the way into
+            the full rules, which is the same panel the table itself opens. */}
+        <section className="home-about">
+          {game.about.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+          <button className="btn-ghost home-rules-button" onClick={() => setShowRules(true)}>
+            How to play {game.name}
+          </button>
+        </section>
 
         {!session ? (
-          <>
-            {redirectTo?.startsWith("/game/") && (
-              <p className="home-invite-note">
-                You&apos;ve been invited to a game. Log in or sign up and
-                we&apos;ll take you straight there.
-              </p>
-            )}
-            <AuthForm />
-          </>
+          <AuthForm />
         ) : (
-          <>
-            <div className="home-welcome">
-              <span>
-                Welcome, <b>{session.user.name}</b>
-              </span>
-              <span className="home-welcome-links">
-                <Link to="/stats" className="auth-toggle">
-                  Your record
-                </Link>
-                <button className="auth-toggle" onClick={logout}>
-                  Log out
-                </button>
-              </span>
-            </div>
-
-            <PresenceStrip presence={lobby.presence} />
-
-            <button className="btn-primary new-game-button" onClick={openNewGame}>
-              Start a new game
+        <>
+        <div className="home-welcome">
+          <span>
+            Welcome, <b>{session.user.name}</b>
+          </span>
+          <span className="home-welcome-links">
+            <Link to={game.statsPath} className="auth-toggle">
+              Your record
+            </Link>
+            <Link to="/" className="auth-toggle">
+              All games
+            </Link>
+            <button className="auth-toggle" onClick={logout}>
+              Log out
             </button>
-            {error && <p className="auth-error">{error}</p>}
+          </span>
+        </div>
 
-            <h2 className="home-section overline">Open tables</h2>
-            {lobby.tables.length === 0 ? (
+        <PresenceStrip presence={lobby.presence} />
+
+        <button className="btn-primary new-game-button" onClick={openNewGame}>
+          Start a new game
+        </button>
+        {error && <p className="auth-error">{error}</p>}
+
+        <h2 className="home-section overline">Open tables</h2>
+            {openTables.length === 0 ? (
               <p className="home-empty">
                 No public tables waiting. Start one and set it to public, and it
                 will show up here for anyone to join.
               </p>
             ) : (
               <ul className="lobby-list">
-                {lobby.tables.map((table) => {
-                  const rules = changedOptionLabels(table.options);
+                {openTables.map((table) => {
+                  const rules = game.tableRules(table);
                   const mine = table.players.some((p) => p.name === session.user.name);
                   return (
                     <li key={table.id}>
                       <div className="lobby-main">
                         <span className="lobby-title">
-                          {table.mode === 4 ? "Four players" : "Two players"} ·{" "}
-                          {table.hostName}&apos;s table
+                          {seatsLabel(table.mode)} · {table.hostName}&apos;s table
                         </span>
                         <span className="lobby-players">
                           {table.players.map((p) => p.name).join(", ")}
                         </span>
-                        {table.mode === 4 && rules.length > 0 && (
-                          <span className="lobby-rules">{rules.join(" · ")}</span>
+                        {table.variant && (
+                          <span className="lobby-rules">{getVariant(table.variant).label}</span>
                         )}
+                        {rules.length > 0 && <span className="lobby-rules">{rules.join(" · ")}</span>}
                       </div>
                       <div className="lobby-side">
                         <RatedBadge friendly={table.friendly} />
@@ -323,35 +261,41 @@ function HomePage() {
 
             <h2 className="home-section overline">Your games</h2>
             {games.length === 0 ? (
-              <p className="home-empty">No games yet — start one above.</p>
+              <p className="home-empty">{game.emptyGames}</p>
             ) : (
               <ul className="game-list">
-                {games.map((game) => {
-                  const joinable = game.status !== "finished";
+                {games.map((row) => {
+                  const joinable = row.status !== "finished";
                   return (
                     <li
-                      key={game.id}
+                      key={row.id}
                       className={joinable ? "joinable" : ""}
-                      onClick={() => joinable && navigate(`/game/${game.id}`)}
+                      onClick={() => joinable && navigate(`/game/${row.id}`)}
                     >
                       <span className="game-opponent">
-                        {game.mode === 4 && <span className="game-badge">4</span>}
-                        {tableLabel(game, session.user.id)}
+                        <span className="game-badge">{row.mode}</span>
+                        {row.variant && (
+                          <span className="game-variant">{getVariant(row.variant).label}</span>
+                        )}
+                        {tableLabel(row, session.user.id)}
                       </span>
                       <span className="game-status">
-                        <RatedBadge friendly={game.friendly} /> {statusLabel(game, session.user.id)}
+                        <RatedBadge friendly={row.friendly} /> {statusLabel(row, session.user.id)}
                       </span>
                     </li>
                   );
                 })}
               </ul>
             )}
-          </>
+        </>
         )}
       </div>
 
+      {showRules && <Rules onClose={() => setShowRules(false)} />}
+
       {showNewGame && (
         <NewGameModal
+          gameType={gameType}
           remembered={remembered}
           loadingDefaults={loadingDefaults}
           onStart={handleStart}

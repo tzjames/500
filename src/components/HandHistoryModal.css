@@ -1,0 +1,31 @@
+/* The calling, hand by hand. Sits in the shared rules-modal shell, so this is
+   only the list inside it. */
+
+.eu-history-calls {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.eu-history-calls b {
+  font-weight: 700;
+}
+
+/* The turn-down, and a hand nobody wanted: things that happened to the table
+   rather than things a player did, so they lose the number. */
+.eu-history-calls .eu-history-note {
+  list-style: none;
+  margin-left: -20px;
+  padding: 3px 0;
+  font-size: 12px;
+  opacity: 0.62;
+}
+
+.eu-history-result {
+  margin: 10px 0 0 !important;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--surface-faint);
+  font-size: 12.5px !important;
+}

@@ -1,18 +1,21 @@
 import React, { useState } from "react";
 import Card from "./Card";
 import RulesModal from "./RulesModal";
+import HandHistoryModal from "./HandHistoryModal";
+import { fiveHundredHands } from "../fiveHundredHistory";
 import { getDeck } from "../theme";
 import { cardColor } from "../cards";
 import { trumpOrderState } from "../rules";
 import "./GameHelp.css";
 
-// The two help controls, sitting under the last trick. Rules opens a modal;
-// Trump order expands a box in place, because the order of trumps is the thing
-// people get wrong mid-trick and a modal would cover the table they're trying
-// to read it against.
-function GameHelp({ variant, trumpSuit, bid, options, deckId }) {
+// The help controls, sitting under the last trick. Rules and Bidding open
+// modals; Trump order expands a box in place, because the order of trumps is
+// the thing people get wrong mid-trick and a modal would cover the table
+// they're trying to read it against.
+function GameHelp({ variant, trumpSuit, bid, options, deckId, biddingRecord, nameFor, sides }) {
   const [showRules, setShowRules] = useState(false);
   const [showTrumps, setShowTrumps] = useState(false);
+  const [showBidding, setShowBidding] = useState(false);
 
   const trumps = trumpOrderState(trumpSuit, bid, variant);
   const blocked = trumps.mode === "blocked";
@@ -28,6 +31,16 @@ function GameHelp({ variant, trumpSuit, bid, options, deckId }) {
         >
           Rules
         </button>
+        {biddingRecord && (
+          <button
+            type="button"
+            className="btn-ghost game-help-button"
+            onClick={() => setShowBidding(true)}
+            title="Who bid what and who bought it, hand by hand"
+          >
+            Bidding
+          </button>
+        )}
         <button
           type="button"
           className="btn-ghost game-help-button"
@@ -89,6 +102,15 @@ function GameHelp({ variant, trumpSuit, bid, options, deckId }) {
             </p>
           )}
         </div>
+      )}
+
+      {showBidding && (
+        <HandHistoryModal
+          hands={fiveHundredHands({ record: biddingRecord, nameFor, sides, options })}
+          title="How each hand was bid"
+          label="Bidding history"
+          onClose={() => setShowBidding(false)}
+        />
       )}
 
       {showRules && (
