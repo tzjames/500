@@ -6,6 +6,8 @@ import ThemedTable from "../components/ThemedTable";
 import BidRecordChart from "../components/BidRecordChart";
 import AccuracyChart from "../components/AccuracyChart";
 import { defaultOptions } from "../gameOptions";
+import { getGame, seatsLabel, tableAdjective } from "../games";
+import { getVariant } from "../euchreOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "./StatsPage.css";
 
@@ -42,7 +44,8 @@ function RecordList({ rows, empty }) {
 // Your record, one tab per size of table. Everything is derived from finished
 // games and the rounds behind them, so nothing here can drift out of step with
 // the games themselves.
-function StatsPage() {
+function StatsPage({ gameType = "500" }) {
+  const game = getGame(gameType);
   const { session } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState(4);
@@ -51,8 +54,8 @@ function StatsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!session) navigate("/", { replace: true });
-  }, [session, navigate]);
+    if (!session) navigate("/", { replace: true, state: { from: game.statsPath } });
+  }, [session, navigate, game.statsPath]);
 
   useEffect(() => {
     if (!session) return;
@@ -60,13 +63,13 @@ function StatsPage() {
     setStats(null);
     setError("");
     api
-      .getStats(session.token, mode, includeFriendly)
+      .getStats(session.token, mode, includeFriendly, gameType)
       .then((data) => live && setStats(data))
       .catch((err) => live && setError(err.message));
     return () => {
       live = false;
     };
-  }, [session, mode, includeFriendly]);
+  }, [session, mode, includeFriendly, gameType]);
 
   if (!session) return null;
 
@@ -85,27 +88,24 @@ function StatsPage() {
       <div className="stats-page">
         <header className="stats-header">
           <div>
-            <h1 className="serif">Your record</h1>
+            <h1 className="serif">Your {game.name} record</h1>
             <p className="stats-subtitle">{session.user.name}</p>
           </div>
-          <Link to="/" className="btn-ghost stats-back">
-            Back to home
+          <Link to={game.path} className="btn-ghost stats-back">
+            Back to {game.name}
           </Link>
         </header>
 
         <div className="stats-tabs" role="tablist">
-          {[
-            { id: 4, label: "Four players" },
-            { id: 2, label: "Two players" },
-          ].map((tab) => (
+          {[...game.modes].reverse().map((seats) => (
             <button
-              key={tab.id}
+              key={seats}
               role="tab"
-              aria-selected={mode === tab.id}
-              className={`stats-tab${mode === tab.id ? " on" : ""}`}
-              onClick={() => setMode(tab.id)}
+              aria-selected={mode === seats}
+              className={`stats-tab${mode === seats ? " on" : ""}`}
+              onClick={() => setMode(seats)}
             >
-              {tab.label}
+              {seatsLabel(seats)}
             </button>
           ))}
         </div>
@@ -128,15 +128,29 @@ function StatsPage() {
               <Figure
                 label="Elo"
                 value={stats.elo}
-                note={mode === 4 ? "your side against theirs" : "head to head"}
+                note={
+                  gameType === "euchre"
+                    ? `${game.name} only, ${seatsLabel(mode).toLowerCase()}`
+                    : mode === 4
+                    ? "your side against theirs"
+                    : "head to head"
+                }
               />
               <Figure label="Games" value={stats.games} note={`${stats.wins} won`} />
               <Figure label="Win rate" value={percent(stats.wins, stats.games)} />
-              <Figure
-                label="Contracts made"
-                value={percent(stats.contracts.made, stats.contracts.total)}
-                note={`${stats.contracts.made} of ${stats.contracts.total} you bought`}
-              />
+              {stats.euchre ? (
+                <Figure
+                  label="Hands you called"
+                  value={percent(stats.euchre.made, stats.euchre.called)}
+                  note={`${stats.euchre.made} of ${stats.euchre.called} came home`}
+                />
+              ) : (
+                <Figure
+                  label="Contracts made"
+                  value={percent(stats.contracts.made, stats.contracts.total)}
+                  note={`${stats.contracts.made} of ${stats.contracts.total} you bought`}
+                />
+              )}
             </ul>
             <p className="stats-note stats-elo-note">
               Elo starts everyone at 1200 and moves with each finished game — by how
@@ -157,6 +171,35 @@ function StatsPage() {
               )}
             </p>
 
+            {stats.euchre && (
+              <>
+                <h2 className="home-section overline">The hands you made trump on</h2>
+                <ul className="stat-figures">
+                  <Figure label="Called" value={stats.euchre.called} note="hands you bought" />
+                  <Figure label="Marches" value={stats.euchre.marches} note="all the tricks" />
+                  <Figure
+                    label="Lone hands"
+                    value={stats.euchre.alone}
+                    note={`${stats.euchre.aloneMade} of them made`}
+                  />
+                  <Figure
+                    label="Euchred"
+                    value={stats.euchre.called - stats.euchre.made}
+                    note="hands you were set on"
+                  />
+                </ul>
+
+                <h2 className="home-section overline">By rule set</h2>
+                <div className="stats-panel">
+                  <RecordList
+                    rows={stats.euchre.variants.map((row) => ({ ...row, label: getVariant(row.key).label }))}
+                    empty={`No finished ${tableAdjective(mode)} games yet.`}
+                  />
+                </div>
+              </>
+            )}
+
+            {gameType === "500" && <>
             <h2 className="home-section overline">How close your contracts came</h2>
             <div className="stats-panel">
               <AccuracyChart
@@ -178,13 +221,19 @@ function StatsPage() {
               <BidRecordChart bids={stats.bids} options={options} />
             </div>
 
+            </>}
+
             {mode === 4 ? (
               <>
                 <h2 className="home-section overline">With each partner</h2>
                 <div className="stats-panel">
                   <RecordList
                     rows={stats.partners}
-                    empty="No finished games with a partner yet."
+                    empty={
+                      gameType === "euchre"
+                        ? "No finished partnership games yet."
+                        : "No finished games with a partner yet."
+                    }
                   />
                 </div>
 
@@ -192,7 +241,7 @@ function StatsPage() {
                 <div className="stats-panel">
                   <RecordList
                     rows={stats.tables}
-                    empty="No finished four-player games yet."
+                    empty={`No finished ${tableAdjective(mode)} games yet.`}
                   />
                 </div>
               </>
@@ -200,7 +249,10 @@ function StatsPage() {
               <>
                 <h2 className="home-section overline">Against each opponent</h2>
                 <div className="stats-panel">
-                  <RecordList rows={stats.tables} empty="No finished two-player games yet." />
+                  <RecordList
+                    rows={stats.tables}
+                    empty={`No finished ${tableAdjective(mode)} games yet.`}
+                  />
                 </div>
               </>
             )}

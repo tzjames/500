@@ -1,0 +1,270 @@
+/* The Euchre board. Sits inside ThemedTable's untilted overlay and scales with
+   the viewport rather than a fixed layout. Hands are five cards (seven at
+   three-handed, up to ten at Bid Euchre), so there is far more room here than
+   on the 500 boards and the cards can be correspondingly bigger. */
+
+.eu-table {
+  --card-hand: clamp(58px, 8.2vw, 116px);
+  --card-fan: clamp(26px, 3vw, 44px);
+  --card-played: clamp(52px, 6vw, 88px);
+  /* Cards are 0.714 wide to tall, so anything that has to clear the hand is
+     placed off its height rather than the width every other size is in. */
+  --hand-depth: calc(var(--card-hand) * 1.4);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ---- seats ---- */
+
+.eu-seat {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 3;
+}
+
+.eu-seat-top {
+  top: 1%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.eu-seat-left {
+  left: 1%;
+  top: 42%;
+  transform: translateY(-50%);
+}
+
+.eu-seat-right {
+  right: 1%;
+  top: 42%;
+  transform: translateY(-50%);
+}
+
+/* Your own seat is only the name plate: your cards are the fan along the bottom
+   of the board, so the plate goes in the corner beside them. */
+.eu-seat-bottom {
+  left: 1%;
+  bottom: 12px;
+  align-items: flex-start;
+}
+
+.eu-seat.sitting-out {
+  opacity: 0.45;
+}
+
+.eu-seat-plate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(3px);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.eu-seat.on-turn .eu-seat-plate {
+  border-color: var(--amber-ring);
+}
+
+.eu-seat-name em {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  font-size: 9px;
+  font-style: normal;
+  vertical-align: 1px;
+}
+
+.eu-seat-name em.maker {
+  border-color: var(--amber-ring);
+  color: var(--amber);
+}
+
+.eu-seat-plate b {
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.eu-seat-note {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
+}
+
+/* Face-down cards, overlapped enough that a ten-card Bid Euchre hand still
+   fits beside the felt. */
+.eu-fan {
+  display: flex;
+}
+
+.eu-fan .pc {
+  --card-w: var(--card-fan);
+  margin-left: calc(var(--card-fan) * -0.62);
+}
+
+.eu-fan .pc:first-child {
+  margin-left: 0;
+}
+
+/* ---- the middle of the table ---- */
+
+.eu-trick {
+  position: absolute;
+  inset: 24% 24% calc(var(--hand-depth) + 40px);
+  display: grid;
+  place-items: center;
+}
+
+.eu-played {
+  position: absolute;
+  transition: transform 0.55s ease-in, opacity 0.55s ease-in;
+}
+
+.eu-played .pc {
+  --card-w: var(--card-played);
+}
+
+/* Gathered to the winner's edge and gone. Sharing one destination is what makes
+   the four cards read as being swept up by that seat. */
+.eu-played.flying {
+  opacity: 0;
+}
+
+/* Each card sits toward the seat that played it, so a finished trick reads as
+   four hands reaching in rather than a pile. */
+.eu-played-bottom {
+  transform: translateY(52%) rotate(2deg);
+}
+
+.eu-played-top {
+  transform: translateY(-52%) rotate(-3deg);
+}
+
+.eu-played-left {
+  transform: translateX(-82%) rotate(-6deg);
+}
+
+.eu-played-right {
+  transform: translateX(82%) rotate(5deg);
+}
+
+/* A single line, tucked in just above your hand. */
+.eu-status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--hand-depth) + 24px);
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.72;
+}
+
+/* Out at the corner of the board rather than in the middle: every seat layout
+   leaves the corners free, and the middle belongs to the trick. */
+.eu-turnup {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.eu-turnup .overline {
+  font-size: 9px;
+}
+
+.eu-turnup .pc {
+  --card-w: clamp(40px, 4.4vw, 64px);
+}
+
+/* ---- your hand ---- */
+
+.eu-hand-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  /* How far along each card sits from the one before: its own width plus a gap
+     where there is room, and overlapping when there isn't. The room is the
+     board (capped at 1100px less its padding) less the corner your own name
+     plate sits in. Ten-card Bid Euchre hands are what this is for. */
+  --hand-room: min(1068px, 100vw - 32px);
+  --hand-step: min(
+    calc(var(--card-hand) + 9px),
+    max(26px, calc((var(--hand-room) - 160px) / var(--hand-count)))
+  );
+}
+
+.eu-hand {
+  display: flex;
+  align-items: flex-end;
+}
+
+.eu-hand .pc {
+  --card-w: var(--card-hand);
+  margin-left: calc(var(--hand-step) - var(--card-hand));
+  transition: transform 0.14s ease;
+}
+
+.eu-hand .pc:first-child {
+  margin-left: 0;
+}
+
+.eu-hand .pc-clickable:hover {
+  transform: translateY(-12px);
+  z-index: 5;
+}
+
+@media (max-width: 720px) {
+  .eu-table {
+    --card-hand: clamp(46px, 13vw, 82px);
+    --card-played: clamp(40px, 11vw, 62px);
+    --card-fan: clamp(20px, 5.4vw, 32px);
+  }
+
+  .eu-trick {
+    inset: 28% 6% calc(var(--hand-depth) + 36px);
+  }
+
+  /* A phone has the vertical room the corner treatment was working around, so
+     your own plate goes back above your hand where it reads better. */
+  .eu-seat-bottom {
+    left: 50%;
+    bottom: calc(var(--hand-depth) + 52px);
+    transform: translateX(-50%);
+    align-items: center;
+  }
+
+  .eu-status {
+    bottom: calc(var(--hand-depth) + 26px);
+  }
+
+  .eu-seat-plate {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .eu-seat-plate b {
+    font-size: 17px;
+  }
+}

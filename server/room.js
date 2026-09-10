@@ -3,6 +3,7 @@ const Game500 = require("./gameLogic");
 const { checkBidMade, bidInfo } = Game500;
 const db = require("./db");
 const { Room4 } = require("./room4");
+const { EuchreRoom } = require("./euchreRoom");
 const { isFriendlyGame } = require("./friendly");
 const bot2 = require("./bot2");
 // The robot names are the same list either game draws from; only the play is
@@ -15,25 +16,8 @@ const BOT_PAUSE = 800;
 
 const REAL_SUITS = ["♠", "♣", "♥", "♦"];
 
-// Mirrors of the client's theme registry (src/theme.js), kept here only to
-// reject junk before it reaches the shared, persisted gameSettings.
-const LOCATION_IDS = [
-  "falls",
-  "zanzibar",
-  "samana",
-  "canyon",
-  "sierras",
-  "serengeti",
-  // The same palettes without their backdrop photograph.
-  "plain-falls",
-  "plain-zanzibar",
-  "plain-samana",
-  "plain-canyon",
-  "plain-sierras",
-  "plain-serengeti",
-];
-const { DECK_IDS, DEFAULT_DECK, deckAllowed } = require("./decks");
-const FELT_IDS = ["solid", "faded", "hidden"];
+const { DEFAULT_DECK, applyTableTheme } = require("./tableTheme");
+const { handsFromLog, attachResults, newestFirst } = require("./handHistory");
 
 // One Room per game document. Player identity is the account's userId (stable
 // forever), never a socket id — reconnecting is just "does this userId already
@@ -329,6 +313,40 @@ class Room {
     return entry;
   }
 
+  // The bidding, hand by hand: who bid what, who bought it, and how the hand
+  // finished. Plays are left out — the tricks are on the board as they happen,
+  // whereas the auction is what goes by too fast to read against robots.
+  // Named apart from this.biddingHistory, which is the live auction's own list.
+  biddingRecord() {
+    const hands = handsFromLog(this.log, {
+      keep: (type) => ["bid", "bidWon", "redeal", "throwIn"].includes(type),
+    });
+    attachResults(hands, (round) => this.roundResults?.get?.(round) || null);
+    return newestFirst(hands).map((hand) => ({
+      round: hand.round,
+      thrownIn: hand.thrownIn,
+      dealerId: hand.deal.dealerId ?? null,
+      calls: hand.calls.map((entry) => ({
+        type: entry.type,
+        userId: entry.userId ?? null,
+        bid: entry.bid ?? null,
+        points: entry.points ?? null,
+        trumpSuit: entry.trumpSuit ?? null,
+      })),
+      result: hand.result || null,
+    }));
+  }
+
+  // The scored outcome of each round, read back off the log's own result entries
+  // so nothing has to be kept aside for this.
+  get roundResults() {
+    const byRound = new Map();
+    for (const entry of this.log) {
+      if (entry.type === "result") byRound.set(entry.round, entry);
+    }
+    return byRound;
+  }
+
   // Robots don't count: a table sitting there with nobody but a robot at it is
   // an empty table, for the lobby's presence dot and for the abandoned-table
   // cleanup alike.
@@ -374,6 +392,7 @@ class Room {
       currentBidder: this.currentBidder,
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
+      biddingRecord: this.biddingRecord(),
       gameSettings: this.gameSettings,
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
@@ -463,6 +482,7 @@ class Room {
       exposed: this.game.exposed || {},
       roundNumber: this.roundNumber,
       scoreHistory: this.scoreHistory,
+      biddingRecord: this.biddingRecord(),
       gameSettings: this.gameSettings,
       offerPassDeclined: this.offerPassDeclined,
       offerRetroactivePassDeclined: this.offerRetroactivePassDeclined,
@@ -698,16 +718,7 @@ class Room {
     if (typeof settings.showOfferRetroactivePassButton === "boolean") {
       next.showOfferRetroactivePassButton = settings.showOfferRetroactivePassButton;
     }
-    // Themes are picked from a fixed list on the client, so anything else is
-    // either a stale client or hand-crafted — drop it rather than persist a
-    // value that would render as an unstyled table for both players.
-    if (LOCATION_IDS.includes(settings.location)) next.location = settings.location;
-    if (DECK_IDS.includes(settings.deck) && deckAllowed(settings.deck, this.playerNames())) {
-      next.deck = settings.deck;
-    }
-    if (FELT_IDS.includes(settings.felt)) next.felt = settings.felt;
-
-    this.gameSettings = next;
+    this.gameSettings = applyTableTheme(next, settings, this.playerNames());
     this.io.to(this.id).emit("gameSettingsUpdated", this.gameSettings);
     // Theme changes can happen long after the last move, so this settle needs
     // its own save — nothing else is going to persist it.
@@ -1588,7 +1599,9 @@ class RoomManager {
     const doc = await db.getGame(gameId);
     if (!doc) throw new Error("Game not found");
     const room =
-      doc.mode === 4
+      doc.gameType === "euchre"
+        ? new EuchreRoom(gameId, this.io, doc, this.presence)
+        : doc.mode === 4
         ? new Room4(gameId, this.io, doc, this.presence)
         : new Room(gameId, this.io, doc);
     this.rooms.set(gameId, room);

@@ -28,6 +28,31 @@
   margin: 4px 0 18px;
 }
 
+/* Off the home page there is no table to describe, so the reader picks which
+   game's rules they are reading. In a game it is fixed and this isn't drawn. */
+.rules-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.rules-switch-tab {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-faint);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rules-switch-tab.on {
+  border-color: var(--amber-ring);
+  background: rgba(255, 235, 200, 0.14);
+}
+
 .rules-section {
   padding-top: 14px;
   margin-top: 14px;

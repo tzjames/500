@@ -320,6 +320,14 @@ function GameRoom4Page() {
   const locationId = state?.gameSettings?.location || DEFAULT_LOCATION;
   const feltId = state?.gameSettings?.felt || DEFAULT_FELT;
   const playerNames = (state?.seats || []).filter(Boolean).map((s) => s.name);
+  // The bidding record names players by id, since a four-player table's seating
+  // isn't drawn until after the deal.
+  const nameFor = (userId) =>
+    userId === session?.user?.id
+      ? "You"
+      : (state?.seats || []).find((seat) => seat?.userId === userId)?.name ||
+        (state?.slots || []).find((slot) => slot?.userId === userId)?.name ||
+        "Someone";
   const deckId = resolveDeckId(state?.gameSettings?.deck || DEFAULT_DECK, playerNames);
 
   if (!session) return null;
@@ -330,7 +338,7 @@ function GameRoom4Page() {
         <div className="room-full">
           <p>{rejected}</p>
           <p>
-            <Link to="/">Back to home</Link>
+            <Link to="/500">Back to your games</Link>
           </p>
         </div>
       </ThemedTable>
@@ -378,6 +386,9 @@ function GameRoom4Page() {
         bid={state.currentBid?.bid}
         options={state.options}
         deckId={deckId}
+        biddingRecord={state.biddingRecord}
+        nameFor={nameFor}
+        sides={state.teamNames || []}
       />
     </div>
   ) : null;
@@ -396,7 +407,7 @@ function GameRoom4Page() {
   const topBar = (subtitle) => (
     <div className="table-topbar">
       <div>
-        <BrandMark />
+        <BrandMark to="/500" />
         {subtitle && <p className="table-subtitle">{subtitle}</p>}
       </div>
       {/* Four controls beside the title wrapped onto a second row — and with
@@ -670,7 +681,7 @@ function GameRoom4Page() {
                 <button className="btn-ghost" onClick={() => setShowScoreHistory(true)}>
                   Score history
                 </button>
-                <Link to="/" className="btn-ghost">
+                <Link to="/500" className="btn-ghost">
                   Back to home
                 </Link>
               </div>

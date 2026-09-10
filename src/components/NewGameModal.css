@@ -44,20 +44,37 @@
   gap: 8px;
 }
 
+@media (max-width: 460px) {
+  .ng-choices {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ng-choice {
+  display: flex;
+  align-items: flex-start;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-faint);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* The whole tile is the target; an info button sitting in the corner is the
+   one part of it that isn't. */
+.ng-choice-hit {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 11px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--panel-border);
-  background: var(--surface-faint);
+  border: none;
+  background: none;
   color: var(--ink);
   font-family: var(--sans);
   font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .ng-choice:hover {
@@ -67,6 +84,10 @@
 .ng-choice.on {
   border-color: var(--amber-ring);
   background: rgba(255, 235, 200, 0.14);
+}
+
+.ng-choice > .option-info {
+  margin: 11px 11px 0 0;
 }
 
 .ng-note {

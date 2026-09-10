@@ -28,9 +28,13 @@ export const register = (name, password) =>
 export const login = (name, password) =>
   request("/api/login", { method: "POST", body: { name, password } });
 
-export const listGames = (token) => request("/api/games", { token });
+export const listGames = (token, gameType = "500") =>
+  request(`/api/games?game=${encodeURIComponent(gameType)}`, { token });
 
-export const getRecord = (token) => request("/api/record", { token });
+export const getGameSummary = (token) => request("/api/game-summary", { token });
+
+export const getRecord = (token, gameType = "500") =>
+  request(`/api/record?game=${encodeURIComponent(gameType)}`, { token });
 
 // `setup` carries the table size, whether it's listed publicly, the house
 // rules, how partners are picked and whether to fill the empty seats with
@@ -40,8 +44,11 @@ export const createGame = (token, setup = {}) =>
 
 export const getGameMeta = (token, id) => request(`/api/games/${id}/meta`, { token });
 
-export const getGameDefaults = (token, mode) =>
-  request(`/api/game-defaults?mode=${mode}`, { token });
+export const getGameDefaults = (token, mode, gameType = "500") =>
+  request(`/api/game-defaults?mode=${mode}&game=${encodeURIComponent(gameType)}`, { token });
 
-export const getStats = (token, mode, includeFriendly = false) =>
-  request(`/api/stats?mode=${mode}&includeFriendly=${includeFriendly ? "1" : "0"}`, { token });
+export const getStats = (token, mode, includeFriendly = false, gameType = "500") =>
+  request(
+    `/api/stats?mode=${mode}&includeFriendly=${includeFriendly ? "1" : "0"}&game=${encodeURIComponent(gameType)}`,
+    { token }
+  );

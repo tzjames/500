@@ -1,9 +1,9 @@
 // The four-player house rules, read from the same JSON the server validates
 // against so a label or a default can only ever be defined in one place.
-import definitions from "./gameOptions.json";
+import spec from "./gameOptions.json";
 
-export const OPTION_GROUPS = definitions.groups;
-export const OPTIONS = definitions.options;
+export const OPTION_GROUPS = spec.groups;
+export const OPTIONS = spec.options;
 
 export const defaultOptions = () =>
   Object.fromEntries(OPTIONS.map((o) => [o.id, o.default]));
@@ -36,3 +36,11 @@ export function changedOptionLabels(options) {
     return merged[o.id] ? o.label : o.offLabel || `No ${o.label.toLowerCase()}`;
   });
 }
+
+// The shape HouseRules wants: which groups, what is in each and the defaults.
+export const definitions = {
+  groups: OPTION_GROUPS,
+  optionsByGroup,
+  defaultOptions,
+  changedOptionLabels,
+};

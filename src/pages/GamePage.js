@@ -5,6 +5,7 @@ import * as api from "../api";
 import ThemedTable from "../components/ThemedTable";
 import GameRoomPage from "./GameRoomPage";
 import GameRoom4Page from "./GameRoom4Page";
+import EuchreRoomPage from "./EuchreRoomPage";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 
 // Both sizes of game live at /game/:id, so this asks which one it is before
@@ -15,7 +16,7 @@ function GamePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
-  const [mode, setMode] = useState(null);
+  const [meta, setMeta] = useState(null);
   const [error, setError] = useState("");
 
   // Following an invite link without an account sends you to the home page to
@@ -31,7 +32,7 @@ function GamePage() {
     let live = true;
     api
       .getGameMeta(session.token, id)
-      .then((meta) => live && setMode(meta.mode))
+      .then((nextMeta) => live && setMeta(nextMeta))
       .catch((err) => live && setError(err.message));
     return () => {
       live = false;
@@ -46,14 +47,14 @@ function GamePage() {
         <div className="room-full">
           <p>{error}</p>
           <p>
-            <Link to="/">Back to home</Link>
+            <Link to="/">Back to all games</Link>
           </p>
         </div>
       </ThemedTable>
     );
   }
 
-  if (mode === null) {
+  if (meta === null) {
     return (
       <ThemedTable locationId={DEFAULT_LOCATION} deckId={DEFAULT_DECK} feltId={DEFAULT_FELT} plain>
         <div className="waiting-panel">
@@ -63,7 +64,8 @@ function GamePage() {
     );
   }
 
-  return mode === 4 ? <GameRoom4Page /> : <GameRoomPage />;
+  if (meta.gameType === "euchre") return <EuchreRoomPage />;
+  return meta.mode === 4 ? <GameRoom4Page /> : <GameRoomPage />;
 }
 
 export default GamePage;

@@ -941,7 +941,7 @@ function GameRoomPage() {
         <div className="room-full">
           <p>{joinRejected}</p>
           <p>
-            <Link to="/">Back to home</Link>
+            <Link to="/500">Back to your games</Link>
           </p>
         </div>
       </ThemedTable>
@@ -953,7 +953,7 @@ function GameRoomPage() {
       return (
         <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId}>
           <div className="table-topbar">
-            <BrandMark />
+            <BrandMark to="/500" />
             <ThemePicker
               locationId={locationId}
               deckId={deckId}
@@ -1277,7 +1277,7 @@ function GameRoomPage() {
               <button className="btn-ghost" onClick={() => setShowScoreHistory(true)}>
                 Score history
               </button>
-              <Link to="/" className="btn-ghost">
+              <Link to="/500" className="btn-ghost">
                 Back to home
               </Link>
             </div>
@@ -1352,6 +1352,8 @@ function GameRoomPage() {
         trumpSuit={gameState.trumpSuit}
         bid={gameState.currentBid?.bid}
         deckId={deckId}
+        biddingRecord={gameState.biddingRecord}
+        nameFor={(userId) => (userId === playerId ? "You" : opponentName)}
       />
     </div>
   );
@@ -1390,7 +1392,7 @@ function GameRoomPage() {
     <ThemedTable locationId={locationId} deckId={deckId} feltId={feltId} dimmed={isDiscarding}>
       <div className="table-topbar">
         <div>
-          <BrandMark />
+          <BrandMark to="/500" />
           <p className="table-subtitle">
             {currentPlayerData.name} vs {opponentName}
           </p>

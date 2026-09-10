@@ -36,6 +36,11 @@ function Card({
   // (the kitty badge lift, the viewport-scaled hand widths).
   const vars = {
     ...(width == null ? {} : { "--card-w": `${width}px` }),
+    // Packs aren't all drawn to the same shape, and a card's height comes off
+    // its deck's ratio. ThemedTable publishes it for the table, but anything
+    // portalled out of that tree — the review screen — would otherwise fall
+    // back to a shape the art doesn't match and get cropped top and bottom.
+    ...(deck?.ratio ? { "--card-ratio": deck.ratio } : {}),
     ...(rotate ? { "--card-rotate": `${rotate}deg` } : {}),
     ...(lift ? { "--card-lift": `${lift}px` } : {}),
     ...style,
