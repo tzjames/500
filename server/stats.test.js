@@ -98,13 +98,13 @@ const roundFriendly = {
   friendly: true,
 };
 
-function withStubs(fn) {
+function withStubs(fn, games = [gameA, gameB, gameC]) {
   const originals = {
     finishedGamesForUser: db.finishedGamesForUser,
     roundsBidBy: db.roundsBidBy,
     eloForUser: db.eloForUser,
   };
-  db.finishedGamesForUser = async () => [gameA, gameB, gameC];
+  db.finishedGamesForUser = async () => games;
   db.roundsBidBy = async () => [roundRated1, roundRated2, roundOldFriendly, roundFriendly];
   db.eloForUser = async () => ({ 2: 1180, 4: 1265 });
   // Re-require fresh each call isn't necessary — stats.js reads db.* at call
@@ -182,3 +182,73 @@ test("statsFor never rates a game just because it's being counted", () =>
     const included = await stats.statsFor("u0", 4, true);
     assert.equal(excluded.elo, included.elo);
   }));
+
+// ---- robots across games ----
+
+// A robot is seated with a fresh id every time, so the same three robots met
+// twice are six ids — and were six rows on the stats page before they were
+// keyed by name.
+const botId = () => `bot:${Math.random().toString(16).slice(2)}`;
+
+const euchreVsRobots = (won) => {
+  const slots = [
+    { userId: "u0", name: "Ann" },
+    { userId: botId(), name: "Boole (robot)", isBot: true },
+    { userId: botId(), name: "Dijkstra (robot)", isBot: true },
+    { userId: botId(), name: "Fermat (robot)", isBot: true },
+  ];
+  return {
+    status: "finished",
+    mode: 4,
+    gameType: "euchre",
+    variant: "northAmerican",
+    playerSlots: slots,
+    winner: { playerIds: won ? ["u0", slots[2].userId] : [slots[1].userId, slots[3].userId] },
+    snapshot: { game: { players: [0, 1, 2, 3].map((seat) => ({ seat, team: seat % 2 })) } },
+  };
+};
+
+const fiveHundredVsRobots = (won) => {
+  const slots = [
+    { userId: "u0", name: "Ann" },
+    { userId: botId(), name: "Boole (robot)", isBot: true },
+    { userId: botId(), name: "Dijkstra (robot)", isBot: true },
+    { userId: botId(), name: "Fermat (robot)", isBot: true },
+  ];
+  return {
+    status: "finished",
+    mode: 4,
+    playerSlots: slots,
+    winner: { playerIds: won ? ["u0", slots[2].userId] : [slots[1].userId, slots[3].userId] },
+    snapshot: { seatOrder: slots.map((s) => s.userId) },
+  };
+};
+
+test("the same robot met twice is one record, not one per game", () =>
+  withStubs(
+    async (stats) => {
+      const result = await stats.statsFor("u0", 4, true, "euchre");
+      assert.deepEqual(
+        result.partners.map((row) => [row.label, row.wins, row.losses]),
+        [["Dijkstra (robot)", 1, 1]]
+      );
+      assert.deepEqual(
+        result.tables.map((row) => [row.label, row.wins, row.losses]),
+        [["with Dijkstra (robot) v Boole (robot) & Fermat (robot)", 1, 1]]
+      );
+    },
+    [euchreVsRobots(true), euchreVsRobots(false)]
+  ));
+
+test("and the same is true of the four-player 500 table", () =>
+  withStubs(
+    async (stats) => {
+      const result = await stats.statsFor("u0", 4, true);
+      assert.deepEqual(
+        result.partners.map((row) => [row.label, row.wins, row.losses]),
+        [["Dijkstra (robot)", 1, 1]]
+      );
+      assert.equal(result.tables.length, 1);
+    },
+    [fiveHundredVsRobots(true), fiveHundredVsRobots(false)]
+  ));
