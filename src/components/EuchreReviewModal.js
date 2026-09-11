@@ -15,7 +15,7 @@ const key = (card) => `${card.suit}:${card.value}`;
 // table sees the same step — it is a shared post-mortem, not a private one.
 function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone }) {
   const deck = getDeck(deckId);
-  const { tricks, hands, trumpSuit, callerSeat, out = [], step, yours } = review;
+  const { tricks, hands, trumpSuit, callerSeat, out = [], step, yours, upcard, buried } = review;
   const nameOf = (seat) => (seat === mySeat ? "You" : slots[seat]?.name || `Seat ${seat + 1}`);
 
   // What each seat still held at this point: the deal, less every card they
@@ -24,6 +24,8 @@ function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone 
     tricks.slice(0, step).flatMap((trick) => trick.cards.map((play) => key(play.card)))
   );
   const remaining = hands.map((hand) => hand.filter((card) => !played.has(key(card))));
+  // The dealer holding the turn-up at the first lead is what ordering it up means.
+  const takenUp = upcard && hands.flat().some((card) => key(card) === key(upcard));
   const trick = step > 0 ? tricks[step - 1] : null;
   const tricksSoFar = (seat) =>
     tricks.slice(0, step).filter((t) => t.winnerSeat === seat).length;
@@ -60,6 +62,24 @@ function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone 
         </div>
 
         {!yours && <p className="rules-aside">Whoever asked for the review is turning the pages.</p>}
+
+        {upcard && (
+          <section className="rules-section">
+            <h3>The turn-up</h3>
+            <ul className="eu-review-trick">
+              <li>
+                <Card card={upcard} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
+                <span>{takenUp ? `${nameOf(review.dealerSeat)} took this up` : "turned down"}</span>
+              </li>
+              {buried && (
+                <li>
+                  <Card card={buried} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
+                  <span>and buried this</span>
+                </li>
+              )}
+            </ul>
+          </section>
+        )}
 
         {trick && (
           <section className="rules-section">

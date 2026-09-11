@@ -423,6 +423,28 @@ test("a review rebuilds the hand that was played, trick by trick", () => {
   assert.ok(won <= review.tricks.length);
 });
 
+// The deal is random, so this walks enough hands to meet both a turn-up that
+// was ordered up and one that was turned down.
+test("a review shows the turn-up, and what the dealer buried under it", () => {
+  const key = (card) => `${card.value}${card.suit}`;
+  let everBuried = false;
+  for (let hand = 0; hand < 40; hand += 1) {
+    const room = playHand({ variant: "northAmerican", mode: 4 });
+    room.propose(fakeSocket("u0", "Player 0"), { type: "review" });
+    const review = stateOf(room).review;
+    const dealt = review.hands.flat().map(key);
+    assert.deepEqual(review.upcard, room.log.filter((e) => e.type === "deal").pop().upcard);
+    if (review.buried) {
+      everBuried = true;
+      assert.ok(dealt.includes(key(review.upcard)), "the turn-up was taken into a hand");
+      assert.ok(!dealt.includes(key(review.buried)), "and the card it displaced is out of play");
+    } else {
+      assert.ok(!dealt.includes(key(review.upcard)), "a turn-up nobody took stays in the kitty");
+    }
+  }
+  assert.ok(everBuried, "somebody ordered up over forty hands");
+});
+
 test("only the seat driving a review can step it, and end it", () => {
   const room = playHand({ variant: "northAmerican", mode: 4 });
   const mine = fakeSocket("u0", "Player 0");

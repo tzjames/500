@@ -126,3 +126,19 @@ test("a seat that sat the hand out shows no cards", () => {
   expect(screen.getByText(/cards face down/)).toBeInTheDocument();
   expect(screen.getByText("sat out")).toBeInTheDocument();
 });
+
+test("the turn-up is shown, with the card the dealer buried under it", () => {
+  // The jack is in seat 2's hand, so it is a turn-up somebody ordered up.
+  open({ dealerSeat: 2, upcard: c("J", "♠"), buried: c("9", "♦") });
+  const deal = screen.getByRole("heading", { name: "The turn-up" }).parentElement;
+  expect(deal).toHaveTextContent("Dijkstra took this up");
+  expect(deal).toHaveTextContent("and buried this");
+  expect(deal.querySelectorAll(".pc")).toHaveLength(2);
+});
+
+test("a turn-up nobody ordered says so, and buries nothing", () => {
+  open({ upcard: c("7", "♠") });
+  const deal = screen.getByRole("heading", { name: "The turn-up" }).parentElement;
+  expect(deal).toHaveTextContent("turned down");
+  expect(deal.querySelectorAll(".pc")).toHaveLength(1);
+});
