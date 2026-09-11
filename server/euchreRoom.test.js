@@ -425,7 +425,7 @@ test("a review rebuilds the hand that was played, trick by trick", () => {
 
 // The deal is random, so this walks enough hands to meet both a turn-up that
 // was ordered up and one that was turned down.
-test("a review shows the turn-up, and what the dealer buried under it", () => {
+test("a review shows the turn-up, the buried card and the rest of the kitty", () => {
   const key = (card) => `${card.value}${card.suit}`;
   let everBuried = false;
   for (let hand = 0; hand < 40; hand += 1) {
@@ -433,13 +433,19 @@ test("a review shows the turn-up, and what the dealer buried under it", () => {
     room.propose(fakeSocket("u0", "Player 0"), { type: "review" });
     const review = stateOf(room).review;
     const dealt = review.hands.flat().map(key);
+    const kitty = review.kitty.map(key);
     assert.deepEqual(review.upcard, room.log.filter((e) => e.type === "deal").pop().upcard);
+    // Four cards nobody could play, and no card is both dealt and dead.
+    assert.equal(review.kitty.length, 4);
+    assert.equal(new Set([...dealt, ...kitty]).size, dealt.length + kitty.length);
     if (review.buried) {
       everBuried = true;
-      assert.ok(dealt.includes(key(review.upcard)), "the turn-up was taken into a hand");
-      assert.ok(!dealt.includes(key(review.buried)), "and the card it displaced is out of play");
+      assert.ok(kitty.includes(key(review.buried)), "the buried card went out of play");
+      // Unless the dealer buried the very card they had just taken up.
+      const reburied = key(review.buried) === key(review.upcard);
+      assert.ok(reburied || dealt.includes(key(review.upcard)), "the turn-up was taken into a hand");
     } else {
-      assert.ok(!dealt.includes(key(review.upcard)), "a turn-up nobody took stays in the kitty");
+      assert.ok(kitty.includes(key(review.upcard)), "a turn-up nobody took stays in the kitty");
     }
   }
   assert.ok(everBuried, "somebody ordered up over forty hands");

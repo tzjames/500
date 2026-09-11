@@ -265,6 +265,8 @@ class EuchreRoom {
       type: "opening",
       round: this.roundNumber,
       hands: game.players.map((player) => [...player.hand]),
+      // Taken here, so going under and the dealer's discard are already in it.
+      kitty: [...game.kitty],
       out: game.players.filter((p) => !p.active || p.folded).map((p) => p.seat),
       trumpSuit: game.trumpSuit,
       noTrump: game.noTrump,
@@ -568,9 +570,11 @@ class EuchreRoom {
       alone: opening.alone,
       bid: opening.bid,
       out: opening.out,
-      // What the turn-up did: a card buried under it means the dealer took it up.
+      // The cards nobody played: the turn-up, whatever the dealer buried under
+      // it, and the rest of the kitty, which was never turned at all.
       upcard: this.lastEntry(round, "deal")?.upcard || null,
       buried: this.lastEntry(round, "discard")?.card || null,
+      kitty: opening.kitty || [],
       hands,
       tricks,
     };

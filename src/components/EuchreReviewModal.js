@@ -15,7 +15,7 @@ const key = (card) => `${card.suit}:${card.value}`;
 // table sees the same step — it is a shared post-mortem, not a private one.
 function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone }) {
   const deck = getDeck(deckId);
-  const { tricks, hands, trumpSuit, callerSeat, out = [], step, yours, upcard, buried } = review;
+  const { tricks, hands, trumpSuit, callerSeat, out = [], step, yours, upcard, buried, kitty = [] } = review;
   const nameOf = (seat) => (seat === mySeat ? "You" : slots[seat]?.name || `Seat ${seat + 1}`);
 
   // What each seat still held at this point: the deal, less every card they
@@ -24,8 +24,15 @@ function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone 
     tricks.slice(0, step).flatMap((trick) => trick.cards.map((play) => key(play.card)))
   );
   const remaining = hands.map((hand) => hand.filter((card) => !played.has(key(card))));
-  // The dealer holding the turn-up at the first lead is what ordering it up means.
-  const takenUp = upcard && hands.flat().some((card) => key(card) === key(upcard));
+  // A buried card means there was a discard, which only follows taking the
+  // turn-up up; older hands, logged without one, show in the dealer's hand.
+  const takenUp = upcard && (Boolean(buried) || hands.flat().some((card) => key(card) === key(upcard)));
+  // The dealer may bury the very card they just took up: one card, not two.
+  const reburied = takenUp && buried && key(buried) === key(upcard);
+  // The turn-up and the buried card are named below, so the rest is what was
+  // never turned at all — and a turned-down turn-up is still sitting among it.
+  const named = [upcard, buried].filter(Boolean).map(key);
+  const unseen = kitty.filter((card) => !named.includes(key(card)));
   const trick = step > 0 ? tricks[step - 1] : null;
   const tricksSoFar = (seat) =>
     tricks.slice(0, step).filter((t) => t.winnerSeat === seat).length;
@@ -63,20 +70,32 @@ function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone 
 
         {!yours && <p className="rules-aside">Whoever asked for the review is turning the pages.</p>}
 
-        {upcard && (
+        {(upcard || unseen.length > 0) && (
           <section className="rules-section">
-            <h3>The turn-up</h3>
+            <h3>Out of play</h3>
             <ul className="eu-review-trick">
-              <li>
-                <Card card={upcard} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
-                <span>{takenUp ? `${nameOf(review.dealerSeat)} took this up` : "turned down"}</span>
-              </li>
-              {buried && (
+              {upcard && (
+                <li>
+                  <Card card={upcard} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
+                  <span>
+                    {!takenUp
+                      ? "turned down"
+                      : `${nameOf(review.dealerSeat)} took this up${reburied ? ", then buried it" : ""}`}
+                  </span>
+                </li>
+              )}
+              {buried && !reburied && (
                 <li>
                   <Card card={buried} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
                   <span>and buried this</span>
                 </li>
               )}
+              {unseen.map((card) => (
+                <li key={key(card)}>
+                  <Card card={card} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
+                  <span>never turned</span>
+                </li>
+              ))}
             </ul>
           </section>
         )}
