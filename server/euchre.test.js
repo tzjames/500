@@ -614,19 +614,27 @@ test("a lone hand is played out by three, and the sitting partner takes no turn"
 
 // ---- the bot ----
 
-test("the bot throws its lowest card away, not the first one in its hand", () => {
+// Seat 1 is handed the position, void in the trump seat 0 leads, so the only
+// question left for the bot is which card it throws away.
+function sluffed(hand) {
   const euchreBot = require("./euchreBot");
   const { game } = dealt({
-    hands: [
-      [card("A", "♣"), card("K", "♣"), card("Q", "♣"), card("9", "♣"), card("10", "♣")],
-      [card("A", "♠"), card("9", "♥"), card("10", "♦"), card("Q", "♦"), card("K", "♦")],
-      plainHand("♠"),
-      plainHand("♥"),
-    ],
+    hands: [plainHand("♣"), hand, plainHand("♠"), plainHand("♥")],
     upcard: card("J", "♣"),
   });
   game.fixTrump(0, "♣", false);
   game.currentSeat = 0;
   game.playCard(0, card("A", "♣"));
-  assert.deepEqual(euchreBot.choosePlay(game, 1), card("9", "♥"), "the nine, keeping the ace");
+  return euchreBot.choosePlay(game, 1);
+}
+
+test("the bot throws its lowest card away, not the first one in its hand", () => {
+  const hand = [card("A", "♠"), card("9", "♥"), card("10", "♦"), card("Q", "♦"), card("K", "♦")];
+  assert.deepEqual(sluffed(hand), card("9", "♥"), "the nine, keeping the ace");
+});
+
+test("the bot sheds from length rather than baring a doubleton king", () => {
+  const hand = [card("K", "♦"), card("9", "♦"), card("10", "♥"), card("J", "♥"), card("Q", "♥")];
+  assert.deepEqual(sluffed(hand), card("10", "♥"), "the ten, leaving the king guarded");
+  assert.deepEqual(sluffed([card("A", "♦"), card("K", "♦")]), card("K", "♦"), "but an ace guards itself");
 });
