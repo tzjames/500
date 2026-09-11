@@ -170,7 +170,11 @@ function choosePlay(game, seat) {
       (play) =>
         rankOf(play.card) === bestSoFar && game.players[play.seat].team === game.players[seat].team
     );
-  const cheapest = (cards) => cards.reduce((best, card) => (rankOf(card) < rankOf(best) ? card : best));
+  // Every card that can't win the trick ranks the same, so break that tie on
+  // the card's own strength rather than shedding whatever the hand holds first.
+  const cheaper = (a, b) =>
+    rankOf(a) !== rankOf(b) ? rankOf(a) < rankOf(b) : strength(a) < strength(b);
+  const cheapest = (cards) => cards.reduce((best, card) => (cheaper(card, best) ? card : best));
   const winners = legal.filter((card) => rankOf(card) > bestSoFar);
 
   // Nothing to gain by overtaking your own partner, and nothing to gain by

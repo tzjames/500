@@ -611,3 +611,22 @@ test("a lone hand is played out by three, and the sitting partner takes no turn"
   for (const seat of [1, 2, 0]) trick.push(game.playCard(seat, game.legalCards(seat)[0]));
   assert.equal(trick[2].trickDone, true, "three cards complete the trick");
 });
+
+// ---- the bot ----
+
+test("the bot throws its lowest card away, not the first one in its hand", () => {
+  const euchreBot = require("./euchreBot");
+  const { game } = dealt({
+    hands: [
+      [card("A", "♣"), card("K", "♣"), card("Q", "♣"), card("9", "♣"), card("10", "♣")],
+      [card("A", "♠"), card("9", "♥"), card("10", "♦"), card("Q", "♦"), card("K", "♦")],
+      plainHand("♠"),
+      plainHand("♥"),
+    ],
+    upcard: card("J", "♣"),
+  });
+  game.fixTrump(0, "♣", false);
+  game.currentSeat = 0;
+  game.playCard(0, card("A", "♣"));
+  assert.deepEqual(euchreBot.choosePlay(game, 1), card("9", "♥"), "the nine, keeping the ace");
+});
