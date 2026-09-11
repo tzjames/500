@@ -73,7 +73,7 @@ function EuchreReviewModal({ review, deckId, mySeat, slots = [], onStep, onDone 
         {(upcard || unseen.length > 0) && (
           <section className="rules-section">
             <h3>Out of play</h3>
-            <ul className="eu-review-trick">
+            <ul className="eu-review-trick eu-review-dead">
               {upcard && (
                 <li>
                   <Card card={upcard} deck={deck} width={null} trumpSuit={trumpSuit} disabled />
