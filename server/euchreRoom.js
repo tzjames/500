@@ -265,6 +265,8 @@ class EuchreRoom {
       type: "opening",
       round: this.roundNumber,
       hands: game.players.map((player) => [...player.hand]),
+      // Taken here, so going under and the dealer's discard are already in it.
+      kitty: [...game.kitty],
       out: game.players.filter((p) => !p.active || p.folded).map((p) => p.seat),
       trumpSuit: game.trumpSuit,
       noTrump: game.noTrump,
@@ -327,7 +329,11 @@ class EuchreRoom {
   }
 
   discard(socket, { card } = {}) {
-    this.act(socket, ["discard"], (seat) => this.game.discard(seat, card));
+    this.act(socket, ["discard"], (seat) => {
+      const result = this.game.discard(seat, card);
+      if (result.ok) this.log.push({ type: "discard", round: this.roundNumber, seat, card, ts: Date.now() });
+      return result;
+    });
   }
 
   bid(socket, { amount } = {}) {
@@ -469,7 +475,7 @@ class EuchreRoom {
     // "opening" holds everyone's cards for review and replay, and "play" is the
     // tricks, which the board shows as they happen — neither is calling.
     const hands = handsFromLog(this.log, {
-      keep: (type) => type !== "play" && type !== "opening",
+      keep: (type) => !["play", "opening", "discard"].includes(type),
     });
     attachResults(hands, (round) => results.get(round));
     return newestFirst(hands).map((hand) => ({
@@ -533,9 +539,13 @@ class EuchreRoom {
     return { game, plays, opening };
   }
 
+  // The last of its kind in a round: an earlier deal in the round was thrown in.
+  lastEntry(round, type) {
+    return [...this.log].reverse().find((e) => e.type === type && e.round === round) || null;
+  }
+
   dealerFor(round) {
-    const deal = [...this.log].reverse().find((e) => e.type === "deal" && e.round === round);
-    return deal ? deal.dealerSeat : null;
+    return this.lastEntry(round, "deal")?.dealerSeat ?? null;
   }
 
   // The hand trick by trick, for the review screen. Built by running the logged
@@ -560,6 +570,11 @@ class EuchreRoom {
       alone: opening.alone,
       bid: opening.bid,
       out: opening.out,
+      // The cards nobody played: the turn-up, whatever the dealer buried under
+      // it, and the rest of the kitty, which was never turned at all.
+      upcard: this.lastEntry(round, "deal")?.upcard || null,
+      buried: this.lastEntry(round, "discard")?.card || null,
+      kitty: opening.kitty || [],
       hands,
       tricks,
     };

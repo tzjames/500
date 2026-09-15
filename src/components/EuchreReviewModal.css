@@ -3,6 +3,8 @@
    them at a size worth looking at. */
 .rules-modal.eu-review {
   width: min(1040px, 100%);
+  /* The hands' size, shared with the dead cards: only the trick is bigger. */
+  --eu-hand-card: clamp(46px, 4.6vw, 62px);
 }
 
 .eu-review-step {
@@ -43,6 +45,11 @@
 
 .eu-review-trick .pc {
   --card-w: clamp(60px, 6vw, 78px);
+}
+
+/* Out of play borrows the trick's layout, but not its prominence. */
+.eu-review-trick.eu-review-dead .pc {
+  --card-w: var(--eu-hand-card);
 }
 
 /* The card that took it, and the only one in the row at full strength. */
@@ -110,7 +117,7 @@
 }
 
 .eu-review-cards .pc {
-  --card-w: clamp(46px, 4.6vw, 62px);
+  --card-w: var(--eu-hand-card);
 }
 
 @media (max-width: 820px) {
@@ -121,9 +128,8 @@
 }
 
 @media (max-width: 620px) {
-
-  .eu-review-cards .pc {
-    --card-w: 42px;
+  .rules-modal.eu-review {
+    --eu-hand-card: 42px;
   }
 
   .eu-review-trick .pc {

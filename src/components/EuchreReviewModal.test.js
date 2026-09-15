@@ -126,3 +126,40 @@ test("a seat that sat the hand out shows no cards", () => {
   expect(screen.getByText(/cards face down/)).toBeInTheDocument();
   expect(screen.getByText("sat out")).toBeInTheDocument();
 });
+
+test("the cards out of play are shown: the turn-up, the discard and the kitty", () => {
+  // The jack is in seat 2's hand, so it is a turn-up somebody ordered up.
+  open({
+    dealerSeat: 2,
+    upcard: c("J", "♠"),
+    buried: c("9", "♦"),
+    kitty: [c("7", "♣"), c("8", "♣"), c("Q", "♥"), c("9", "♦")],
+  });
+  const dead = screen.getByRole("heading", { name: "Out of play" }).parentElement;
+  expect(dead).toHaveTextContent("Dijkstra took this up");
+  expect(dead).toHaveTextContent("and buried this");
+  // The buried card is named in its own right, so it isn't listed twice.
+  expect(screen.getAllByText("never turned")).toHaveLength(3);
+  expect(dead.querySelectorAll(".pc")).toHaveLength(5);
+});
+
+test("a turn-up nobody ordered says so, and is not counted among the unseen", () => {
+  open({ upcard: c("7", "♠"), kitty: [c("7", "♠"), c("8", "♣"), c("Q", "♥"), c("9", "♦")] });
+  const dead = screen.getByRole("heading", { name: "Out of play" }).parentElement;
+  expect(dead).toHaveTextContent("turned down");
+  expect(screen.getAllByText("never turned")).toHaveLength(3);
+  expect(dead.querySelectorAll(".pc")).toHaveLength(4);
+});
+
+test("the dealer burying the card they just took up is one card, not two", () => {
+  open({
+    dealerSeat: 2,
+    upcard: c("9", "♣"),
+    buried: c("9", "♣"),
+    kitty: [c("7", "♣"), c("8", "♣"), c("Q", "♥"), c("9", "♣")],
+  });
+  const dead = screen.getByRole("heading", { name: "Out of play" }).parentElement;
+  expect(dead).toHaveTextContent("Dijkstra took this up, then buried it");
+  expect(dead).not.toHaveTextContent("and buried this");
+  expect(dead.querySelectorAll(".pc")).toHaveLength(4);
+});

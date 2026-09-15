@@ -67,6 +67,12 @@ function tableFor(game, userId) {
   };
 }
 
+// A robot is minted with a fresh id every time one is seated, so keying a
+// record by that id files every game against Ada under a heading of its own.
+// Their name is the only identity a robot has, and the only one worth keeping.
+const identityOf = (slot) =>
+  slot.isBot || slot.userId?.startsWith("bot:") ? `bot:${slot.name}` : slot.userId;
+
 // Tally helper: a bucket per key, created on first sight.
 function tally(map, key, label, isWin) {
   if (!map.has(key)) map.set(key, { key, label, wins: 0, losses: 0 });
@@ -121,8 +127,8 @@ async function statsFor(userId, mode, includeFriendly = false, gameType = "500")
     if (gameType === "euchre") {
       tally(variants, game.variant || "northAmerican", game.variant || "northAmerican", isWin);
       if (opponents.length) {
-        const opponentIds = opponents.map((opponent) => opponent.userId).sort();
-        const key = `${partner?.userId || "solo"}|${opponentIds.join("|")}`;
+        const opponentIds = opponents.map(identityOf).sort();
+        const key = `${partner ? identityOf(partner) : "solo"}|${opponentIds.join("|")}`;
         const row = tally(tables, key, null, isWin);
         row.opponentNames = opponentNames;
         row.partnerName = partner?.name || null;
@@ -130,21 +136,21 @@ async function statsFor(userId, mode, includeFriendly = false, gameType = "500")
           ? `with ${partner.name} v ${opponentNames.join(" & ")}`
           : `v ${opponentNames.join(" & ")}`;
       }
-      if (partner) tally(partners, partner.userId, partner.name, isWin).label = partner.name;
+      if (partner) tally(partners, identityOf(partner), partner.name, isWin).label = partner.name;
     } else if (mode === 4) {
       if (partner && opponents.length === 2) {
-        const key = `${partner.userId}|${opponents.map((o) => o.userId).sort().join("|")}`;
+        const key = `${identityOf(partner)}|${opponents.map(identityOf).sort().join("|")}`;
         const row = tally(tables, key, null, isWin);
         row.partnerName = partner.name;
         row.opponentNames = opponentNames;
         row.label = `with ${partner.name} v ${opponentNames.join(" & ")}`;
       }
       if (partner) {
-        const row = tally(partners, partner.userId, partner.name, isWin);
+        const row = tally(partners, identityOf(partner), partner.name, isWin);
         row.label = partner.name;
       }
     } else if (opponents.length === 1) {
-      const row = tally(tables, opponents[0].userId, opponents[0].name, isWin);
+      const row = tally(tables, identityOf(opponents[0]), opponents[0].name, isWin);
       row.label = opponents[0].name;
       row.opponentNames = opponentNames;
     }

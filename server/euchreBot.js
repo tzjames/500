@@ -170,7 +170,20 @@ function choosePlay(game, seat) {
       (play) =>
         rankOf(play.card) === bestSoFar && game.players[play.seat].team === game.players[seat].team
     );
-  const cheapest = (cards) => cards.reduce((best, card) => (rankOf(card) < rankOf(best) ? card : best));
+  // A bare king is barely a card, so its last guard is worth nearly the king.
+  const worth = (card) => {
+    const suit = effectiveSuit(card, game.trumpSuit);
+    const rest = game.players[seat].hand.filter(
+      (c) => c !== card && effectiveSuit(c, game.trumpSuit) === suit
+    );
+    const guarding =
+      !game.lowNoTrump && rest.length === 1 && rest[0].value === "K" && strength(card) < strength(rest[0]);
+    return guarding ? strength(rest[0]) - 0.5 : strength(card);
+  };
+  // Every card that can't win the trick ranks the same, so break that tie on
+  // what it's worth rather than shedding whatever the hand holds first.
+  const cheaper = (a, b) => (rankOf(a) !== rankOf(b) ? rankOf(a) < rankOf(b) : worth(a) < worth(b));
+  const cheapest = (cards) => cards.reduce((best, card) => (cheaper(card, best) ? card : best));
   const winners = legal.filter((card) => rankOf(card) > bestSoFar);
 
   // Nothing to gain by overtaking your own partner, and nothing to gain by
