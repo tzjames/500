@@ -105,6 +105,88 @@ const PLACES = [
   },
 ].map((place) => ({ ...place, group: "Locations" }));
 
+// Mzumbe, Tanzania. Private to the people who were there — see MZUMBE_OWNERS
+// below — so unlike PLACES these get no plain-colour twin: the point of them
+// is the photograph. Tints run heavier than the Locations set because five of
+// the six are midday shots with a blown-out sky at the top of the frame.
+const MZUMBE = [
+  {
+    id: "mzumbe-road",
+    name: "Mzumbe Road",
+    caption: "Mzumbe — the red road in, late morning",
+    photo: "/backdrops/mzumbe1.jpg",
+    shape: "rect",
+    dot: "#c47a4e",
+    wash: "linear-gradient(180deg,#8f9aa8,#b9a38f 30%,#a95b34 62%,#5e2f1c 100%)",
+    tint: "linear-gradient(180deg,rgba(42,34,30,.46),rgba(38,22,14,.62))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #7a4029, #4a2418 66%, rgba(26,12,8,.72))",
+    back: "linear-gradient(150deg,#a8572f,#4d2317)",
+  },
+  {
+    id: "mzumbe-ridge",
+    name: "Uluguru Ridge",
+    caption: "Uluguru Mountains — haze along the ridge from the valley floor",
+    photo: "/backdrops/mzumbe2.jpg",
+    shape: "oval",
+    dot: "#79cbb4",
+    wash: "linear-gradient(180deg,#5aa8cf,#8fd6e4 34%,#5c7f74 66%,#232a16 100%)",
+    tint: "linear-gradient(180deg,rgba(24,50,60,.54),rgba(20,28,16,.6))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #2f6a58, #1d4234 66%, rgba(10,24,18,.72))",
+    back: "linear-gradient(150deg,#3c8f79,#174034)",
+  },
+  {
+    id: "mzumbe-valley",
+    name: "Morogoro Valley",
+    caption: "Morogoro — mango trees and cloud over the escarpment",
+    photo: "/backdrops/mzumbe3.jpg",
+    shape: "oval",
+    dot: "#9bbf7e",
+    wash: "linear-gradient(180deg,#5b86b8,#93aecb 32%,#6f7a63 64%,#4a4526 100%)",
+    tint: "linear-gradient(180deg,rgba(30,44,64,.38),rgba(34,32,18,.58))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #4d6b45, #2e402a 66%, rgba(14,22,12,.72))",
+    back: "linear-gradient(150deg,#5c8552,#2b3d26)",
+  },
+  {
+    // The one wide shot in the set, and the only place using the hex table.
+    id: "mzumbe-peaks",
+    name: "Highland Peaks",
+    caption: "Eastern Arc — forest ridges in the morning haze",
+    photo: "/backdrops/mzumbe4.jpg",
+    shape: "hex",
+    dot: "#86bcd0",
+    wash: "linear-gradient(180deg,#8fbcd8,#5f95bd 30%,#4f7d95 62%,#3a5560 100%)",
+    tint: "linear-gradient(180deg,rgba(28,48,66,.4),rgba(22,38,46,.58))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #35697a, #203f4b 66%, rgba(10,22,28,.72))",
+    back: "linear-gradient(150deg,#3f8296,#1e3d49)",
+  },
+  {
+    id: "mzumbe-quad",
+    name: "Mzumbe Quad",
+    caption: "Mzumbe — tin roofs and the flagpole at midday",
+    photo: "/backdrops/mzumbe5.jpg",
+    shape: "round",
+    dot: "#c2a86a",
+    wash: "linear-gradient(180deg,#9fb0bf,#8f9a86 32%,#6b6145 64%,#453a22 100%)",
+    tint: "linear-gradient(180deg,rgba(38,40,36,.44),rgba(30,26,16,.6))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #6a6238, #413c22 66%, rgba(20,18,10,.72))",
+    back: "linear-gradient(150deg,#8a7a46,#413820)",
+  },
+  {
+    // The only interior in the whole registry, and already dark enough that it
+    // takes the lightest tint of any location.
+    id: "mzumbe-common-room",
+    name: "Common Room",
+    caption: "Mzumbe Secondary School — the common room, bottles out",
+    photo: "/backdrops/fakemzumbe.jpg",
+    shape: "rect",
+    dot: "#9ec46a",
+    wash: "linear-gradient(180deg,#59663f,#6b7450 34%,#4c3a2a 70%,#2e211a 100%)",
+    tint: "linear-gradient(180deg,rgba(30,38,24,.3),rgba(28,20,14,.52))",
+    felt: "radial-gradient(58% 62% at 50% 46%, #4f6236, #2f3a22 66%, rgba(14,18,10,.72))",
+    back: "linear-gradient(150deg,#5f7a3e,#2b3a1e)",
+  },
+].map((place) => ({ ...place, group: "Mzumbe" }));
+
 // Each place's palette, minus the photograph — a plain gradient table for when
 // you'd rather not play over scenery. Derived from PLACES rather than written
 // out again, so a tweak to a location's colours carries to its plain twin and
@@ -128,7 +210,7 @@ const PLAIN = PLACES.map((place) => ({
   group: "Plain colours",
 }));
 
-export const LOCATIONS = [...PLACES, ...PLAIN];
+export const LOCATIONS = [...PLACES, ...MZUMBE, ...PLAIN];
 
 // `art: "image"` decks load a face per card from `path`; `art: "glyph"` decks
 // draw the face from the rank and the Unicode suit character. A glyph deck has
@@ -219,6 +301,29 @@ export const decksFor = (playerNames) =>
 export const resolveDeckId = (deckId, playerNames) =>
   deckAllowed(deckId, playerNames) ? deckId : DEFAULT_DECK;
 
+// The Mzumbe backdrops are offered when any one of these is at the table, not
+// only when the room is exactly them — unlike a private deck, a backdrop is
+// scenery one person can bring to a game with anybody. Mirrored in
+// server/tableTheme.js, which is what actually enforces it.
+const MZUMBE_OWNERS = ["graham", "james"];
+const MZUMBE_IDS = MZUMBE.map((place) => place.id);
+
+export function locationAllowed(locationId, playerNames = []) {
+  if (!MZUMBE_IDS.includes(locationId)) return true;
+  return playerNames
+    .filter(Boolean)
+    .some((n) => MZUMBE_OWNERS.includes(String(n).trim().toLowerCase()));
+}
+
+export const locationsFor = (playerNames) =>
+  LOCATIONS.filter((l) => locationAllowed(l.id, playerNames));
+
+// A game set to a private backdrop keeps working when its owner leaves — it
+// falls back rather than showing the rest of the table scenery that isn't
+// theirs. Mirrors resolveDeckId.
+export const resolveLocationId = (locationId, playerNames) =>
+  locationAllowed(locationId, playerNames) ? locationId : DEFAULT_LOCATION;
+
 export const DEFAULT_LOCATION = LOCATIONS[0].id;
 // Whatever the picker shows first that isn't private to particular players —
 // a private pack can't be the fallback, or the people it excludes would fall
@@ -231,9 +336,10 @@ export const getDeck = (id) => DECKS.find((d) => d.id === id) || DECKS[0];
 
 // "Surprise me" — always a different location than the one showing, so the
 // pick always visibly does something.
-export function randomLocationId(currentId) {
-  const others = LOCATIONS.filter((l) => l.id !== currentId);
-  const pool = others.length > 0 ? others : LOCATIONS;
+export function randomLocationId(currentId, playerNames = []) {
+  const allowed = locationsFor(playerNames);
+  const others = allowed.filter((l) => l.id !== currentId);
+  const pool = others.length > 0 ? others : allowed;
   return pool[Math.floor(Math.random() * pool.length)].id;
 }
 

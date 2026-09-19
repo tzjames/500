@@ -19,7 +19,13 @@ import ConfirmModal from "../components/ConfirmModal";
 import RoundEndModal from "../components/RoundEndModal";
 import RoundReviewModal from "../components/RoundReviewModal";
 import Confetti from "../components/Confetti";
-import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
+import {
+  DEFAULT_LOCATION,
+  DEFAULT_DECK,
+  DEFAULT_FELT,
+  resolveDeckId,
+  resolveLocationId,
+} from "../theme";
 import { playSound, preloadSounds } from "../sounds";
 import { useViewport } from "../useViewport";
 import "../App.css";
@@ -926,11 +932,15 @@ function GameRoomPage() {
 
   const handleReplayReturn = () => setReplay(null);
 
-  const locationId = gameSettings.location || DEFAULT_LOCATION;
   const feltId = gameSettings.felt || DEFAULT_FELT;
-  // Private packs fall back for anyone they don't belong to, so a game that
-  // had one set still renders rather than showing a pack that isn't theirs.
+  // Private packs and backdrops fall back for anyone they don't belong to, so
+  // a game that had one set still renders rather than showing people a table
+  // that isn't theirs.
   const playerNames = (gameState?.players || []).map((p) => p.name);
+  const locationId = resolveLocationId(
+    gameSettings.location || DEFAULT_LOCATION,
+    playerNames,
+  );
   const deckId = resolveDeckId(gameSettings.deck || DEFAULT_DECK, playerNames);
 
   if (!session) return null;

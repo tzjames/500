@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  LOCATIONS,
+  locationsFor,
   decksFor,
   getLocation,
   getFeltMode,
@@ -13,13 +13,15 @@ import "./ThemePicker.css";
 const SURPRISE = "__surprise__";
 
 // Locations and plain colours, in declaration order, as [group, options] pairs
-// for the dropdown's optgroups.
-const GROUPS = LOCATIONS.reduce((acc, location) => {
-  const entry = acc.find(([group]) => group === location.group);
-  if (entry) entry[1].push(location);
-  else acc.push([location.group, [location]]);
-  return acc;
-}, []);
+// for the dropdown's optgroups. Built from who's seated, not from the whole
+// registry: some backdrops belong to particular people — see locationsFor.
+const groupsFor = (playerNames) =>
+  locationsFor(playerNames).reduce((acc, location) => {
+    const entry = acc.find(([group]) => group === location.group);
+    if (entry) entry[1].push(location);
+    else acc.push([location.group, [location]]);
+    return acc;
+  }, []);
 
 // Location and deck pickers. Both settings are room-wide: picking either one
 // emits through the same server-synced `gameSettings` channel the offer-pass
@@ -29,8 +31,8 @@ function ThemePicker({
   deckId,
   feltId,
   onChange,
-  // Who's seated. Some packs belong to particular people and are only
-  // offered when the room is exactly them — see deckAllowed in theme.js.
+  // Who's seated. Some packs and backdrops belong to particular people — see
+  // deckAllowed and locationAllowed in theme.js.
   playerNames = [],
   compact = false,
   // One control per row with a label beside it, for the table menu. Inline in
@@ -59,7 +61,8 @@ function ThemePicker({
   const handleLocation = (e) => {
     const value = e.target.value;
     onChange({
-      location: value === SURPRISE ? randomLocationId(locationId) : value,
+      location:
+        value === SURPRISE ? randomLocationId(locationId, playerNames) : value,
     });
   };
 
@@ -75,7 +78,7 @@ function ThemePicker({
           onChange={handleLocation}
           aria-label="Table"
         >
-          {GROUPS.map(([group, options]) => (
+          {groupsFor(playerNames).map(([group, options]) => (
             <optgroup key={group} label={group}>
               {options.map((l) => (
                 <option key={l.id} value={l.id}>

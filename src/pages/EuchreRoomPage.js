@@ -12,7 +12,7 @@ import EuchreHelp from "../components/EuchreHelp";
 import EuchreRulesModal from "../components/EuchreRulesModal";
 import HouseRules from "../components/HouseRules";
 import { definitionsFor, getVariant, variantSummary } from "../euchreOptions";
-import { resolveDeckId } from "../theme";
+import { resolveDeckId, resolveLocationId } from "../theme";
 import "./EuchreRoomPage.css";
 
 // A finished trick sits on the table for a beat, then flies to the winner.
@@ -112,7 +112,8 @@ function EuchreRoomPage() {
   const theme = state.gameSettings || {};
   const names = state.slots.filter(Boolean).map((slot) => slot.name);
   const deckId = resolveDeckId(theme.deck, names);
-  const shell = { locationId: theme.location, deckId, feltId: theme.felt };
+  const locationId = resolveLocationId(theme.location, names);
+  const shell = { locationId, deckId, feltId: theme.felt };
   const spec = getVariant(state.variant);
   const game = state.game;
 
@@ -124,7 +125,7 @@ function EuchreRoomPage() {
       </div>
       <div className="eu-bar-right">
         <ThemePicker
-          locationId={theme.location}
+          locationId={locationId}
           deckId={deckId}
           feltId={theme.felt}
           playerNames={names}

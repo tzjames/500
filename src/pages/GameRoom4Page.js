@@ -19,7 +19,13 @@ import HouseRules, { HouseRulesToggle } from "../components/HouseRules";
 import TableMenu from "../components/TableMenu";
 import MobileHud from "../components/MobileHud";
 import { changedOptionLabels, bidLabel } from "../gameOptions";
-import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT, resolveDeckId } from "../theme";
+import {
+  DEFAULT_LOCATION,
+  DEFAULT_DECK,
+  DEFAULT_FELT,
+  resolveDeckId,
+  resolveLocationId,
+} from "../theme";
 import { playSound, preloadSounds } from "../sounds";
 import { useViewport } from "../useViewport";
 import "../App.css";
@@ -317,9 +323,12 @@ function GameRoom4Page() {
     setSelected([]);
   };
 
-  const locationId = state?.gameSettings?.location || DEFAULT_LOCATION;
   const feltId = state?.gameSettings?.felt || DEFAULT_FELT;
   const playerNames = (state?.seats || []).filter(Boolean).map((s) => s.name);
+  const locationId = resolveLocationId(
+    state?.gameSettings?.location || DEFAULT_LOCATION,
+    playerNames,
+  );
   // The bidding record names players by id, since a four-player table's seating
   // isn't drawn until after the deal.
   const nameFor = (userId) =>
