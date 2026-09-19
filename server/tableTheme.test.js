@@ -20,8 +20,7 @@ test("a Mzumbe backdrop needs James or Graham at the table", () => {
   assert.equal(locationAllowed("mzumbe-road", []), false);
 });
 
-// Either one is enough on their own — unlike a private deck, which needs the
-// room to be exactly its owners.
+// Either one is enough on their own, with anybody else alongside.
 test("one owner is enough, and the rest of the table can be anyone", () => {
   assert.equal(locationAllowed("mzumbe-quad", ["James"]), true);
   assert.equal(locationAllowed("mzumbe-quad", ["Graham", "Bob", "Sue", "Ann"]), true);

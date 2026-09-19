@@ -5,20 +5,15 @@
 const DECK_IDS = ["scientists", "traveller", "classic"];
 
 // Packs that belong to particular people rather than to everyone. A private
-// pack is offered only when the room is exactly those players, in any order.
+// pack is offered when any one of its owners is at the table, alongside
+// whoever else — the same rule the private backdrops use in tableTheme.js.
 const PRIVATE_TO = { traveller: ["graham", "james"] };
 
 const normalise = (name) => String(name || "").trim().toLowerCase();
 
 function deckAllowed(deckId, playerNames = []) {
   const owners = PRIVATE_TO[deckId];
-  if (!owners) return true;
-  const seated = playerNames.filter(Boolean).map(normalise);
-  return (
-    seated.length === owners.length &&
-    seated.every((s) => owners.includes(s)) &&
-    owners.every((o) => seated.includes(o))
-  );
+  return !owners || playerNames.filter(Boolean).some((n) => owners.includes(normalise(n)));
 }
 
 // The fallback pack has to be one anybody can use, so it's derived rather

@@ -273,23 +273,22 @@ export const nextFeltMode = (id) => {
   return FELT_MODES[(i + 1) % FELT_MODES.length].id;
 };
 
+// Is any of `owners` at the table? The rule behind both kinds of private
+// thing here, packs and backdrops alike: it belongs to particular people, and
+// one of them bringing it to a game with anybody else is the whole point.
+const ownerSeated = (owners, playerNames = []) =>
+  playerNames
+    .filter(Boolean)
+    .some((n) => owners.includes(String(n).trim().toLowerCase()));
+
 // Packs that belong to particular people rather than to everyone, keyed by
-// deck id. A private pack is offered only when the room is exactly those
-// players, in any order — mirrored server-side in server/decks.js, which is
-// what actually enforces it.
+// deck id — mirrored server-side in server/decks.js, which is what actually
+// enforces it.
 const PRIVATE_TO = { traveller: ["graham", "james"] };
 
 export function deckAllowed(deckId, playerNames = []) {
   const owners = PRIVATE_TO[deckId];
-  if (!owners) return true;
-  const seated = playerNames
-    .filter(Boolean)
-    .map((n) => String(n).trim().toLowerCase());
-  return (
-    seated.length === owners.length &&
-    seated.every((s) => owners.includes(s)) &&
-    owners.every((o) => seated.includes(o))
-  );
+  return !owners || ownerSeated(owners, playerNames);
 }
 
 export const decksFor = (playerNames) =>
@@ -301,18 +300,13 @@ export const decksFor = (playerNames) =>
 export const resolveDeckId = (deckId, playerNames) =>
   deckAllowed(deckId, playerNames) ? deckId : DEFAULT_DECK;
 
-// The Mzumbe backdrops are offered when any one of these is at the table, not
-// only when the room is exactly them — unlike a private deck, a backdrop is
-// scenery one person can bring to a game with anybody. Mirrored in
+// The Mzumbe backdrops, on the same footing as a private pack. Mirrored in
 // server/tableTheme.js, which is what actually enforces it.
 const MZUMBE_OWNERS = ["graham", "james"];
 const MZUMBE_IDS = MZUMBE.map((place) => place.id);
 
 export function locationAllowed(locationId, playerNames = []) {
-  if (!MZUMBE_IDS.includes(locationId)) return true;
-  return playerNames
-    .filter(Boolean)
-    .some((n) => MZUMBE_OWNERS.includes(String(n).trim().toLowerCase()));
+  return !MZUMBE_IDS.includes(locationId) || ownerSeated(MZUMBE_OWNERS, playerNames);
 }
 
 export const locationsFor = (playerNames) =>

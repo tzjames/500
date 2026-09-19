@@ -1,4 +1,9 @@
 import {
+  DECKS,
+  decksFor,
+  deckAllowed,
+  resolveDeckId,
+  DEFAULT_DECK,
   LOCATIONS,
   locationsFor,
   locationAllowed,
@@ -53,5 +58,47 @@ test("surprise me never deals out a backdrop the room can't see", () => {
 test("surprise me still always moves off the current table", () => {
   for (let i = 0; i < 60; i += 1) {
     expect(randomLocationId("falls", ["James"])).not.toBe("falls");
+  }
+});
+
+// ---- private packs, on the same footing as the private backdrops ----
+
+const deckIds = (names) => decksFor(names).map((d) => d.id);
+
+test("the Travelers pack needs James or Graham at the table", () => {
+  expect(deckAllowed("traveller", ["James"])).toBe(true);
+  expect(deckAllowed("traveller", ["Graham"])).toBe(true);
+  expect(deckAllowed("traveller", ["Bob", "Sue"])).toBe(false);
+  expect(deckAllowed("traveller", [])).toBe(false);
+});
+
+// The rule used to demand the room be exactly Graham and James; either one
+// alone, or with anybody else alongside, now qualifies.
+test("one owner is enough, whoever else is at the table", () => {
+  expect(deckIds(["James"])).toContain("traveller");
+  expect(deckIds(["Bob", "James"])).toContain("traveller");
+  expect(deckIds(["Graham", "Bob", "Sue", "Ann"])).toContain("traveller");
+  expect(deckIds(["Graham", "James"])).toContain("traveller");
+});
+
+test("a table with neither owner is offered the public packs only", () => {
+  expect(deckIds(["Bob", "Sue"])).toEqual(
+    DECKS.filter((d) => d.id !== "traveller").map((d) => d.id),
+  );
+});
+
+test("the default pack is one anybody can use", () => {
+  expect(deckAllowed(DEFAULT_DECK, [])).toBe(true);
+  expect(DEFAULT_DECK).not.toBe("traveller");
+});
+
+test("a game set to the private pack falls back once both owners leave", () => {
+  expect(resolveDeckId("traveller", ["Bob", "James"])).toBe("traveller");
+  expect(resolveDeckId("traveller", ["Bob"])).toBe(DEFAULT_DECK);
+});
+
+test("packs and backdrops gate on the same rule", () => {
+  for (const names of [["James"], ["Graham"], ["Bob", "James"], ["Bob"], []]) {
+    expect(deckAllowed("traveller", names)).toBe(locationAllowed("mzumbe-road", names));
   }
 });

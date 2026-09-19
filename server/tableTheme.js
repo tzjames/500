@@ -19,10 +19,9 @@ const PUBLIC_LOCATION_IDS = [
   "plain-serengeti",
 ];
 
-// Backdrops private to particular people, offered when ANY one of them is at
-// the table — a backdrop is scenery one person brings to a game with anybody,
-// unlike a private deck, which needs the room to be exactly its owners.
-// Mirrors MZUMBE in src/theme.js.
+// Backdrops private to particular people, offered when any one of them is at
+// the table, alongside whoever else — the same rule private packs use, in
+// decks.js. Mirrors MZUMBE in src/theme.js.
 const PRIVATE_LOCATION_IDS = [
   "mzumbe-road",
   "mzumbe-ridge",
