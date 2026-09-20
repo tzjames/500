@@ -936,7 +936,12 @@ function GameRoomPage() {
   // Private packs and backdrops fall back for anyone they don't belong to, so
   // a game that had one set still renders rather than showing people a table
   // that isn't theirs.
-  const playerNames = (gameState?.players || []).map((p) => p.name);
+  // You are in your own room before the server's player list arrives, and the
+  // waiting screen renders this picker exactly then — see the branch below.
+  const playerNames = [
+    session?.user?.name,
+    ...(gameState?.players || []).map((p) => p.name),
+  ];
   const locationId = resolveLocationId(
     gameSettings.location || DEFAULT_LOCATION,
     playerNames,

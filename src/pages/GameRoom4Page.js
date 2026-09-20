@@ -324,7 +324,11 @@ function GameRoom4Page() {
   };
 
   const feltId = state?.gameSettings?.felt || DEFAULT_FELT;
-  const playerNames = (state?.seats || []).filter(Boolean).map((s) => s.name);
+  // You count as being in your own room, seated or not yet — see GameRoomPage.
+  const playerNames = [
+    session?.user?.name,
+    ...(state?.seats || []).filter(Boolean).map((s) => s.name),
+  ];
   const locationId = resolveLocationId(
     state?.gameSettings?.location || DEFAULT_LOCATION,
     playerNames,

@@ -110,7 +110,11 @@ function EuchreRoomPage() {
     socket.emit(event, payload);
   };
   const theme = state.gameSettings || {};
-  const names = state.slots.filter(Boolean).map((slot) => slot.name);
+  // You count as being in your own room, seated or not yet — see GameRoomPage.
+  const names = [
+    session?.user?.name,
+    ...state.slots.filter(Boolean).map((slot) => slot.name),
+  ];
   const deckId = resolveDeckId(theme.deck, names);
   const locationId = resolveLocationId(theme.location, names);
   const shell = { locationId, deckId, feltId: theme.felt };
