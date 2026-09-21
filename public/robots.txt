@@ -1,3 +1,14 @@
 # https://www.robotstxt.org/robotstxt.html
+#
+# Everything a logged-out visitor can read is open, to ordinary search crawlers
+# and to the AI ones alike. The two exceptions need an account, so there is
+# nothing behind them to index: game rooms are private and unbounded in number,
+# and a stats page is one player's own record.
+
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /game/
+Disallow: /500/stats
+Disallow: /euchre/stats
+
+Sitemap: https://trickygames.io/sitemap.xml

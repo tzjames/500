@@ -1,0 +1,42 @@
+{
+  "site": {
+    "name": "Tricky Games",
+    "origin": "https://trickygames.io",
+    "title": "Tricky Games — Play 500 and Euchre Online Free",
+    "description": "Free trick-taking card games in your browser. Play 500 two-handed or four-handed in partnerships, and Euchre in six rule sets — against friends or against robots. No download, no payment.",
+    "blurb": "Tricky Games is a free browser card room for trick-taking games. It deals 500 and Euchre, keeps a separate record and rating for each, and seats robots when you are short of players.",
+    "ogImage": "/brand/og-card.png"
+  },
+  "games": {
+    "500": {
+      "name": "500",
+      "path": "/500",
+      "kicker": "Ten tricks, a kitty and a joker",
+      "blurb": "The Australian national card game. Bid for the contract, take the kitty, and make the tricks you promised — two-handed with a dummy each, or four in partnerships.",
+      "about": [
+        "Ten cards each from a 43-card pack, an auction that runs from six tricks to ten, and three cards in the kitty for whoever wins it. Bid what you think you can make, take the kitty and throw three back, name your trumps, and bring it home — miss it and you lose what you bid.",
+        "Above the ace of trumps sit the Joker and both bowers, which is the part everyone learns the hard way. Play four in partnerships, or two-handed where each of you plays a dummy as a second seat. First side to 500 wins, and falling to −500 goes out the back door."
+      ],
+      "title": "Play 500 Online Free — Australian Card Game | Tricky Games",
+      "description": "Play 500 free in your browser. Bid for the contract, take the kitty and make the tricks you promised — two-handed with a dummy each, or four in partnerships. Friends or robots, no download.",
+      "playerCount": "2 or 4 players",
+      "minPlayers": 2,
+      "maxPlayers": 4
+    },
+    "euchre": {
+      "name": "Euchre",
+      "path": "/euchre",
+      "kicker": "Five cards, two bowers, ten points",
+      "blurb": "Short, sharp hands off a small pack: order up the turned card or name your own, then take three of the five. Six rule sets, from the 1844 original to Bid Euchre and Set-Back.",
+      "about": [
+        "A small pack and a five-card hand, so a game is a run of quick decisions rather than one long one. A card is turned for trump: order it up and the dealer takes it into hand, or pass and let somebody name a suit of their own. Make three of the five tricks and you score; fail and you are euchred.",
+        "Six rule sets here — the 1844 original, the North American standard, the British game with its Benny, three-handed, Bid Euchre's auction and Set-Back's race down from five — and the variations the rules picked up along the way as house rules: stick the dealer, farmer's hand, defending alone, and the rest."
+      ],
+      "title": "Play Euchre Online Free — Six Rule Sets | Tricky Games",
+      "description": "Play Euchre free in your browser: the 1844 original, North American, the British game with its Benny, three-handed, Bid Euchre and Set-Back. Order it up against friends or robots.",
+      "playerCount": "2 to 4 players",
+      "minPlayers": 2,
+      "maxPlayers": 4
+    }
+  }
+}

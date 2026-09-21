@@ -1,6 +1,7 @@
 import React, { Fragment } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth";
+import DocumentTitle from "./DocumentTitle";
 import GameSelectPage from "./pages/GameSelectPage";
 import HomePage from "./pages/HomePage";
 import GamePage from "./pages/GamePage";
@@ -14,6 +15,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <DocumentTitle />
         <Routes>
           <Route path="/" element={<GameSelectPage />} />
           {GAMES.map((game) => (

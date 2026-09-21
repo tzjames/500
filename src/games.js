@@ -6,6 +6,11 @@
 // Everything below a game's hero — the lobby, your record, your games — is the
 // same machinery either way, so it is shared; the identity, the copy and what a
 // table size is called are not.
+//
+// Each game's name, path and prose come from siteContent.json, which the server
+// reads as well, so the HTML it prerenders for crawlers carries the same words
+// this page renders — see server/seo.js.
+import siteContent from "./siteContent.json";
 import { VARIANTS } from "./euchreOptions";
 import { changedOptionLabels as fiveHundredRules } from "./gameOptions";
 import { changedOptionLabels as euchreRules } from "./euchreOptions";
@@ -15,16 +20,8 @@ const seatWord = { 2: "Two", 3: "Three", 4: "Four" };
 export const GAMES = [
   {
     id: "500",
-    name: "500",
-    path: "/500",
+    ...siteContent.games["500"],
     statsPath: "/500/stats",
-    kicker: "Ten tricks, a kitty and a joker",
-    blurb:
-      "The Australian national card game. Bid for the contract, take the kitty, and make the tricks you promised — two-handed with a dummy each, or four in partnerships.",
-    about: [
-      "Ten cards each from a 43-card pack, an auction that runs from six tricks to ten, and three cards in the kitty for whoever wins it. Bid what you think you can make, take the kitty and throw three back, name your trumps, and bring it home — miss it and you lose what you bid.",
-      "Above the ace of trumps sit the Joker and both bowers, which is the part everyone learns the hard way. Play four in partnerships, or two-handed where each of you plays a dummy as a second seat. First side to 500 wins, and falling to −500 goes out the back door.",
-    ],
     taglines: [
       "Bid it, take it, make it",
       "The kitty is where hands are won",
@@ -38,16 +35,8 @@ export const GAMES = [
   },
   {
     id: "euchre",
-    name: "Euchre",
-    path: "/euchre",
+    ...siteContent.games.euchre,
     statsPath: "/euchre/stats",
-    kicker: "Five cards, two bowers, ten points",
-    blurb:
-      "Short, sharp hands off a small pack: order up the turned card or name your own, then take three of the five. Six rule sets, from the 1844 original to Bid Euchre and Set-Back.",
-    about: [
-      "A small pack and a five-card hand, so a game is a run of quick decisions rather than one long one. A card is turned for trump: order it up and the dealer takes it into hand, or pass and let somebody name a suit of their own. Make three of the five tricks and you score; fail and you are euchred.",
-      "Six rule sets here — the 1844 original, the North American standard, the British game with its Benny, three-handed, Bid Euchre's auction and Set-Back's race down from five — and the variations the rules picked up along the way as house rules: stick the dealer, farmer's hand, defending alone, and the rest.",
-    ],
     taglines: [
       "Order it up",
       "Right bower, left bower, and the rest is nerve",

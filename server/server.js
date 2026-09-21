@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 const db = require("./db");
 const auth = require("./auth");
 const { RoomManager } = require("./room");
@@ -14,6 +15,7 @@ const stats = require("./stats");
 const { sanitizeOptions } = require("./gameOptions");
 const { isFriendlyGame } = require("./friendly");
 const bot = require("./bot");
+const seo = require("./seo");
 
 const app = express();
 app.use(cors());
@@ -166,17 +168,42 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
   res.json({ id: game._id, gameType, variant: euchre?.variant || null, mode });
 });
 
+const BUILD_DIR = path.join(__dirname, "../build");
+
+// Read once and kept: the shell every page is built from. Missing in dev, where
+// react-scripts serves its own index.html and none of this runs.
+let indexTemplate = null;
+try {
+  indexTemplate = fs.readFileSync(path.join(BUILD_DIR, "index.html"), "utf8");
+} catch {
+  console.warn("No build/index.html — run `npm run build` before serving.");
+}
+
+// Generated rather than kept as files in public/, so adding a game to
+// siteContent.json puts it in the sitemap without anyone remembering to.
+app.get("/sitemap.xml", (req, res) => {
+  res.type("application/xml").send(seo.sitemapXml());
+});
+
+app.get("/llms.txt", (req, res) => {
+  res.type("text/plain").send(seo.llmsTxt());
+});
+
 // Serve static files from the React app
-app.use(express.static(path.join(__dirname, "../build")));
+app.use(express.static(BUILD_DIR, { index: false }));
 
 // The "catchall" handler: for any request that doesn't match one above, send
 // back React's index.html file. Anything with a file extension got past the
 // static middleware, so it is genuinely missing and gets a 404 — answering it
 // with HTML and a 200 turns a browser holding a stale index.html into an
 // unreadable script error instead of a plain missing-file.
+//
+// A public page is served with its own title, description and words baked in;
+// see server/seo.js for why the app shell alone is not enough.
 app.get("*", (req, res) => {
   if (path.extname(req.path)) return res.sendStatus(404);
-  res.sendFile(path.join(__dirname, "../build/index.html"));
+  if (!indexTemplate) return res.sendStatus(503);
+  res.type("html").send(seo.htmlFor(req.path, indexTemplate));
 });
 
 const server = http.createServer(app);
