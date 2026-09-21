@@ -143,6 +143,15 @@ test("a seat on the right of the board is placed from the right edge", () => {
   expect(placed.filter((el) => el.style.right).length).toBe(1);
 });
 
+// The stylesheet works the fan's overlap out from this, so that it fits between
+// the name plate and the last trick rather than running under either. jsdom has
+// no layout, so the count going out is what there is to hold on to.
+test("the hand publishes how many cards it has to make room for", () => {
+  const hand = Array.from({ length: 17 }, (_, i) => card(String(i + 2), "♥"));
+  open(state({ phase: "playing" }, { hand, cardsPerPlayer: 17, penalties: hand.map(() => 1) }));
+  expect(document.querySelector(".he-hand-wrap").style.getPropertyValue("--hand-count")).toBe("17");
+});
+
 // Half the rule sets here price the cards differently, so the board says what
 // each one would cost rather than expecting anybody to remember.
 test("a card that costs something carries what it costs", () => {

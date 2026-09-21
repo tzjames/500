@@ -10,6 +10,9 @@
   /* Cards are 0.714 wide to tall, so anything that has to clear the hand is
      placed off its height rather than the width every other size is in. */
   --hand-depth: calc(var(--card-hand) * 1.4);
+  /* Measured: the name plate wants 140px on the left, the last trick 173px on
+     the right at the widest board. Both the hand and the status line stay in. */
+  --corner: 184px;
   position: relative;
   flex: 1;
   min-height: 0;
@@ -155,11 +158,12 @@
   filter: grayscale(1);
 }
 
-/* A single line, tucked in just above your hand. */
+/* A single line, tucked in just above your hand and inside the same corners the
+   hand keeps out of — the last trick reaches up this far. */
 .he-status {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--corner);
+  right: var(--corner);
   bottom: calc(var(--hand-depth) + 24px);
   margin: 0;
   font-size: 12px;
@@ -171,20 +175,22 @@
 
 .he-hand-wrap {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--corner);
+  right: var(--corner);
   bottom: 10px;
   display: flex;
   justify-content: center;
   z-index: 4;
   /* How far along each card sits from the one before: its own width plus a gap
      where there is room, and overlapping when there isn't. The room is the
-     board (capped at 1100px less its padding) less the corner your own name
-     plate sits in. Seventeen-card three-handed hands are what this is for. */
-  --hand-room: min(1068px, 100vw - 32px);
+     board (capped at 1100px less its padding) less both corners.
+     Seventeen-card three-handed hands are what this is for. */
+  --hand-room: calc(min(1068px, 100vw - 32px) - 2 * var(--corner));
+  /* A fan of n cards is n-1 steps plus one whole card, which is what has to fit
+     in the room — dividing the room by n leaves it a card too wide. */
   --hand-step: min(
     calc(var(--card-hand) + 8px),
-    max(18px, calc((var(--hand-room) - 150px) / var(--hand-count)))
+    max(18px, calc((var(--hand-room) - var(--card-hand)) / max(1, var(--hand-count) - 1)))
   );
 }
 
@@ -219,6 +225,8 @@
     --card-hand: clamp(32px, 10vw, 70px);
     --card-played: clamp(34px, 9vw, 54px);
     --card-fan: clamp(14px, 4vw, 24px);
+    /* Both corners move above the hand on a phone, so it gets the whole width. */
+    --corner: 6px;
   }
 
   .he-trick {
@@ -234,8 +242,12 @@
     align-items: center;
   }
 
+  /* The hand has the full width on a phone, but the last trick still sits in
+     the corner just above it, so the status line stops short of that. */
   .he-status {
     bottom: calc(var(--hand-depth) + 24px);
+    left: 0;
+    right: 104px;
   }
 
   .he-seat-plate {
