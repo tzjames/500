@@ -24,6 +24,15 @@ const pointOf = (offset, seats, rx = RX, ry = RY) => {
   return { x: 50 + rx * Math.sin(a), y: 50 - ry * Math.cos(a), a };
 };
 
+// A seat is laid out from the side it is nearer, and pulled back over its own
+// point by how far out it is — `left: 93%` leaves a plate 7% of the board to be
+// wide in, and centring one out there puts half of it off the edge.
+function anchorAt(x) {
+  return x > 50
+    ? { right: `${100 - x}%`, transform: `translate(${100 - x}%, -50%)` }
+    : { left: `${x}%`, transform: `translate(-${x}%, -50%)` };
+}
+
 export const cardKey = (card) => `${card.suit}:${card.value}`;
 
 function HeartsTable({
@@ -153,7 +162,7 @@ function Seat({ player, offset, seats, state, deck }) {
     .join(" ");
   // Your own seat is only the name plate — your cards are the fan along the
   // bottom — so it goes in the corner beside them rather than on the ellipse.
-  const style = you ? undefined : { left: `${point.x}%`, top: `${point.y}%` };
+  const style = you ? undefined : { ...anchorAt(point.x), top: `${point.y}%` };
 
   return (
     <div className={classes} style={style}>

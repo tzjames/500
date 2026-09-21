@@ -125,6 +125,24 @@ test("the board seats everybody and shows what each of them has taken", () => {
   expect(plates[1]).toHaveTextContent("0 this hand");
 });
 
+// A seat placed from `left:` is only as wide as the board it has left to its
+// right, so the ones on the right half are placed from the right instead —
+// otherwise a name like "Fermat (robot)" is squeezed out of its own plate.
+test("a seat on the right of the board is placed from the right edge", () => {
+  open(state({ phase: "playing" }));
+  const seats = [...document.querySelectorAll(".he-seat")];
+  const placed = seats.filter((el) => !el.classList.contains("he-seat-you"));
+  expect(placed).toHaveLength(3);
+  for (const el of placed) {
+    const { left, right } = el.style;
+    // One or the other, never both, and never the far side of the board.
+    expect(Boolean(left) !== Boolean(right)).toBe(true);
+    expect(parseFloat(left || right)).toBeLessThanOrEqual(50);
+  }
+  // At four seats that is one on the left, one at the top and one on the right.
+  expect(placed.filter((el) => el.style.right).length).toBe(1);
+});
+
 // Half the rule sets here price the cards differently, so the board says what
 // each one would cost rather than expecting anybody to remember.
 test("a card that costs something carries what it costs", () => {

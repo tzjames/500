@@ -23,7 +23,6 @@
    count is here; nothing that varies with it is. */
 .he-seat {
   position: absolute;
-  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -37,7 +36,6 @@
   position: absolute;
   left: 1%;
   bottom: 12px;
-  transform: none;
   align-items: flex-start;
 }
 
@@ -53,6 +51,14 @@
   backdrop-filter: blur(3px);
   font-size: 13px;
   white-space: nowrap;
+  /* Only a pathological name reaches this — it stops one plate sitting on top
+     of its neighbours. Staying inside the board is anchorAt's job. */
+  max-width: min(260px, 60vw);
+}
+
+.he-seat-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .he-seat.on-turn .he-seat-plate {
