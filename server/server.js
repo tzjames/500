@@ -9,6 +9,7 @@ const db = require("./db");
 const auth = require("./auth");
 const { RoomManager } = require("./room");
 const { validEuchreSetup, sanitizeEuchreOptions } = require("./euchreOptions");
+const { validHeartsSetup, sanitizeHeartsOptions } = require("./heartsOptions");
 const { gameTypeOf, DEFAULT_GAME_TYPE } = require("./gameTypes");
 const Presence = require("./presence");
 const stats = require("./stats");
@@ -43,6 +44,13 @@ app.post("/api/login", async (req, res) => {
   }
   res.json({ token: auth.signToken(user), user: { id: user._id, name: user.name } });
 });
+
+// The games whose tables are a rule set plus a size rather than just a size.
+// 500 predates both and is the one that isn't in here.
+const VARIANT_GAMES = {
+  euchre: { validSetup: validEuchreSetup, sanitize: sanitizeEuchreOptions },
+  hearts: { validSetup: validHeartsSetup, sanitize: sanitizeHeartsOptions },
+};
 
 // 500 only ever seats two or four; the games added since name their own sizes.
 const tableSize = (gameType, raw) =>
@@ -113,11 +121,12 @@ app.get("/api/record", auth.requireAuth, async (req, res) => {
 app.post("/api/games", auth.requireAuth, async (req, res) => {
   const { mode: rawMode, visibility, options, partnerMode, fillWithBots, friendly, variant } = req.body || {};
   const gameType = gameTypeOf(req.body?.gameType);
-  const euchre = gameType === "euchre" ? validEuchreSetup({ variant, mode: rawMode }) : null;
-  // Both games seat robots the same way; Euchre just has no partner screen.
-  const mode = euchre ? euchre.mode : Number(rawMode) === 4 ? 4 : 2;
+  const rules = VARIANT_GAMES[gameType];
+  const table = rules ? rules.validSetup({ variant, mode: rawMode }) : null;
+  // Every game seats robots the same way; only 500 has a partner screen.
+  const mode = table ? table.mode : Number(rawMode) === 4 ? 4 : 2;
   const host = { userId: req.user.userId, name: req.user.name };
-  const seats = euchre ? euchre.seats : mode === 4 ? 4 : 2;
+  const seats = table ? table.seats : mode === 4 ? 4 : 2;
   const playerSlots = [host, ...Array(seats - 1).fill(null)];
 
   // Starting against robots fills the empty seats now, so the table is complete
@@ -141,7 +150,7 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
   const game = await db.createGame({
     _id: crypto.randomUUID(),
     gameType,
-    ...(euchre ? { variant: euchre.variant } : {}),
+    ...(table ? { variant: table.variant } : {}),
     mode,
     visibility: visibility === "public" ? "public" : "private",
     hostUserId: host.userId,
@@ -149,8 +158,8 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
     // isFriendlyGame, which every reader of a game document re-derives this
     // same way rather than trusting a value that could go stale.
     friendly: Boolean(friendly) || withBots,
-    ...(euchre
-      ? { options: sanitizeEuchreOptions(options, euchre.variant) }
+    ...(table
+      ? { options: rules.sanitize(options, table.variant) }
       : mode === 4
       ? { options: sanitizeOptions(options), partnerMode: seating }
       : {}),
@@ -165,7 +174,7 @@ app.post("/api/games", auth.requireAuth, async (req, res) => {
     updatedAt: Date.now(),
   });
   presence.touch();
-  res.json({ id: game._id, gameType, variant: euchre?.variant || null, mode });
+  res.json({ id: game._id, gameType, variant: table?.variant || null, mode });
 });
 
 const BUILD_DIR = path.join(__dirname, "../build");
@@ -244,6 +253,7 @@ io.on("connection", (socket) => {
       socket.emit("joinRejected", { message: "That game doesn't exist." });
       socket.emit("g4:joinRejected", { message: "That game doesn't exist." });
       socket.emit("euchre:joinRejected", { message: "That game doesn't exist." });
+      socket.emit("hearts:joinRejected", { message: "That game doesn't exist." });
       return;
     }
     room.handleJoin(socket);
@@ -306,6 +316,22 @@ io.on("connection", (socket) => {
   socket.on("euchre:reviewStep", (payload) => room?.reviewStep?.(socket, payload || {}));
   socket.on("euchre:reviewDone", () => room?.reviewDone?.(socket));
   socket.on("euchre:endReplay", () => room?.endReplay?.());
+
+  // ---- Hearts ----
+  socket.on("hearts:pass", (payload) => room?.pass?.(socket, payload || {}));
+  socket.on("hearts:bid", (payload) => room?.bid?.(socket, payload || {}));
+  socket.on("hearts:chooseSuit", (payload) => room?.chooseSuit?.(socket, payload || {}));
+  socket.on("hearts:play", (payload) => room?.play?.(socket, payload || {}));
+  socket.on("hearts:next", () => room?.nextRound?.(socket));
+  socket.on("hearts:addBots", () => room?.addBots?.(socket));
+  socket.on("hearts:setVisibility", ({ visibility }) => room?.setVisibility?.(socket, visibility));
+  socket.on("hearts:setFriendly", ({ friendly }) => room?.setFriendly?.(socket, friendly));
+  socket.on("hearts:setGameSettings", (settings) => room?.setGameSettings?.(socket, settings || {}));
+  socket.on("hearts:propose", (payload) => room?.propose?.(socket, payload || {}));
+  socket.on("hearts:respondToProposal", (payload) => room?.respondToProposal?.(socket, payload || {}));
+  socket.on("hearts:reviewStep", (payload) => room?.reviewStep?.(socket, payload || {}));
+  socket.on("hearts:reviewDone", () => room?.reviewDone?.(socket));
+  socket.on("hearts:endReplay", () => room?.endReplay?.());
 
   socket.on("addBot", () => room?.addBot?.(socket));
   socket.on("placeBid", (payload) => room?.placeBid(socket, payload));

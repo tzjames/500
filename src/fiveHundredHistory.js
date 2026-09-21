@@ -78,7 +78,7 @@ export function fiveHundredHands({ record = [], nameFor, sides = [], options }) 
       thrownIn: hand.thrownIn,
       dealer: hand.dealerId ? nameFor(hand.dealerId) : null,
       // 500 has no turned card — the kitty goes to whoever wins the auction.
-      turnUp: null,
+      note: null,
       lines,
       result: r
         ? {

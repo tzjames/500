@@ -11,7 +11,7 @@ import "./HandHistoryModal.css";
 // different names, so each one adapts its own record into the shape below and
 // this only lays it out:
 //
-//   { round, thrownIn, dealer, turnUp, lines: [{ id, node, aside }], result }
+//   { round, thrownIn, dealer, note, lines: [{ id, node, aside }], result }
 //   result: { headline, scores: [{ label, score }] }
 function HandHistoryModal({ hands = [], title, label, empty = "Nothing dealt yet.", onClose }) {
   return createPortal(
@@ -47,7 +47,7 @@ function Hand({ hand }) {
         Hand {hand.round}
         {hand.thrownIn && " · thrown in"}
         {hand.dealer && ` · ${hand.dealer} dealt`}
-        {hand.turnUp && <> · {hand.turnUp} turned up</>}
+        {hand.note && <> · {hand.note}</>}
       </h3>
 
       {hand.lines.length === 0 ? (

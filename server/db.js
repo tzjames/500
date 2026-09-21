@@ -146,7 +146,7 @@ async function lastSettingsForUser(userId, mode, gameType = DEFAULT_GAME_TYPE) {
 // never bleed into a 500 record (and vice versa); games saved before the
 // four-player 500 game existed have no mode field at all.
 async function recordsForUser(userId, gameType = DEFAULT_GAME_TYPE) {
-  const heads = gameType === "euchre" ? { mode: 2 } : { mode: { $ne: 4 } };
+  const heads = gameType === DEFAULT_GAME_TYPE ? { mode: { $ne: 4 } } : { mode: 2 };
   const finished = await games
     .find({ status: "finished", "playerSlots.userId": userId, ...heads, ...gameTypeQuery(gameType) })
     .project({ playerSlots: 1, winner: 1 })
@@ -247,13 +247,13 @@ async function applyElo(gameType, mode, winnerIds, loserIds, gameId) {
   return delta;
 }
 
+// Every table size any game here seats, so a caller never has to know which
+// sizes the game it is asking about offers. Cancellation Hearts seats eleven.
+const TABLE_SIZES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
 async function eloForUser(userId, gameType = DEFAULT_GAME_TYPE) {
   const user = await users.findOne({ _id: userId }, { projection: { elo: 1 } });
-  return {
-    2: eloOf(user, gameType, 2),
-    3: eloOf(user, gameType, 3),
-    4: eloOf(user, gameType, 4),
-  };
+  return Object.fromEntries(TABLE_SIZES.map((mode) => [mode, eloOf(user, gameType, mode)]));
 }
 
 // Every finished game this player was in, at this size of table — the raw

@@ -1,51 +1,51 @@
 import React, { useEffect, useState } from "react";
 import HouseRules, { HouseRulesToggle } from "./HouseRules";
 import OptionInfo from "./OptionInfo";
-import { defaultOptions, withDefaults, definitions as fiveHundredRules } from "../gameOptions";
-import {
-  VARIANTS,
-  getVariant,
-  defaultOptions as euchreDefaults,
-  withDefaults as withEuchreDefaults,
-  definitionsFor,
-} from "../euchreOptions";
+import { getGame, seatLabel } from "../games";
 import "./NewGameModal.css";
 
-const SEAT_LABEL = { 2: "Two", 3: "Three", 4: "Four" };
-
-// Starting a game: which rule set for Euchre, how many at the table, who can
-// see it, and — where the game has them — how partners are picked and which
-// house rules are in force.
+// Starting a game: which rule set where the game has them, how many at the
+// table, who can see it, and — where the game has them — how partners are
+// picked and which house rules are in force.
+//
+// Everything game-specific is read off the entry in games.js, so a new game
+// arrives on this screen with its own rule sets and table sizes without this
+// component learning its name.
 //
 // The rules default to whatever this player last chose at this size of table,
 // fetched by the caller and handed in as `remembered`; a table's rules are
 // something people settle once and then keep, so making them re-tick eleven
 // boxes every game would be the wrong default.
+// Four is the size most of these games are really about, so it is where the
+// screen opens wherever the rule set offers it.
+const preferredMode = (modes) => (modes.includes(4) ? 4 : modes[0]);
+
 function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, onCancel, error }) {
-  const euchre = gameType === "euchre";
-  const [mode, setMode] = useState(4);
-  const [variant, setVariant] = useState("northAmerican");
+  const game = getGame(gameType);
+  const { variants, getVariant, defaultOptions, withDefaults, definitionsFor, housed, seatNote } = game.rules;
+  const [variant, setVariant] = useState(variants ? variants[0].id : null);
+  const [mode, setMode] = useState(variants ? preferredMode(variants[0].modes) : 4);
   const [visibility, setVisibility] = useState("private");
   const [partnerMode, setPartnerMode] = useState("choose");
   const [fillWithBots, setFillWithBots] = useState(false);
   const [friendly, setFriendly] = useState(false);
-  const [options, setOptions] = useState(euchre ? euchreDefaults : defaultOptions);
+  const [options, setOptions] = useState(defaultOptions);
   const [showRules, setShowRules] = useState(false);
   const [starting, setStarting] = useState(false);
 
-  const spec = getVariant(variant);
-  const seats = euchre ? spec.modes : [2, 4];
+  const spec = variants ? getVariant(variant) : null;
+  const seats = variants ? spec.modes : game.modes;
 
   // `remembered` arrives per mode, so switching table size re-reads what was
   // last used at that size — including, for Euchre, the rule set itself.
   const settings = remembered?.[mode];
   useEffect(() => {
     if (!settings) return;
-    if (settings.options) setOptions(euchre ? withEuchreDefaults(settings.options) : withDefaults(settings.options));
+    if (settings.options) setOptions(withDefaults(settings.options));
     if (settings.visibility) setVisibility(settings.visibility);
     if (settings.partnerMode) setPartnerMode(settings.partnerMode);
     setFriendly(Boolean(settings.friendly));
-  }, [settings, euchre]);
+  }, [settings, withDefaults]);
 
   // A robot at the table makes the game friendly regardless of this checkbox
   // — see isFriendlyGame on the server — so ticking "start against robots"
@@ -57,14 +57,14 @@ function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, 
   const chooseVariant = (next) => {
     setVariant(next);
     const allowed = getVariant(next).modes;
-    if (!allowed.includes(mode)) setMode(allowed[allowed.length - 1]);
+    if (!allowed.includes(mode)) setMode(preferredMode(allowed));
   };
 
   const start = () => {
     setStarting(true);
     onStart({
       gameType,
-      variant: euchre ? variant : undefined,
+      variant: variant || undefined,
       mode,
       visibility,
       partnerMode,
@@ -74,8 +74,8 @@ function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, 
     });
   };
 
-  const rules = euchre ? definitionsFor(variant) : fiveHundredRules;
-  const showHouseRules = euchre || mode === 4;
+  const rules = definitionsFor(variant);
+  const showHouseRules = housed(mode);
   const robotCount = mode - 1;
 
   return (
@@ -83,13 +83,13 @@ function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, 
     // around the modal shouldn't throw all of that away — only Cancel does.
     <div className="new-game-overlay">
       <div className="new-game-modal">
-        <h2 className="serif">{euchre ? "Start a game of Euchre" : "Start a game"}</h2>
+        <h2 className="serif">{variants ? `Start a game of ${game.name}` : "Start a game"}</h2>
 
-        {euchre && (
+        {variants && (
           <fieldset className="ng-field">
             <legend className="overline">Rule set</legend>
             <div className="ng-choices">
-              {VARIANTS.map((option) => (
+              {variants.map((option) => (
                 <Choice
                   key={option.id}
                   checked={variant === option.id}
@@ -111,8 +111,8 @@ function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, 
                 key={count}
                 checked={mode === count}
                 onSelect={() => setMode(count)}
-                label={SEAT_LABEL[count]}
-                note={seatNote(gameType, spec, count)}
+                label={seatLabel(count)}
+                note={seatNote(spec, count)}
               />
             ))}
           </div>
@@ -169,7 +169,7 @@ function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, 
           </span>
         </label>
 
-        {!euchre && mode === 4 && (
+        {!variants && mode === 4 && (
           <fieldset className="ng-field">
             <legend className="overline">Partners</legend>
             <div className="ng-choices">
@@ -215,14 +215,6 @@ function NewGameModal({ gameType = "500", remembered, loadingDefaults, onStart, 
       </div>
     </div>
   );
-}
-
-function seatNote(gameType, spec, count) {
-  if (gameType !== "euchre") {
-    return count === 2 ? "Two-handed, each playing a dummy" : "Two partnerships, the standard game";
-  }
-  if (count === 4 && spec.teams) return "Two partnerships sitting opposite";
-  return "Everyone for themselves, one score each";
 }
 
 function Choice({ checked, onSelect, label, note, detail }) {

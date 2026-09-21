@@ -32,11 +32,14 @@ function won(game, userId) {
 // order, which is what the room persisted when the table was seated.
 function tableFor(game, userId) {
   const slots = (game.playerSlots || []).filter(Boolean);
-  if (game.gameType === "euchre") {
+  // Every game but 500 persists its seating in the snapshot, with a team field
+  // where it has partnerships at all — so one branch covers all of them, and
+  // 500 stays the special case because it predates both.
+  if (game.gameType && game.gameType !== "500") {
     const seats = game.snapshot?.game?.players || [];
     const mySeat = seats.find((seat) => game.playerSlots?.[seat.seat]?.userId === userId);
-    // Standard and Bid Euchre have partnerships at a four-seat table. Set-Back
-    // has no team field, so every other player remains an opponent.
+    // Some rule sets have partnerships at a four-seat table and some don't; a
+    // seat with no team is one where everybody else is an opponent.
     if (mySeat && mySeat.team !== null && mySeat.team !== undefined) {
       const partnerSeat = seats.find((seat) => seat.team === mySeat.team && seat.seat !== mySeat.seat);
       const partner = partnerSeat ? game.playerSlots?.[partnerSeat.seat] || null : null;
@@ -114,8 +117,8 @@ async function statsFor(userId, mode, includeFriendly = false, gameType = "500")
   // partner alone, which is the question people actually argue about.
   const tables = new Map();
   const partners = new Map();
-  // Euchre keeps a record per rule set as well: winning at Set-Back says
-  // nothing much about how you do at the standard game.
+  // Euchre and Hearts keep a record per rule set as well: winning at Set-Back
+  // says nothing much about how you do at the standard game.
   const variants = new Map();
 
   for (const game of games) {
@@ -124,7 +127,7 @@ async function statsFor(userId, mode, includeFriendly = false, gameType = "500")
     const { partner, opponents } = tableFor(game, userId);
     const opponentNames = opponents.map((o) => o.name).sort();
 
-    if (gameType === "euchre") {
+    if (gameType !== "500") {
       tally(variants, game.variant || "northAmerican", game.variant || "northAmerican", isWin);
       if (opponents.length) {
         const opponentIds = opponents.map(identityOf).sort();
@@ -193,6 +196,24 @@ async function statsFor(userId, mode, includeFriendly = false, gameType = "500")
     };
   });
 
+  // Hearts has no contract at all — every seat plays every deal — so its rows
+  // are one per player per deal and the figures are about how your own deals
+  // went rather than about anything you bought.
+  const mean = (rows, field) =>
+    rows.length ? Math.round((rows.reduce((sum, r) => sum + (r[field] || 0), 0) / rows.length) * 10) / 10 : 0;
+  const hearts =
+    gameType !== "hearts"
+      ? null
+      : {
+          deals: bidRounds.length,
+          clean: bidRounds.filter((r) => r.clean).length,
+          averageTaken: mean(bidRounds, "taken"),
+          worst: bidRounds.reduce((most, r) => Math.max(most, r.taken || 0), 0),
+          moons: bidRounds.filter((r) => r.moon).length,
+          moonsAgainst: bidRounds.filter((r) => r.moonAgainst).length,
+          variants: [...variants.values()].sort(byPlayed),
+        };
+
   // Euchre has no bid ladder to chart, so its own figures stand in: how often
   // the hands you called came home, and how the lone ones went.
   const euchre =
@@ -211,6 +232,7 @@ async function statsFor(userId, mode, includeFriendly = false, gameType = "500")
     mode,
     gameType,
     euchre,
+    hearts,
     elo: elo[mode],
     includeFriendly,
     games: games.length,

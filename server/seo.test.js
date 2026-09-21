@@ -58,11 +58,14 @@ test("a game page ships its real words, not an empty root", () => {
   assert.match(body, /<h1>500<\/h1>/);
 });
 
-test("the home page lists both games and links to them", () => {
+// Driven off the content rather than naming games, so a game added to
+// siteContent.json is covered here the moment it lands.
+test("the home page lists every game and links to it", () => {
   const body = seo.htmlFor("/", TEMPLATE);
-  assert.match(body, /href="\/500"/);
-  assert.match(body, /href="\/euchre"/);
-  assert.ok(body.includes(content.games.euchre.blurb));
+  for (const game of Object.values(content.games)) {
+    assert.ok(body.includes(`href="${game.path}"`), `${game.name} link`);
+    assert.ok(body.includes(game.blurb), `${game.name} blurb`);
+  }
 });
 
 test("the prerendered body is the same words the app renders", () => {
@@ -107,11 +110,12 @@ test("the sitemap lists every public page and nothing else", () => {
   assert.ok(!xml.includes("/stats"));
 });
 
-test("llms.txt names both games with their addresses", () => {
+test("llms.txt names every game with its address", () => {
   const txt = seo.llmsTxt();
   assert.match(txt, /# Tricky Games/);
-  assert.ok(txt.includes("https://trickygames.io/500"));
-  assert.ok(txt.includes("https://trickygames.io/euchre"));
+  for (const game of Object.values(content.games)) {
+    assert.ok(txt.includes(`https://trickygames.io${game.path}`), `${game.name} address`);
+  }
 });
 
 // ---- escaping ----

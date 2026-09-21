@@ -4,6 +4,7 @@ const { checkBidMade, bidInfo } = Game500;
 const db = require("./db");
 const { Room4 } = require("./room4");
 const { EuchreRoom } = require("./euchreRoom");
+const { HeartsRoom } = require("./heartsRoom");
 const { isFriendlyGame } = require("./friendly");
 const bot2 = require("./bot2");
 // The robot names are the same list either game draws from; only the play is
@@ -1601,6 +1602,8 @@ class RoomManager {
     const room =
       doc.gameType === "euchre"
         ? new EuchreRoom(gameId, this.io, doc, this.presence)
+        : doc.gameType === "hearts"
+        ? new HeartsRoom(gameId, this.io, doc, this.presence)
         : doc.mode === 4
         ? new Room4(gameId, this.io, doc, this.presence)
         : new Room(gameId, this.io, doc);

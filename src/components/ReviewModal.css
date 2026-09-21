@@ -1,13 +1,13 @@
 /* The review screen. Wider than the rules panel it shares a shell with: this
    one is for looking at cards rather than reading, so it takes the room to show
    them at a size worth looking at. */
-.rules-modal.eu-review {
+.rules-modal.review {
   width: min(1040px, 100%);
   /* The hands' size, shared with the dead cards: only the trick is bigger. */
-  --eu-hand-card: clamp(46px, 4.6vw, 62px);
+  --review-card: clamp(46px, 4.6vw, 62px);
 }
 
-.eu-review-step {
+.review-step {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -20,12 +20,12 @@
   font-size: 12px;
 }
 
-.eu-review-step .btn-ghost {
+.review-step .btn-ghost {
   padding: 5px 12px;
   font-size: 11px;
 }
 
-.eu-review-trick {
+.review-trick {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
@@ -34,7 +34,7 @@
   margin: 0;
 }
 
-.eu-review-trick li {
+.review-trick li {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -43,33 +43,33 @@
   opacity: 0.62;
 }
 
-.eu-review-trick .pc {
+.review-trick .pc {
   --card-w: clamp(60px, 6vw, 78px);
 }
 
 /* Out of play borrows the trick's layout, but not its prominence. */
-.eu-review-trick.eu-review-dead .pc {
-  --card-w: var(--eu-hand-card);
+.review-trick.review-dead .pc {
+  --card-w: var(--review-card);
 }
 
 /* The card that took it, and the only one in the row at full strength. */
-.eu-review-trick li.won {
+.review-trick li.won {
   opacity: 1;
 }
 
-.eu-review-trick li.won .pc {
+.review-trick li.won .pc {
   box-shadow: 0 0 0 2px var(--amber-ring), 0 10px 22px rgba(0, 0, 0, 0.4);
 }
 
 /* Two hands to a row where there is width for it, so all four and the trick
    are on screen at once rather than behind a scroll. */
-.eu-review-hands {
+.review-hands {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px 24px;
 }
 
-.eu-review-hand {
+.review-hand {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -77,11 +77,11 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.eu-review-hand.out {
+.review-hand.out {
   opacity: 0.45;
 }
 
-.eu-review-who {
+.review-who {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -89,7 +89,7 @@
   font-size: 13px;
 }
 
-.eu-review-who em {
+.review-who em {
   font-style: normal;
   font-size: 9px;
   letter-spacing: 0.05em;
@@ -98,41 +98,41 @@
 }
 
 /* Tricks taken by the end of the step being looked at. */
-.eu-review-who b {
+.review-who b {
   margin-left: auto;
   font-family: var(--serif);
   font-size: 15px;
   font-weight: 400;
 }
 
-.eu-review-cards {
+.review-cards {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
 
-.eu-review-cards i {
+.review-cards i {
   font-size: 11px;
   opacity: 0.55;
 }
 
-.eu-review-cards .pc {
-  --card-w: var(--eu-hand-card);
+.review-cards .pc {
+  --card-w: var(--review-card);
 }
 
 @media (max-width: 820px) {
-  .eu-review-hands {
+  .review-hands {
     grid-template-columns: 1fr;
     gap: 0;
   }
 }
 
 @media (max-width: 620px) {
-  .rules-modal.eu-review {
-    --eu-hand-card: 42px;
+  .rules-modal.review {
+    --review-card: 42px;
   }
 
-  .eu-review-trick .pc {
+  .review-trick .pc {
     --card-w: 56px;
   }
 }

@@ -1,21 +1,44 @@
 // The games this site deals. `/` is a chooser built from this list and each
 // game has its own page below it, so adding a game means adding an entry here
-// and a room page for it — the chooser, the routes, the nav links and the stats
-// tabs all read this rather than naming games themselves.
+// and a room page for it — the chooser, the routes, the nav links, the stats
+// tabs and the new-game screen all read this rather than naming games
+// themselves.
 //
 // Everything below a game's hero — the lobby, your record, your games — is the
-// same machinery either way, so it is shared; the identity, the copy and what a
-// table size is called are not.
+// same machinery either way, so it is shared; the identity, the copy, the rule
+// sets and what a table size is called are not.
 //
 // Each game's name, path and prose come from siteContent.json, which the server
 // reads as well, so the HTML it prerenders for crawlers carries the same words
 // this page renders — see server/seo.js.
 import siteContent from "./siteContent.json";
-import { VARIANTS } from "./euchreOptions";
-import { changedOptionLabels as fiveHundredRules } from "./gameOptions";
-import { changedOptionLabels as euchreRules } from "./euchreOptions";
+import * as euchre from "./euchreOptions";
+import * as hearts from "./heartsOptions";
+import {
+  definitions as fiveHundredDefinitions,
+  defaultOptions as fiveHundredDefaults,
+  withDefaults as fiveHundredWithDefaults,
+  changedOptionLabels as fiveHundredRules,
+} from "./gameOptions";
 
-const seatWord = { 2: "Two", 3: "Three", 4: "Four" };
+const seatWord = {
+  2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six",
+  7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven",
+};
+
+// A game whose tables are a rule set plus a size, for the screens that offer
+// the choice. 500 has no rule sets, so it answers the same questions with a
+// fixed list and one set of house rules.
+const variantRules = (module, seatNote) => ({
+  variants: module.VARIANTS,
+  getVariant: module.getVariant,
+  variantLabel: (id) => module.getVariant(id).label,
+  defaultOptions: module.defaultOptions,
+  withDefaults: module.withDefaults,
+  definitionsFor: module.definitionsFor,
+  housed: () => true,
+  seatNote,
+});
 
 export const GAMES = [
   {
@@ -29,6 +52,17 @@ export const GAMES = [
       "Somebody has to bid",
     ],
     modes: [2, 4],
+    rules: {
+      variants: null,
+      variantLabel: () => null,
+      definitionsFor: () => fiveHundredDefinitions,
+      defaultOptions: fiveHundredDefaults,
+      withDefaults: fiveHundredWithDefaults,
+      // Only the four-player game has ever had house rules to offer.
+      housed: (mode) => mode === 4,
+      seatNote: (spec, count) =>
+        count === 2 ? "Two-handed, each playing a dummy" : "Two partnerships, the standard game",
+    },
     // Only the four-player game has ever had house rules to advertise.
     tableRules: (table) => (table.mode === 4 ? fiveHundredRules(table.options) : []),
     emptyGames: "No 500 games yet — start one above.",
@@ -46,9 +80,30 @@ export const GAMES = [
     ],
     // Every rule set's own table sizes, collapsed — the variant picker narrows
     // this down again as soon as one is chosen.
-    modes: [...new Set(VARIANTS.flatMap((v) => v.modes))].sort(),
-    tableRules: (table) => euchreRules(table.options, table.variant || "northAmerican"),
+    modes: [...new Set(euchre.VARIANTS.flatMap((v) => v.modes))].sort((a, b) => a - b),
+    rules: variantRules(euchre, (spec, count) =>
+      count === 4 && spec.teams ? "Two partnerships sitting opposite" : "Everyone for themselves, one score each"
+    ),
+    tableRules: (table) => euchre.changedOptionLabels(table.options, table.variant || "northAmerican"),
     emptyGames: "No Euchre games yet — start one above.",
+  },
+  {
+    id: "hearts",
+    ...siteContent.games.hearts,
+    statsPath: "/hearts/stats",
+    taglines: [
+      "Duck everything",
+      "Somebody has the queen",
+      "Lowest score wins, which takes some getting used to",
+      "Shoot the moon, or don't",
+      "Sixteen ways to lose a trick on purpose",
+    ],
+    modes: [...new Set(hearts.VARIANTS.flatMap((v) => v.modes))].sort((a, b) => a - b),
+    rules: variantRules(hearts, (spec, count) =>
+      count === 4 && spec.teams ? "Two partnerships sitting opposite" : "Everyone for themselves, one score each"
+    ),
+    tableRules: (table) => hearts.changedOptionLabels(table.options, table.variant || "blackLady"),
+    emptyGames: "No Hearts games yet — start one above.",
   },
 ];
 

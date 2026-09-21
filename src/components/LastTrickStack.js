@@ -3,16 +3,17 @@ import Card from "./Card";
 import { getDeck } from "../theme";
 import { cardColor } from "../cards";
 import "./SidePanel.css";
-import "./EuchreLastTrick.css";
+import "./LastTrickStack.css";
 
 // The trick that just went, kept on the board until the hand ends. Collapsed
 // it's a small stack in the corner; hovering, focusing or tapping fans it open
 // so you can see who played what.
 //
-// The Euchre board has no side column to give this — the 500 boards put the
-// same panel in one — so it takes a corner of the felt instead, and borrows the
-// fanning from SidePanel.css so the two games' stacks behave the same.
-function EuchreLastTrick({ lastTrick, players = [], mySeat, deckId, trumpSuit }) {
+// The Euchre and Hearts boards have no side column to give this — the 500
+// boards put the same panel in one — so it takes a corner of the felt instead,
+// and borrows the fanning from SidePanel.css so every game's stack behaves the
+// same.
+function LastTrickStack({ lastTrick, players = [], mySeat, deckId, trumpSuit, jokerName = "the joker" }) {
   const [open, setOpen] = useState(false);
   const deck = getDeck(deckId);
 
@@ -23,11 +24,11 @@ function EuchreLastTrick({ lastTrick, players = [], mySeat, deckId, trumpSuit })
 
   const winner = nameOf(lastTrick.winnerSeat);
   const wc = lastTrick.winningCard;
-  const withCard = wc && (wc.suit === "Joker" ? "the Benny" : `the ${wc.value}${wc.suit}`);
+  const withCard = wc && (wc.suit === "Joker" ? jokerName : `the ${wc.value}${wc.suit}`);
 
   return (
     <aside
-      className={`eu-last-trick${open ? " open" : ""}`}
+      className={`last-trick-stack${open ? " open" : ""}`}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
@@ -58,7 +59,7 @@ function EuchreLastTrick({ lastTrick, players = [], mySeat, deckId, trumpSuit })
           </span>
         ))}
       </button>
-      <p className="eu-last-trick-note">
+      <p className="last-trick-stack-note">
         {winner}
         {withCard ? `, with ${withCard}` : ""}
       </p>
@@ -66,4 +67,4 @@ function EuchreLastTrick({ lastTrick, players = [], mySeat, deckId, trumpSuit })
   );
 }
 
-export default EuchreLastTrick;
+export default LastTrickStack;

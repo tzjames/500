@@ -60,7 +60,7 @@ const open = (overrides = {}) => {
 };
 
 const cardsFor = (name) =>
-  [...document.querySelectorAll(".eu-review-hand")]
+  [...document.querySelectorAll(".review-hand")]
     .find((row) => row.textContent.startsWith(name))
     .querySelectorAll(".pc");
 
@@ -85,15 +85,15 @@ test("stepping to a trick shows it, who took it, and the hands it left behind", 
     expect(cardsFor(name)).toHaveLength(1);
   }
   // And the trick counts so far, which only appear once play has started.
-  const dijkstra = [...document.querySelectorAll(".eu-review-hand")].find((r) =>
+  const dijkstra = [...document.querySelectorAll(".review-hand")].find((r) =>
     r.textContent.startsWith("Dijkstra")
   );
-  expect(dijkstra.querySelector(".eu-review-who b")).toHaveTextContent("1");
+  expect(dijkstra.querySelector(".review-who b")).toHaveTextContent("1");
 });
 
 test("the winning card of the trick is the one marked", () => {
   open({ step: 1 });
-  const won = document.querySelectorAll(".eu-review-trick li.won");
+  const won = document.querySelectorAll(".review-trick li.won");
   expect(won).toHaveLength(1);
   expect(won[0]).toHaveTextContent("Dijkstra");
 });

@@ -6,11 +6,12 @@ import ThemedTable from "../components/ThemedTable";
 import GameRoomPage from "./GameRoomPage";
 import GameRoom4Page from "./GameRoom4Page";
 import EuchreRoomPage from "./EuchreRoomPage";
+import HeartsRoomPage from "./HeartsRoomPage";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 
-// Both sizes of game live at /game/:id, so this asks which one it is before
-// handing over. It's a separate round trip rather than something carried in the
-// URL because the link people share has to keep working whatever it points at.
+// Every game lives at /game/:id, so this asks which one it is before handing
+// over. It's a separate round trip rather than something carried in the URL
+// because the link people share has to keep working whatever it points at.
 function GamePage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ function GamePage() {
   }
 
   if (meta.gameType === "euchre") return <EuchreRoomPage />;
+  if (meta.gameType === "hearts") return <HeartsRoomPage />;
   return meta.mode === 4 ? <GameRoom4Page /> : <GameRoomPage />;
 }
 

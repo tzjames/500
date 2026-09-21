@@ -2,9 +2,9 @@
   "site": {
     "name": "Tricky Games",
     "origin": "https://trickygames.io",
-    "title": "Tricky Games — Play 500 and Euchre Online Free",
-    "description": "Free trick-taking card games in your browser. Play 500 two-handed or four-handed in partnerships, and Euchre in six rule sets — against friends or against robots. No download, no payment.",
-    "blurb": "Tricky Games is a free browser card room for trick-taking games. It deals 500 and Euchre, keeps a separate record and rating for each, and seats robots when you are short of players.",
+    "title": "Tricky Games — Play 500, Euchre and Hearts Online Free",
+    "description": "Free trick-taking card games in your browser. Play 500 two-handed or four-handed in partnerships, Euchre in six rule sets and Hearts in sixteen — against friends or against robots. No download, no payment.",
+    "blurb": "Tricky Games is a free browser card room for trick-taking games. It deals 500, Euchre and Hearts, keeps a separate record and rating for each, and seats robots when you are short of players.",
     "ogImage": "/brand/og-card.png"
   },
   "games": {
@@ -37,6 +37,21 @@
       "playerCount": "2 to 4 players",
       "minPlayers": 2,
       "maxPlayers": 4
+    },
+    "hearts": {
+      "name": "Hearts",
+      "path": "/hearts",
+      "kicker": "Thirteen hearts and the Black Lady",
+      "blurb": "The trick-taking game you are trying to lose. Duck the hearts and the queen of spades — or take every one of them and put twenty-six on everybody else. Sixteen rule sets, from the 1887 original to Cancellation Hearts for eleven.",
+      "about": [
+        "Every heart you take costs a point and the queen of spades costs thirteen, so the whole game is played backwards: you are ducking tricks, not winning them. Pass three cards on before a card is led, follow suit when you can, and count the spades — because the one hand nobody can escape is the one holding the king and the ace with nothing small underneath.",
+        "Take all twenty-six yourself and you have shot the moon, and the score goes the other way entirely. Sixteen rule sets here — plain Hearts, Black Lady, Black Maria, Omnibus, Spot, Black Jack, Greek, Chasse Coeur, Joker, Royal, Partnership, Heartsette, Auction, Domino and Cancellation, plus the 1887 original — and the rule variations the game picked up along the way as house rules."
+      ],
+      "title": "Play Hearts Online Free — Sixteen Rule Sets | Tricky Games",
+      "description": "Play Hearts free in your browser: Black Lady, Black Maria, Omnibus, Spot, Greek, Joker, Royal, Partnership, Auction, Domino and Cancellation Hearts. Duck the queen against friends or robots.",
+      "playerCount": "3 to 11 players",
+      "minPlayers": 3,
+      "maxPlayers": 11
     }
   }
 }

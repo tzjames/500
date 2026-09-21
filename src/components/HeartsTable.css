@@ -1,0 +1,247 @@
+/* The Hearts board. Sits inside ThemedTable's untilted overlay and scales with
+   the viewport rather than a fixed layout. Hands run from six cards (Domino) to
+   seventeen (three-handed), and the table itself from three seats to eleven, so
+   almost everything here is a function of one of those two numbers. */
+
+.he-table {
+  --card-hand: clamp(42px, 6.6vw, 96px);
+  --card-fan: clamp(16px, 2.2vw, 30px);
+  --card-played: clamp(40px, 5vw, 76px);
+  /* Cards are 0.714 wide to tall, so anything that has to clear the hand is
+     placed off its height rather than the width every other size is in. */
+  --hand-depth: calc(var(--card-hand) * 1.4);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ---- seats ---- */
+
+/* Placed by the component, which works each seat's point out from how many are
+   sitting down — see HeartsTable.js. Everything that is the same whatever the
+   count is here; nothing that varies with it is. */
+.he-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  z-index: 3;
+}
+
+/* Your own seat is only the name plate: your cards are the fan along the bottom
+   of the board, so the plate goes in the corner beside them. */
+.he-seat-you {
+  position: absolute;
+  left: 1%;
+  bottom: 12px;
+  transform: none;
+  align-items: flex-start;
+}
+
+.he-seat-plate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 6px 11px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(3px);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.he-seat.on-turn .he-seat-plate {
+  border-color: var(--amber-ring);
+}
+
+.he-seat-name em {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  font-size: 9px;
+  font-style: normal;
+  vertical-align: 1px;
+}
+
+.he-seat-plate b {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.he-seat-note {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
+}
+
+/* Face-down cards, overlapped hard: a three-handed hand is seventeen of them
+   and there is no room to show that honestly, so the fan is capped in the
+   component and the count is on the plate instead. */
+.he-fan {
+  display: flex;
+}
+
+.he-fan .pc {
+  --card-w: var(--card-fan);
+  margin-left: calc(var(--card-fan) * -0.7);
+}
+
+.he-fan .pc:first-child {
+  margin-left: 0;
+}
+
+/* ---- the middle of the table ---- */
+
+.he-middle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.he-trick {
+  position: absolute;
+  inset: 22% 22% calc(var(--hand-depth) + 40px);
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+
+/* Each card sits toward the seat that played it, so a finished trick reads as
+   hands reaching in rather than a pile. */
+.he-played {
+  position: absolute;
+  transform: translate(var(--tx), var(--ty));
+  transition: transform 0.55s ease-in, opacity 0.55s ease-in;
+}
+
+.he-played .pc {
+  --card-w: var(--card-played);
+}
+
+/* Gathered to the winner's edge and gone. Sharing one destination is what makes
+   the cards read as being swept up by that seat. */
+.he-played.flying {
+  opacity: 0;
+}
+
+/* Cancellation Hearts: a card played twice is out of the running, and saying so
+   on the board is the only way the trick's winner makes sense. */
+.he-played.cancelled .pc {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+/* A single line, tucked in just above your hand. */
+.he-status {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--hand-depth) + 24px);
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.75;
+}
+
+/* ---- your hand ---- */
+
+.he-hand-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  z-index: 4;
+  /* How far along each card sits from the one before: its own width plus a gap
+     where there is room, and overlapping when there isn't. The room is the
+     board (capped at 1100px less its padding) less the corner your own name
+     plate sits in. Seventeen-card three-handed hands are what this is for. */
+  --hand-room: min(1068px, 100vw - 32px);
+  --hand-step: min(
+    calc(var(--card-hand) + 8px),
+    max(18px, calc((var(--hand-room) - 150px) / var(--hand-count)))
+  );
+}
+
+.he-hand {
+  display: flex;
+  align-items: flex-end;
+}
+
+.he-hand .pc {
+  --card-w: var(--card-hand);
+  margin-left: calc(var(--hand-step) - var(--card-hand));
+  transition: transform 0.14s ease;
+}
+
+.he-hand .pc:first-child {
+  margin-left: 0;
+}
+
+.he-hand .pc-clickable:hover {
+  transform: translateY(-12px);
+  z-index: 5;
+}
+
+/* Chosen to pass: lifted out of the fan so three picks read at a glance. */
+.he-hand .pc-selected {
+  transform: translateY(-18px);
+  z-index: 6;
+}
+
+@media (max-width: 720px) {
+  .he-table {
+    --card-hand: clamp(32px, 10vw, 70px);
+    --card-played: clamp(34px, 9vw, 54px);
+    --card-fan: clamp(14px, 4vw, 24px);
+  }
+
+  .he-trick {
+    inset: 26% 5% calc(var(--hand-depth) + 34px);
+  }
+
+  /* A phone has the vertical room the corner treatment was working around, so
+     your own plate goes back above your hand where it reads better. */
+  .he-seat-you {
+    left: 50%;
+    bottom: calc(var(--hand-depth) + 50px);
+    transform: translateX(-50%);
+    align-items: center;
+  }
+
+  .he-status {
+    bottom: calc(var(--hand-depth) + 24px);
+  }
+
+  .he-seat-plate {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .he-seat-plate b {
+    font-size: 16px;
+  }
+
+  .he-fan .pc {
+    margin-left: calc(var(--card-fan) * -0.78);
+  }
+}
