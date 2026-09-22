@@ -4,7 +4,7 @@ import HandHistoryModal from "./HandHistoryModal";
 import { euchreHands } from "../euchreHistory";
 import { trumpOrderState } from "../euchreRules";
 import { isRed } from "../cards";
-import "./EuchreHelp.css";
+import "./HelpBar.css";
 
 const suitClass = (suit) => (isRed(suit) ? "red-suit" : "");
 
@@ -23,14 +23,14 @@ function EuchreHelp({ variant, mode, options, trumpSuit, noTrump, history, slots
   const blocked = trumps.mode === "blocked";
 
   return (
-    <div className="eu-help">
-      <div className="eu-help-buttons">
-        <button type="button" className="btn-ghost eu-help-button" onClick={() => setShowRules(true)}>
+    <div className="help-bar">
+      <div className="help-bar-buttons">
+        <button type="button" className="btn-ghost help-bar-button" onClick={() => setShowRules(true)}>
           Rules
         </button>
         <button
           type="button"
-          className="btn-ghost eu-help-button"
+          className="btn-ghost help-bar-button"
           onClick={() => setShowHistory(true)}
           title="Who passed, who called and what was turned up, hand by hand"
         >
@@ -38,7 +38,7 @@ function EuchreHelp({ variant, mode, options, trumpSuit, noTrump, history, slots
         </button>
         <button
           type="button"
-          className="btn-ghost eu-help-button"
+          className="btn-ghost help-bar-button"
           onClick={() => setShowTrumps((open) => !open)}
           disabled={blocked}
           // Greyed out with no explanation reads as a bug, so the reason rides
@@ -56,8 +56,8 @@ function EuchreHelp({ variant, mode, options, trumpSuit, noTrump, history, slots
       </div>
 
       {showTrumps && !blocked && (
-        <p className={`eu-trump-line${trumps.mode === "live" ? " live" : ""}`}>
-          <span className="eu-trump-cap">
+        <p className={`help-line${trumps.mode === "live" ? " live" : ""}`}>
+          <span className="help-line-cap">
             {trumps.mode === "example" ? (
               <>
                 if <span className={suitClass(trumps.suit)}>{trumps.suit}</span> were trump

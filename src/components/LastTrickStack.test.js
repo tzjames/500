@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import EuchreLastTrick from "./EuchreLastTrick";
+import LastTrickStack from "./LastTrickStack";
 
 const players = [
   { seat: 0, name: "Graham" },
@@ -21,11 +21,11 @@ const trick = {
 };
 
 // The classic pack is a glyph deck, so its faces are drawn rather than images.
-const cards = () => document.querySelectorAll(".eu-last-trick .pc");
+const cards = () => document.querySelectorAll(".last-trick-stack .pc");
 
 const open = (lastTrick = trick) =>
   render(
-    <EuchreLastTrick
+    <LastTrickStack
       lastTrick={lastTrick}
       players={players}
       mySeat={0}
@@ -52,7 +52,7 @@ test("your own card is named as yours", () => {
 test("it fans open on a click, and again on hovering the corner", () => {
   open();
   const stack = screen.getByRole("button");
-  const panel = document.querySelector(".eu-last-trick");
+  const panel = document.querySelector(".last-trick-stack");
   expect(stack).not.toHaveClass("open");
 
   // fireEvent rather than userEvent: a real click is preceded by a hover, which
@@ -70,7 +70,7 @@ test("it fans open on a click, and again on hovering the corner", () => {
 
 test("nothing is drawn before a trick has been taken", () => {
   const { container } = render(
-    <EuchreLastTrick lastTrick={null} players={players} mySeat={0} deckId="classic" />
+    <LastTrickStack lastTrick={null} players={players} mySeat={0} deckId="classic" />
   );
   expect(container).toBeEmptyDOMElement();
 });

@@ -1,0 +1,323 @@
+/* The Hearts room's furniture: the bar across the top, the line of state under
+   it, the action panel and the result cards. The board itself is
+   HeartsTable.css. */
+
+.hearts-room {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 18px 16px 24px;
+}
+
+/* Live, the board has to fill whatever is left after the bar and the action
+   panel, so the room is a column rather than a scrolling document. */
+.hearts-room-live {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-bottom: 10px;
+}
+
+.he-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.he-bar p {
+  margin: 0 0 3px;
+  color: var(--amber);
+}
+
+.he-bar h1 {
+  margin: 0;
+  font-size: clamp(22px, 3.4vw, 34px);
+  font-weight: 400;
+}
+
+.he-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The game's state on the left, the help controls on the right, both clear of
+   the board below them. */
+.he-state-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 12px 0 4px;
+}
+
+.he-round-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.he-contract {
+  color: var(--amber);
+  opacity: 1;
+}
+
+.he-error {
+  margin: 6px 0 0;
+}
+
+/* ---- the action panel ---- */
+
+.he-action {
+  flex: none;
+  width: min(560px, 100%);
+  margin: 8px auto 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  /* Sits over the felt, so it needs its own ground rather than the panel's. */
+  background: rgba(12, 10, 8, 0.72);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-align: center;
+}
+
+.he-action-title {
+  width: 100%;
+  margin: 0;
+  font-size: 13px;
+}
+
+.he-action .ng-note {
+  width: 100%;
+}
+
+.he-suit-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.he-num {
+  min-width: 46px;
+}
+
+.he-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+
+/* ---- waiting room ---- */
+
+.he-waiting {
+  margin: 26px auto 0;
+  width: min(460px, 100%);
+  text-align: center;
+}
+
+.he-waiting h2 {
+  margin: 0 0 6px;
+  font-weight: 400;
+}
+
+.he-waiting p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.he-seat-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+
+.he-seat-list li {
+  padding: 8px;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 14px;
+}
+
+.he-seat-list i {
+  opacity: 0.5;
+}
+
+.he-wide {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.he-segments {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.he-segments .ng-segment {
+  flex: 1;
+}
+
+.he-wide-check {
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.he-waiting-help {
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.he-rules-readout {
+  margin-top: 12px;
+  text-align: left;
+}
+
+/* Review and replay, offered under the result. Quieter than "deal the next
+   hand", which is what most people want most of the time. */
+.he-after-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.he-after-hand .btn-ghost,
+.he-after-hand .btn-primary {
+  padding: 7px 14px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.he-after-hand .ng-note {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+}
+
+/* Across the top of the board while a replay is running, so nobody can mistake
+   an unscored redo for the real thing. */
+.he-replay-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 6px 0 0;
+  padding: 7px 14px;
+  border-radius: 12px;
+  background: rgba(255, 235, 200, 0.12);
+  border: 1px solid var(--amber-ring);
+  font-size: 12px;
+}
+
+.he-replay-bar .btn-ghost {
+  padding: 4px 11px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.he-replay-result {
+  margin: 0 0 12px !important;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: rgba(255, 235, 200, 0.1);
+  border: 1px solid var(--amber-ring);
+  font-size: 12px !important;
+  opacity: 1 !important;
+}
+
+/* ---- results ---- */
+
+.he-modal-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 7, 6, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.he-result {
+  width: min(420px, 100%);
+  padding: 26px;
+  text-align: center;
+}
+
+.he-result .overline {
+  margin: 0 0 6px;
+  color: var(--amber);
+}
+
+.he-result h2 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 400;
+}
+
+.he-result p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.he-result-scores {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+}
+
+.he-result-scores li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 46px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 13px;
+  text-align: left;
+}
+
+.he-result-scores b {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.he-result-scores em {
+  font-style: normal;
+  font-size: 11px;
+  text-align: right;
+  opacity: 0.6;
+}
+
+@media (max-width: 720px) {
+  .hearts-room {
+    padding: 12px 10px 16px;
+  }
+
+  .he-bar h1 {
+    font-size: 20px;
+  }
+
+  .he-action {
+    padding: 10px 12px;
+  }
+}

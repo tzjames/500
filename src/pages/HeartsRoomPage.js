@@ -4,35 +4,43 @@ import { useAuth } from "../auth";
 import { getSocket } from "../socket";
 import ThemedTable from "../components/ThemedTable";
 import ThemePicker from "../components/ThemePicker";
-import EuchreTable from "../components/EuchreTable";
+import HeartsTable, { cardKey } from "../components/HeartsTable";
 import LastTrickStack from "../components/LastTrickStack";
-import EuchreReviewModal from "../components/EuchreReviewModal";
+import HeartsReviewModal from "../components/HeartsReviewModal";
 import Confetti from "../components/Confetti";
-import EuchreHelp from "../components/EuchreHelp";
-import EuchreRulesModal from "../components/EuchreRulesModal";
+import HeartsHelp from "../components/HeartsHelp";
+import HeartsRulesModal from "../components/HeartsRulesModal";
 import HouseRules from "../components/HouseRules";
-import { definitionsFor, getVariant, variantSummary } from "../euchreOptions";
+import { definitionsFor, getVariant, variantSummary } from "../heartsOptions";
 import { resolveDeckId, resolveLocationId } from "../theme";
-import "./EuchreRoomPage.css";
+import "./HeartsRoomPage.css";
 
 // A finished trick sits on the table for a beat, then flies to the winner.
-const TRICK_LINGER_MS = 1500;
+const TRICK_LINGER_MS = 1400;
 const TRICK_FLY_MS = 550;
 
 const SUIT_CLASS = (suit) => (suit === "♥" || suit === "♦" ? "red-suit" : "");
 const Suit = ({ suit }) => <span className={SUIT_CLASS(suit)}>{suit}</span>;
 
-// One Euchre table. Everything on screen comes from a single euchre:state
-// payload — including which actions this seat may take — so this page decides
-// how to draw a position but never what the rules of it are.
-function EuchreRoomPage() {
+const PASS_WORD = {
+  left: "to your left",
+  right: "to your right",
+  across: "across the table",
+};
+
+// One Hearts table. Everything on screen comes from a single hearts:state
+// payload — including which cards this seat may play — so this page decides how
+// to draw a position but never what the rules of it are.
+function HeartsRoomPage() {
   const { id } = useParams();
   const { session } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
-  const [alone, setAlone] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  // The three cards picked to pass, held here until they are sent: passing is
+  // simultaneous, so nobody else's screen has anything to say about them.
+  const [picked, setPicked] = useState([]);
   // The server clears the trick the moment it resolves, so the finished one is
   // held here to be shown and then flown out. Tokenised because a background
   // tab can throttle these timers enough for a second trick to resolve before
@@ -54,17 +62,19 @@ function EuchreRoomPage() {
     const join = () => socket.emit("joinRoom", { gameId: id });
     if (socket.connected) join();
     socket.on("connect", join);
-    socket.on("euchre:state", setState);
-    socket.on("euchre:error", ({ message }) => setError(message));
-    socket.on("euchre:joinRejected", ({ message }) => setError(message));
-    socket.on("euchre:trickResolved", (trick) => {
+    socket.on("hearts:state", setState);
+    socket.on("hearts:error", ({ message }) => setError(message));
+    socket.on("hearts:joinRejected", ({ message }) => setError(message));
+    socket.on("hearts:trickResolved", (trick) => {
       const token = ++trickTokenRef.current;
       liveTokenRef.current = token;
       setPendingTrick(trick);
       setFlyToSeat(null);
       setTimeout(() => {
         if (liveTokenRef.current !== token) return;
-        setFlyToSeat(trick.winnerSeat);
+        // A cancelled-out trick nobody won stays put and rides on the next one,
+        // so there is nowhere to fly it to.
+        if (trick.winnerSeat !== null) setFlyToSeat(trick.winnerSeat);
         setTimeout(() => {
           if (liveTokenRef.current !== token) return;
           liveTokenRef.current = null;
@@ -77,16 +87,16 @@ function EuchreRoomPage() {
       liveTokenRef.current = null;
       socket.emit("leaveRoom");
       socket.off("connect", join);
-      socket.off("euchre:state", setState);
-      socket.off("euchre:error");
-      socket.off("euchre:joinRejected");
-      socket.off("euchre:trickResolved");
+      socket.off("hearts:state", setState);
+      socket.off("hearts:error");
+      socket.off("hearts:joinRejected");
+      socket.off("hearts:trickResolved");
     };
   }, [socket, session, id]);
 
-  // A new hand is a fresh decision about going alone.
+  // A new hand is a fresh three cards to choose.
   useEffect(() => {
-    setAlone(false);
+    setPicked([]);
   }, [state?.roundNumber]);
 
   if (!session) return null;
@@ -96,8 +106,8 @@ function EuchreRoomPage() {
         <div className="waiting-panel panel">
           <p>{error || "Taking your seat…"}</p>
           {error && (
-            <Link className="btn-ghost" to="/euchre">
-              Back to Euchre
+            <Link className="btn-ghost" to="/hearts">
+              Back to Hearts
             </Link>
           )}
         </div>
@@ -111,10 +121,7 @@ function EuchreRoomPage() {
   };
   const theme = state.gameSettings || {};
   // You count as being in your own room, seated or not yet — see GameRoomPage.
-  const names = [
-    session?.user?.name,
-    ...state.slots.filter(Boolean).map((slot) => slot.name),
-  ];
+  const names = [session?.user?.name, ...state.slots.filter(Boolean).map((slot) => slot.name)];
   const deckId = resolveDeckId(theme.deck, names);
   const locationId = resolveLocationId(theme.location, names);
   const shell = { locationId, deckId, feltId: theme.felt };
@@ -122,21 +129,21 @@ function EuchreRoomPage() {
   const game = state.game;
 
   const header = (
-    <header className="eu-bar">
+    <header className="he-bar">
       <div>
-        <p className="overline">Euchre</p>
+        <p className="overline">Hearts</p>
         <h1 className="serif">{spec.label}</h1>
       </div>
-      <div className="eu-bar-right">
+      <div className="he-bar-right">
         <ThemePicker
           locationId={locationId}
           deckId={deckId}
           feltId={theme.felt}
           playerNames={names}
           compact
-          onChange={(next) => emit("euchre:setGameSettings", next)}
+          onChange={(next) => emit("hearts:setGameSettings", next)}
         />
-        <Link className="btn-ghost" to="/euchre">
+        <Link className="btn-ghost" to="/hearts">
           Leave
         </Link>
       </div>
@@ -147,10 +154,10 @@ function EuchreRoomPage() {
     const seated = state.slots.filter(Boolean).length;
     return (
       <ThemedTable {...shell} plain scrolling>
-        <div className="euchre-room">
+        <div className="hearts-room">
           {header}
           {error && <p className="auth-error">{error}</p>}
-          <section className="waiting-panel panel eu-waiting">
+          <section className="waiting-panel panel he-waiting">
             <h2 className="serif">Waiting for {state.mode - seated} more</h2>
             <p>{variantSummary(state.variant, state.options)}</p>
             <p>Send them this link:</p>
@@ -160,38 +167,38 @@ function EuchreRoomPage() {
               value={window.location.href}
               onClick={(e) => e.target.select()}
             />
-            <ul className="eu-seat-list">
+            <ul className="he-seat-list">
               {state.slots.map((slot, seat) => (
                 <li key={seat}>{slot ? slot.name : <i>open seat</i>}</li>
               ))}
             </ul>
             {state.isHost && (
               <>
-                <button className="btn-primary eu-wide" onClick={() => emit("euchre:addBots")}>
+                <button className="btn-primary he-wide" onClick={() => emit("hearts:addBots")}>
                   Fill the empty seats with robots
                 </button>
-                <div className="eu-segments">
+                <div className="he-segments">
                   {["private", "public"].map((option) => (
                     <button
                       key={option}
                       className={`ng-segment${state.visibility === option ? " on" : ""}`}
-                      onClick={() => emit("euchre:setVisibility", { visibility: option })}
+                      onClick={() => emit("hearts:setVisibility", { visibility: option })}
                     >
                       {option === "private" ? "Private" : "Public"}
                     </button>
                   ))}
                 </div>
-                <label className="eu-check eu-wide-check">
+                <label className="he-check he-wide-check">
                   <input
                     type="checkbox"
                     checked={state.friendly}
-                    onChange={(e) => emit("euchre:setFriendly", { friendly: e.target.checked })}
+                    onChange={(e) => emit("hearts:setFriendly", { friendly: e.target.checked })}
                   />
                   Friendly game — nobody&apos;s rating moves
                 </label>
               </>
             )}
-            <div className="help-bar-buttons eu-waiting-help">
+            <div className="help-bar-buttons he-waiting-help">
               <button className="btn-ghost help-bar-button" onClick={() => setShowHowTo(true)}>
                 How to play
               </button>
@@ -200,12 +207,17 @@ function EuchreRoomPage() {
               </button>
             </div>
             {showRules && (
-              <div className="eu-rules-readout">
-                <HouseRules options={state.options} onChange={() => {}} readOnly definitions={definitionsFor(state.variant)} />
+              <div className="he-rules-readout">
+                <HouseRules
+                  options={state.options}
+                  onChange={() => {}}
+                  readOnly
+                  definitions={definitionsFor(state.variant)}
+                />
               </div>
             )}
             {showHowTo && (
-              <EuchreRulesModal
+              <HeartsRulesModal
                 variant={state.variant}
                 mode={state.mode}
                 options={state.options}
@@ -226,65 +238,77 @@ function EuchreRoomPage() {
     ? [0, 1].map((team) => game.players.filter((p) => p.team === team).map((p) => p.seat))
     : game.players.map((player) => [player.seat]);
 
+  // Picking three to pass, or playing one. Both are a click on a card, so the
+  // board hands them both here and this decides which it was.
+  const onCard = (card) => {
+    if (state.phase === "playing") return emit("hearts:play", { card });
+    const key = cardKey(card);
+    setPicked((current) =>
+      current.some((c) => cardKey(c) === key)
+        ? current.filter((c) => cardKey(c) !== key)
+        : current.length >= 3
+        ? current
+        : [...current, card]
+    );
+  };
+
   return (
     <ThemedTable {...shell} scrolling={false}>
-      <div className="euchre-room euchre-room-live">
+      <div className="hearts-room hearts-room-live">
         {header}
-        <div className="eu-state-row">
+        <div className="he-state-row">
           <RoundBar state={state} />
-          <EuchreHelp
+          <HeartsHelp
             variant={state.variant}
             mode={state.mode}
             options={state.options}
-            trumpSuit={game.trumpSuit}
-            noTrump={game.noTrump}
             history={state.history}
             slots={state.slots}
             sides={sides}
             yourSeat={state.you.seat}
           />
         </div>
-        {error && <p className="auth-error eu-error">{error}</p>}
+        {error && <p className="auth-error he-error">{error}</p>}
 
-        <EuchreTable
+        <HeartsTable
           state={state}
           deckId={deckId}
-          onPlay={(card) => emit("euchre:play", { card })}
-          onDiscard={(card) => emit("euchre:discard", { card })}
+          onCard={onCard}
+          selected={picked}
           statusText={statusText(state, yourTurn, waitingFor)}
           pendingTrick={pendingTrick}
           flyToSeat={flyToSeat}
           lastTrick={
             <LastTrickStack
-              jokerName="the Benny"
               lastTrick={state.lastTrick}
               players={game.players}
               mySeat={state.you.seat}
               deckId={deckId}
-              trumpSuit={game.trumpSuit}
             />
           }
         />
 
-        <ActionPanel state={state} emit={emit} alone={alone} setAlone={setAlone} />
+        <ActionPanel state={state} emit={emit} picked={picked} setPicked={setPicked} />
 
         {state.replaying && (
-          <div className="eu-replay-bar">
+          <div className="he-replay-bar">
             <span>Replaying the hand — nothing counts.</span>
-            <button className="btn-ghost" onClick={() => emit("euchre:endReplay")}>
+            <button className="btn-ghost" onClick={() => emit("hearts:endReplay")}>
               Stop the replay
             </button>
           </div>
         )}
 
         {state.review && (
-          <EuchreReviewModal
+          <HeartsReviewModal
             review={state.review}
+            variant={state.variant}
+            options={state.options}
             deckId={deckId}
             mySeat={state.you.seat}
             slots={state.slots}
-            onStep={(step) => emit("euchre:reviewStep", { step })}
-            onDone={() => emit("euchre:reviewDone")}
+            onStep={(step) => emit("hearts:reviewStep", { step })}
+            onDone={() => emit("hearts:reviewDone")}
           />
         )}
 
@@ -292,7 +316,7 @@ function EuchreRoomPage() {
           <RoundEnd
             state={state}
             sides={sides}
-            onNext={() => emit("euchre:next")}
+            onNext={() => emit("hearts:next")}
             emit={emit}
             userId={session.user.id}
           />
@@ -306,38 +330,28 @@ function EuchreRoomPage() {
 }
 
 // The line under the header: where the game stands, in a form that fits every
-// rule set — a target to reach or a score to run down, and the contract in play.
+// rule set — the target, which way the cards went and who dealt.
 function RoundBar({ state }) {
   const game = state.game;
-  const contract = () => {
-    if (!game.trumpSuit && !game.noTrump) return "trump not made yet";
-    const called = game.bidState?.highBid ? `${game.bidState.highBid} tricks ` : "";
-    const suit = game.noTrump ? (game.lowNoTrump ? "low no trump" : "no trump") : null;
-    const maker = game.players[game.callerSeat];
-    const who = maker ? `${maker.seat === state.you.seat ? "you" : maker.name}` : "";
-    return (
-      <>
-        {called}
-        {suit || <Suit suit={game.trumpSuit} />} · {who}
-        {game.alone && " alone"}
-        {game.blindLoner && ", blind"}
-        {game.declaredMarch && ", declared"}
-      </>
-    );
-  };
-
-  // Who dealt earns its place here rather than only as a badge on the seat: it
-  // is what you weigh when deciding whether to order up, since ordering up
-  // hands the dealer the turned card.
   const dealer = game.players[game.dealerSeat];
   const dealt = dealer && (dealer.seat === state.you.seat ? "you dealt" : `${dealer.name} dealt`);
-
+  const pass = PASS_WORD[game.passDirection];
   return (
-    <div className="eu-round-bar">
+    <div className="he-round-bar">
       <span>Hand {state.roundNumber}</span>
       {dealt && <span>{dealt}</span>}
-      <span>{game.countdown ? "first to nothing wins" : `game is ${game.target}`}</span>
-      <span className="eu-contract">{contract()}</span>
+      <span>game ends at {game.target}</span>
+      <span className="he-contract">
+        {game.penaltySuit ? (
+          <>
+            <Suit suit={game.penaltySuit} /> costs
+          </>
+        ) : pass ? (
+          `passed ${pass}`
+        ) : (
+          "no passing"
+        )}
+      </span>
       <span>{state.friendly ? "Friendly" : "Rated"}</span>
     </div>
   );
@@ -349,153 +363,94 @@ function statusText(state, yourTurn, waitingFor) {
     if (game.currentTrick.length === 0) return yourTurn ? "Your lead" : `${waitingFor} to lead`;
     return yourTurn ? "Your turn" : `Waiting for ${waitingFor}`;
   }
-  if (state.phase === "calling") {
-    return game.stuck
-      ? `${waitingFor} is stuck with it`
-      : game.callRound === 1
-      ? "Order it up, or pass"
-      : "Name a suit, or pass";
+  if (state.phase === "passing") {
+    const left = game.players.filter((p) => !p.passedOn).length;
+    return game.passedCards ? `Waiting on ${left} more` : "Choose three to pass";
   }
-  if (state.phase === "discard") return "The dealer is discarding";
-  if (state.phase === "bidding") return "Bidding";
-  if (state.phase === "chooseTrump") return "The high bidder is naming trump";
-  if (state.phase === "declaring") return "Waiting on declarations";
+  if (state.phase === "bidding") return "Bidding for the penalty suit";
+  if (state.phase === "chooseSuit") return "The high bidder is naming the suit";
   return null;
 }
 
 // Whatever this seat is being asked for. The server tells the page which
 // actions are legal, so each block here is only about how to offer it.
-function ActionPanel({ state, emit, alone, setAlone }) {
+function ActionPanel({ state, emit, picked, setPicked }) {
   const game = state.game;
-  const mine = game.currentSeat === state.you.seat;
 
-  if (state.phase === "blind" && game.handHidden) {
-    return (
-      <Panel title="A jack is turned. You may stake a lone hand before you look.">
-        <button className="btn-primary" onClick={() => emit("euchre:blind", { blind: true })}>
-          Blind lone hand in <Suit suit={game.upcard.suit} />
-        </button>
-        <button className="btn-ghost" onClick={() => emit("euchre:blind", { blind: false })}>
-          Look at my cards
-        </button>
-      </Panel>
-    );
-  }
-
-  if (state.phase === "calling" && game.relief) {
+  if (state.phase === "passing") {
+    if (game.passedCards) {
+      return (
+        <Panel title="Passed. Waiting for everybody else.">
+          <p className="ng-note">
+            You sent {game.passedCards.map((c) => `${c.value}${c.suit}`).join(", ")} to{" "}
+            {game.players[game.passTo]?.name || "nobody"}.
+          </p>
+        </Panel>
+      );
+    }
+    const to = game.players[game.passTo]?.name;
     return (
       <Panel
-        title={
-          game.relief === "farmer"
-            ? "Nothing but nines and tens — declare a farmer's hand?"
-            : "An ace and no picture card — declare it?"
-        }
+        title={`Choose three cards to pass ${
+          PASS_WORD[game.passDirection] || "on"
+        }${to ? ` — to ${to}` : ""}`}
       >
-        <button className="btn-primary" onClick={() => emit("euchre:relief", { action: "under" })}>
-          Go under (swap three with the kitty)
+        <button
+          className="btn-primary"
+          disabled={picked.length !== 3}
+          onClick={() => emit("hearts:pass", { cards: picked })}
+        >
+          {picked.length === 3 ? "Pass these three" : `Pick ${3 - picked.length} more`}
         </button>
-        <button className="btn-ghost" onClick={() => emit("euchre:relief", { action: "redeal" })}>
-          Throw the hand in
-        </button>
-      </Panel>
-    );
-  }
-
-  if (state.phase === "calling" && mine) {
-    const ordering = game.callRound === 1 && game.upcard && !game.upcard.ordered;
-    return (
-      <Panel title={ordering ? "Order up the turned suit, or pass" : "Name a trump suit, or pass"}>
-        <div className="eu-suit-row">
-          {game.callableSuits.map((suit) => (
-            <button key={suit} className="btn-primary" onClick={() => emit("euchre:call", { suit, alone })}>
-              {ordering ? "Order up " : "Call "}
-              <Suit suit={suit} />
-            </button>
-          ))}
-        </div>
-        {game.aloneRule === "may" && (
-          <label className="eu-check">
-            <input type="checkbox" checked={alone} onChange={(e) => setAlone(e.target.checked)} /> Go alone
-          </label>
-        )}
-        {game.aloneRule === "forced" && <p className="ng-note">Taking this deal means playing it alone.</p>}
-        {!game.stuck && (
-          <button className="btn-ghost" onClick={() => emit("euchre:pass")}>
-            Pass
+        {picked.length > 0 && (
+          <button className="btn-ghost" onClick={() => setPicked([])}>
+            Start again
           </button>
         )}
       </Panel>
     );
-  }
-
-  if (state.phase === "discard" && game.dealerSeat === state.you.seat) {
-    return <Panel title="You have taken the turned card up — choose one to discard." />;
   }
 
   if (state.phase === "bidding" && game.bidState?.currentSeat === state.you.seat) {
     const standing = game.bidState.highBid || 0;
     return (
-      <Panel title={standing ? `Bid above ${standing}, or pass` : "Bid the tricks you will take, or pass"}>
-        <div className="eu-suit-row">
-          {Array.from({ length: game.maxBid }, (_, i) => i + 1)
+      <Panel
+        title={
+          standing
+            ? `Bid above ${standing} for the right to name the penalty suit, or pass`
+            : "Bid for the right to name the penalty suit, or pass"
+        }
+      >
+        <div className="he-suit-row">
+          {[1, 2, 3, 4, 5, 6, 7, 8]
             .filter((amount) => amount > standing)
             .map((amount) => (
-              <button key={amount} className="btn-ghost eu-num" onClick={() => emit("euchre:bid", { amount })}>
+              <button key={amount} className="btn-ghost he-num" onClick={() => emit("hearts:bid", { amount })}>
                 {amount}
               </button>
             ))}
-          <button className="btn-ghost" onClick={() => emit("euchre:bid", { amount: 0 })}>
+          <button className="btn-ghost" onClick={() => emit("hearts:bid", { amount: 0 })}>
             Pass
           </button>
         </div>
+        <p className="ng-note">Whatever you bid goes straight onto your own score.</p>
       </Panel>
     );
   }
 
-  if (state.phase === "chooseTrump" && game.bidState?.highBidder === state.you.seat) {
+  if (state.phase === "chooseSuit" && game.bidState?.highBidder === state.you.seat) {
     return (
-      <Panel title={`You bought it for ${game.bidState.highBid} — name the contract`}>
-        <div className="eu-suit-row">
+      <Panel title={`You bought it for ${game.bidState.highBid} — name the suit nobody wants`}>
+        <div className="he-suit-row">
           {state.suits.map((suit) => (
-            <button key={suit} className="btn-primary eu-num" onClick={() => emit("euchre:chooseTrump", { suit })}>
+            <button
+              key={suit}
+              className="btn-primary he-num"
+              onClick={() => emit("hearts:chooseSuit", { suit })}
+            >
               <Suit suit={suit} />
             </button>
           ))}
-          {state.options.noTrumpBids && (
-            <>
-              <button className="btn-ghost" onClick={() => emit("euchre:chooseTrump", { noTrump: true })}>
-                No trump
-              </button>
-              <button
-                className="btn-ghost"
-                onClick={() => emit("euchre:chooseTrump", { noTrump: true, lowNoTrump: true })}
-              >
-                Low no trump
-              </button>
-            </>
-          )}
-        </div>
-      </Panel>
-    );
-  }
-
-  if (state.phase === "declaring" && game.declarations.length) {
-    const labels = {
-      defendAlone: "Defend alone",
-      declare: "Declare for every trick",
-      fold: "Throw the hand in",
-    };
-    return (
-      <Panel title="Before the first card is led">
-        <div className="eu-suit-row">
-          {game.declarations.map((action) => (
-            <button key={action} className="btn-ghost" onClick={() => emit("euchre:declare", { action })}>
-              {labels[action]}
-            </button>
-          ))}
-          <button className="btn-primary" onClick={() => emit("euchre:declare", { action: "stay" })}>
-            Play on
-          </button>
         </div>
       </Panel>
     );
@@ -506,8 +461,8 @@ function ActionPanel({ state, emit, alone, setAlone }) {
 
 function Panel({ title, children }) {
   return (
-    <section className="eu-action">
-      {title && <p className="eu-action-title">{title}</p>}
+    <section className="he-action">
+      {title && <p className="he-action-title">{title}</p>}
       {children}
     </section>
   );
@@ -521,31 +476,31 @@ function AfterHand({ state, emit }) {
     const what = proposal.type === "review" ? "review the hand" : "replay the hand";
     if (proposal.awaitingYou) {
       return (
-        <div className="eu-after-hand">
+        <div className="he-after-hand">
           <p className="ng-note">
             {proposal.fromName} would like to {what}.
           </p>
-          <button className="btn-primary" onClick={() => emit("euchre:respondToProposal", { accept: true })}>
+          <button className="btn-primary" onClick={() => emit("hearts:respondToProposal", { accept: true })}>
             Go on then
           </button>
-          <button className="btn-ghost" onClick={() => emit("euchre:respondToProposal", { accept: false })}>
+          <button className="btn-ghost" onClick={() => emit("hearts:respondToProposal", { accept: false })}>
             Get on with it
           </button>
         </div>
       );
     }
     return (
-      <p className="ng-note eu-after-hand">
+      <p className="ng-note he-after-hand">
         {proposal.mine ? "Waiting for the table to agree…" : `${proposal.fromName} would like to ${what}.`}
       </p>
     );
   }
   return (
-    <div className="eu-after-hand">
-      <button className="btn-ghost" onClick={() => emit("euchre:propose", { type: "review" })}>
+    <div className="he-after-hand">
+      <button className="btn-ghost" onClick={() => emit("hearts:propose", { type: "review" })}>
         Review the hand
       </button>
-      <button className="btn-ghost" onClick={() => emit("euchre:propose", { type: "replay" })}>
+      <button className="btn-ghost" onClick={() => emit("hearts:propose", { type: "replay" })}>
         Replay it
       </button>
     </div>
@@ -554,26 +509,22 @@ function AfterHand({ state, emit }) {
 
 function RoundEnd({ state, sides, onNext, emit, userId }) {
   const result = state.lastResult;
-  const game = state.game;
-  const maker = game.players[result.callerSeat];
-  const mine = maker?.seat === state.you.seat;
   const waiting = state.readyUserIds.includes(userId);
+  const moon = result.moon;
+  const mine = moon && moon.seats.includes(state.you.seat);
   return (
-    <div className="eu-modal-wash">
-      <section className="panel eu-result">
+    <div className="he-modal-wash">
+      <section className="panel he-result">
         <p className="overline">Hand {state.roundNumber}</p>
         <h2 className="serif">
-          {result.made
-            ? result.marched
-              ? "A march"
-              : "Made it"
-            : "Euchred"}
+          {moon ? (mine ? "You shot the moon" : `${sideName(moon.seats, state)} shot the moon`) : "Hand over"}
         </h2>
         <p>
-          {mine ? "You" : maker?.name} took {result.tricks} of the {result.needed} needed
-          {result.alone && " playing alone"}.
+          {moon
+            ? `${moon.value} ${moon.mode === "subtract" ? "off their own score" : "on everybody else"}.`
+            : lowestLine(result, sides, state)}
         </p>
-        <ul className="eu-result-scores">
+        <ul className="he-result-scores">
           {sides.map((seats) => (
             <li key={seats.join("-")}>
               <span>{sideName(seats, state)}</span>
@@ -583,10 +534,11 @@ function RoundEnd({ state, sides, onNext, emit, userId }) {
           ))}
         </ul>
         {state.replayResult && (
-          <p className="eu-replay-result">
-            Replayed: {result.callerSeat === state.you.seat ? "you" : maker?.name} took{" "}
-            {state.replayResult.tricks} that time
-            {state.replayResult.made === result.made ? " — the same outcome" : ", and it would have gone the other way"}.
+          <p className="he-replay-result">
+            Replayed:{" "}
+            {sides
+              .map((seats) => `${sideName(seats, state)} ${state.replayResult.points[seats[0]]}`)
+              .join(" · ")}
           </p>
         )}
         <button className="btn-primary" onClick={onNext} disabled={waiting}>
@@ -598,17 +550,27 @@ function RoundEnd({ state, sides, onNext, emit, userId }) {
   );
 }
 
+// Who got away with it, which is the bit worth saying out loud in a game where
+// the lowest score wins.
+function lowestLine(result, sides, state) {
+  const clean = sides.filter((seats) => (result.points[seats[0]] || 0) === 0);
+  if (clean.length === sides.length) return "Nobody took a thing.";
+  if (clean.length) return `${clean.map((seats) => sideName(seats, state)).join(", ")} got away clean.`;
+  return "Everybody took something.";
+}
+
 function GameOver({ state, sides, emit, userId }) {
   const won = state.winner?.playerIds?.includes(userId);
   return (
-    <div className="eu-modal-wash">
+    <div className="he-modal-wash">
       {won && <Confetti />}
-      <section className="panel eu-result">
+      <section className="panel he-result">
         <p className="overline">
           {state.roundNumber} {state.roundNumber === 1 ? "hand" : "hands"} · game over
         </p>
         <h2 className="serif">{won ? "You win" : `${state.winner?.name} wins`}</h2>
-        <ul className="eu-result-scores">
+        <p>Lowest score takes it.</p>
+        <ul className="he-result-scores">
           {sides.map((seats) => (
             <li key={seats.join("-")}>
               <span>{sideName(seats, state)}</span>
@@ -620,10 +582,10 @@ function GameOver({ state, sides, emit, userId }) {
         <p>
           {state.friendly
             ? "A friendly game — nobody's rating moved."
-            : "Your Euchre rating has been updated."}
+            : "Your Hearts rating has been updated."}
         </p>
-        <Link className="btn-primary" to="/euchre">
-          Back to Euchre
+        <Link className="btn-primary" to="/hearts">
+          Back to Hearts
         </Link>
         <AfterHand state={state} emit={emit} />
       </section>
@@ -639,4 +601,4 @@ export const sideName = (seats, state) =>
     .map((seat) => (seat === state.you.seat ? "You" : state.game.players[seat]?.name))
     .join(" & ");
 
-export default EuchreRoomPage;
+export default HeartsRoomPage;

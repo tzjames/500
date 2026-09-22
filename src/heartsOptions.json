@@ -1,0 +1,527 @@
+{
+  "_comment": "Hearts' rule sets and house rules, drawn from https://en.wikipedia.org/wiki/Hearts_(card_game). Data only, shared by the picker on the Hearts home page and the validator in server/heartsOptions.js so the two can never disagree. `variants` are whole rule sets — a table plays exactly one — and each one's `rules` block holds what that rule set says about the switches below, which is what a rule left on Standard resolves to. `penalties` are the cards that cost, most specific match winning: one named card beats a rank beats a whole suit.",
+  "variants": [
+    {
+      "id": "blackLady",
+      "label": "Black Lady",
+      "note": "The American game: thirteen hearts and the queen of spades.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "The queen of spades, the Black Lady — 13" }
+      ],
+      "detail": "The game most people now mean by Hearts. It appeared in 1909 as Discard Hearts and has long since overtaken plain Hearts in America. Thirteen hearts at a point each and the queen of spades at thirteen make twenty-six penalty points in every deal, and the whole game is getting rid of them: pass three cards on before a card is led, follow suit when you can, and duck every trick that has a heart or the lady in it. Take the lot yourself and you have shot the moon, which turns twenty-six against you into twenty-six against everybody else. Lowest score when somebody reaches a hundred wins."
+    },
+    {
+      "id": "modern",
+      "label": "Plain Hearts",
+      "note": "Hearts and nothing else — thirteen penalty points a deal.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [{ "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" }],
+      "detail": "Hearts as the modern rules describe it before any of the variants get hold of it: the hearts are the only cards that cost, one point each, thirteen in a deal. Three to six can play, four is the game. The lead, the passing, whether hearts must be broken and whether a penalty card may be thrown on the first trick are all switches below, because the rules themselves offer them as choices. Without the queen of spades the hands are quieter and the arithmetic is halved, which makes it the better game to learn on."
+    },
+    {
+      "id": "earliest",
+      "label": "Earliest rules (1887)",
+      "note": "The 1887 game: no passing, eldest leads, hearts cost chips.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 50,
+      "rules": {
+        "passing": "none",
+        "lead": "eldest",
+        "breakHearts": false,
+        "noPointsFirstTrick": false,
+        "shootTheMoon": false
+      },
+      "penalties": [{ "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1 chip" }],
+      "detail": "Hearts as first written down. Four is usual, three to six can be accommodated, and a plain 52-card pack is dealt right out. Nobody passes anything, the eldest hand leads to the first trick, hearts may be led whenever you like and there is nothing special about the first trick at all. Every heart you take costs you a chip. Take all thirteen and you pay thirteen — four to each opponent and one to the table — unless the table has agreed that shooting the moon pays the other way, which is where that rule came from."
+    },
+    {
+      "id": "blackMaria",
+      "label": "Black Maria",
+      "note": "The British game: ace, king and queen of spades all cost.",
+      "modes": [3, 4, 5],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "right",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "A", "suit": "♠", "points": 10, "label": "The ace of spades — 10" },
+        { "kind": "card", "value": "K", "suit": "♠", "points": 7, "label": "The king of spades — 7" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "Black Maria, the queen of spades — 13" }
+      ],
+      "detail": "The British game. Three spades cost rather than one: the queen — Black Maria herself — at thirteen, the ace at ten and the king at seven, which is thirty on top of the thirteen hearts. Holding the ace or king of spades is now as dangerous as holding the queen, so the top of that suit is what the passing is really about. Cards are passed to the right rather than to the left, which is the harder way round: the hand you are feeding is the one whose cards you are about to see least of."
+    },
+    {
+      "id": "omnibus",
+      "label": "Omnibus Hearts",
+      "note": "Black Lady plus the ten of diamonds, which pays you ten.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "moonNeedsBonus": true,
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "The queen of spades — 13" },
+        { "kind": "card", "value": "10", "suit": "♦", "points": -10, "label": "The ten of diamonds — 10 off" }
+      ],
+      "detail": "Black Lady with one card worth chasing. The ten of diamonds is a bonus rather than a penalty: whoever takes it in a trick has ten points knocked off their score, which turns one suit of the hand from something to duck into something to fight for. Culbertson reported in 1950 that it was rapidly becoming the most popular of the Hearts games, and it is easy to see why — every deal now has a prize in it as well as a punishment. Shooting the moon here means all fifteen counters: thirteen hearts, the lady and the ten."
+    },
+    {
+      "id": "spot",
+      "label": "Spot Hearts",
+      "note": "Hearts cost their face value, the ace fourteen.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 150,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [{ "kind": "scale", "suit": "♥", "scale": "spots", "label": "Hearts at their face value, jack 11 up to ace 14" }],
+      "detail": "The hearts stop being worth a point each and start being worth what is printed on them: the pip cards their face value, the jack eleven, the queen twelve, the king thirteen and the ace fourteen. That is a hundred and four points in a deal rather than thirteen, and it changes what a hand is about — a low heart is now almost free and the ace of hearts is a disaster on its own, so the passing goes from shedding a suit to shedding its top."
+    },
+    {
+      "id": "blackJack",
+      "label": "Black Jack",
+      "note": "The jack of spades is the card that costs, not the queen.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "J", "suit": "♠", "points": 10, "label": "The jack of spades — 10" }
+      ],
+      "detail": "An early relative of Black Lady in which the jack of spades is the card nobody wants, worth ten. It plays quite differently from the lady: the jack sits under the queen and the king and the ace, so three cards can drop it on you rather than one, and the holder cannot simply lead out the spades above it. Later tables raised it to thirteen and made it the queen instead, and that is the game that survived."
+    },
+    {
+      "id": "greek",
+      "label": "Greek Hearts",
+      "note": "The lady fifty, the ace of hearts fifteen, courts ten.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 150,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "moonScore": 150,
+      "moonMode": "add",
+      "penalties": [
+        { "kind": "scale", "suit": "♥", "scale": "greek", "label": "Hearts: ace 15, court cards 10, pips their face value" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 50, "label": "The queen of spades — 50" }
+      ],
+      "detail": "Phillips and Westall's version of the Greek game, where the stakes are far higher and one card decides most deals: the queen of spades costs fifty. The hearts are graded too — the ace fifteen, the king, queen and jack ten each and the pip cards their face value. Take every penalty card in the deal and you are paid a hundred and fifty by each opponent, which is worth attempting far more often than a twenty-six-point moon ever is."
+    },
+    {
+      "id": "chasseCoeur",
+      "label": "Chasse Coeur",
+      "note": "The French game: all four queens, and the hearts beneath them.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "eldest",
+        "breakHearts": false,
+        "noPointsFirstTrick": false,
+        "shootTheMoon": true
+      },
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "value", "value": "Q", "points": 13, "label": "Each queen — 13" }
+      ],
+      "detail": "A nineteenth-century French and Belgian game in which the thing to avoid is all four queens as well as all the hearts. Every queen costs thirteen, including the queen of hearts, which counts as a queen rather than as a heart; the other twelve hearts cost one each. That makes sixty-four points a deal spread across four suits, so there is no single safe suit to run and no hiding behind a void."
+    },
+    {
+      "id": "joker",
+      "label": "Joker Hearts",
+      "note": "Jokers that may be played any time and never win a trick.",
+      "modes": [3, 4, 5, 6],
+      "deck": "jokers",
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "The queen of spades — 13" }
+      ],
+      "detail": "Recorded as early as 1897. Two jokers go into the pack and they break the one rule everything else in Hearts rests on: a joker may be played at any time, whether or not you could follow suit. It cannot win a trick and it scores nothing, so it is simply a free discard held in reserve — the card that gets you out of leading into the lady, or off the suit that is about to be run at you."
+    },
+    {
+      "id": "royal",
+      "label": "Royal Hearts",
+      "note": "Every queen does something, and two of them undo the others.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "specials": ["royalQueens"],
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 26, "label": "The queen of spades — 26" },
+        { "kind": "card", "value": "Q", "suit": "♦", "points": -10, "label": "The queen of diamonds — 10 off" }
+      ],
+      "detail": "Parker Brothers' commercial version, in which all four queens matter and two of them are worth having. The queen of spades costs twenty-six, double her usual price. The queen of hearts doubles every heart the same player takes, so she is the card that turns a careless deal into a catastrophe. The queen of diamonds takes ten off your score, and the queen of clubs cancels the queen of spades outright for whoever captures her — which means the lady can be led at with far less fear than usual, and is worth hunting if the clubs have gone."
+    },
+    {
+      "id": "partnership",
+      "label": "Partnership Hearts",
+      "note": "Four in partnerships, sitting opposite, one score a side.",
+      "modes": [4],
+      "deck": 52,
+      "target": 100,
+      "teams": true,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "moonScore": 52,
+      "moonMode": "add",
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "The queen of spades — 13" }
+      ],
+      "detail": "Hearts played as two partnerships sitting opposite one another. Points go on the side rather than the player, so a partner eating the queen to keep it off you is a good play rather than a generous one, and the whole shape of the game changes: you are ducking for two people and you can afford to take a heart to keep the lead. A side that shoots the moon puts fifty-two penalty points on the other side. The rules also allow partners who keep separate scores, and an Omnibus version with a slam bid, both offered below."
+    },
+    {
+      "id": "heartsette",
+      "label": "Heartsette",
+      "note": "Twelve cards each and a three-card widow to the first trick.",
+      "modes": [4],
+      "deck": 52,
+      "widow": 3,
+      "strip": ["2♠"],
+      "target": 100,
+      "rules": {
+        "passing": "cycle",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "The queen of spades — 13" }
+      ],
+      "detail": "Its distinguishing feature is a widow. The two of spades comes out of the pack, twelve cards go to each of the four players and the last three are laid face down in the middle. Whoever wins the first trick takes the widow along with it, hearts and all — so the first trick, which in every other Hearts game is the safest one in the deal, is the one nobody wants and nobody can see the cost of."
+    },
+    {
+      "id": "auction",
+      "label": "Auction Hearts",
+      "note": "Bid for the right to name which suit is the penalty suit.",
+      "modes": [4, 5, 6],
+      "deck": 52,
+      "target": 100,
+      "rules": {
+        "passing": "none",
+        "lead": "bidder",
+        "breakHearts": false,
+        "noPointsFirstTrick": false,
+        "shootTheMoon": true
+      },
+      "auction": true,
+      "penalties": [{ "kind": "bidSuit", "points": 1, "label": "Each card of the named suit — 1" }],
+      "detail": "First printed in Foster's Complete Hoyle in 1897. A game for four, though five or six may form a table. Everyone looks at their hand and then bids, eldest hand first, for the right to say which suit is the penalty suit this deal — and there is no reason it should be hearts. The high bidder pays their bid into the pool, which here means it goes straight onto their own score, names the suit and leads to the first trick. Bid well and you have turned your longest, safest suit into thirteen cards nobody else wants to touch."
+    },
+    {
+      "id": "domino",
+      "label": "Domino Hearts",
+      "note": "Six cards each, draw from the stock when you cannot follow.",
+      "modes": [3, 4, 5, 6],
+      "deck": 52,
+      "cards": 6,
+      "stock": true,
+      "target": 31,
+      "rules": {
+        "passing": "none",
+        "lead": "eldest",
+        "breakHearts": false,
+        "noPointsFirstTrick": false,
+        "shootTheMoon": false
+      },
+      "penalties": [{ "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" }],
+      "detail": "Six cards each and the rest of the pack face down as a stock. A player who cannot follow suit does not discard — they draw from the stock, one card at a time, until they can follow, and only then play. Nobody can throw a heart away early, so the hearts come out in the order the pack decides rather than the order anybody chooses, and hands grow before they shrink. Once the stock is gone the game turns back into ordinary Hearts with whatever is left. The game ends as soon as somebody reaches thirty-one."
+    },
+    {
+      "id": "cancellation",
+      "label": "Cancellation Hearts",
+      "note": "Two packs and a big table: matching cards knock each other out.",
+      "modes": [6, 7, 8, 9, 10, 11],
+      "deck": 104,
+      "target": 100,
+      "rules": {
+        "passing": "none",
+        "lead": "twoOfClubs",
+        "breakHearts": true,
+        "noPointsFirstTrick": true,
+        "shootTheMoon": true
+      },
+      "cancel": true,
+      "penalties": [
+        { "kind": "suit", "suit": "♥", "points": 1, "label": "Each heart — 1" },
+        { "kind": "card", "value": "Q", "suit": "♠", "points": 13, "label": "Each queen of spades — 13" }
+      ],
+      "detail": "Described by Culbertson in 1950 for tables too big for one pack — six to eleven players, with two packs shuffled together. Everything is ordinary Hearts except that duplicates destroy each other: if the same card is played twice to one trick, both are out of the running, and the trick goes to the highest card of the led suit still standing. Cancel every candidate and nobody wins it — the cards stay on the table and go to whoever takes the next trick, which is how a single trick ends up carrying four hearts and the lady."
+    }
+  ],
+  "groups": [
+    { "id": "table", "label": "The pack" },
+    { "id": "passing", "label": "Passing" },
+    { "id": "play", "label": "Play" },
+    { "id": "scoring", "label": "Scoring and winning" }
+  ],
+  "options": [
+    {
+      "id": "passing",
+      "group": "passing",
+      "type": "choice",
+      "label": "Pass",
+      "default": "variant",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "chasseCoeur", "joker", "royal", "partnership", "heartsette", "earliest", "cancellation"
+      ],
+      "choices": [
+        { "value": "variant", "label": "Standard" },
+        { "value": "cycle", "label": "Rotating" },
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" },
+        { "value": "across", "label": "Across" },
+        { "value": "none", "label": "No passing" }
+      ],
+      "help": "Three cards passed on before a card is led — and which way they go.",
+      "detail": "Discarding three cards to a neighbour was in the very first description of the game, and the rotating cycle came later: left on the first deal, right on the second, across on the third and a hold — nobody passes — on the fourth, then round again. The hold hand is the one that punishes a hand you cannot fix. Passing to the right is harder than passing to the left, because the player you are arming is the one whose discards you will see least of, which is why Black Maria plays it that way. Across is only available at a table of four; anywhere else it falls back to the left."
+    },
+    {
+      "id": "lead",
+      "group": "play",
+      "type": "choice",
+      "label": "First trick led by",
+      "default": "variant",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "chasseCoeur", "joker", "royal", "partnership", "heartsette", "earliest", "cancellation", "domino"
+      ],
+      "choices": [
+        { "value": "variant", "label": "Standard" },
+        { "value": "twoOfClubs", "label": "The two of clubs" },
+        { "value": "eldest", "label": "Eldest hand" }
+      ],
+      "help": "The modern game leads the two of clubs; the older one leads from the dealer's left.",
+      "detail": "The rules list both. Leading the two of clubs is the modern convention and it takes a decision away from everybody: the first card of the deal is fixed, which is why it pairs so naturally with the rule that no penalty card may be played to the first trick. Eldest hand — the player to the dealer's left — leading whatever they like is the older game, and it gives the deal a genuine opening move. Where the two of clubs has been stripped out of the pack for the table size, the lowest club that is left leads instead."
+    },
+    {
+      "id": "breakHearts",
+      "group": "play",
+      "type": "bool",
+      "label": "Hearts must be broken",
+      "default": true,
+      "offLabel": "Hearts may be led at any time",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "joker", "royal", "partnership", "heartsette", "cancellation"
+      ],
+      "help": "No heart may be led until one has been thrown off-suit.",
+      "detail": "A heart may not be led until a heart has already been played off-suit — until they are broken — or until the leader holds nothing but penalty cards. Without it the player on lead can start running hearts at the table on the second trick, which ends the deal before anyone has shed a suit. With it, the deal has a shape: side suits first, and the hearts arrive when somebody runs out of something."
+    },
+    {
+      "id": "noPointsFirstTrick",
+      "group": "play",
+      "type": "bool",
+      "label": "Nothing that costs on the first trick",
+      "default": true,
+      "offLabel": "Penalty cards allowed on the first trick",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "joker", "royal", "partnership", "heartsette", "cancellation"
+      ],
+      "help": "No penalty card may be thrown to the first trick, so it is always free.",
+      "detail": "A penalty card may not be played to the first trick. It stops the deal being decided by whoever happens to be void in clubs — dropping the queen of spades on the opening trick is otherwise the cheapest thirteen points anybody ever gave away. If a hand somehow holds nothing but penalty cards the restriction lifts for that player, since the alternative is a misdeal."
+    },
+    {
+      "id": "misdealOnAllPenalties",
+      "group": "play",
+      "type": "bool",
+      "label": "Redeal a hand of nothing but penalties",
+      "default": false,
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "chasseCoeur", "joker", "royal", "partnership", "heartsette"
+      ],
+      "help": "A hand holding only cards that cost is thrown in and dealt again.",
+      "detail": "Rare, and the rules allow either answer to it. A hand made up entirely of penalty cards cannot obey the rule about the first trick and is close to unplayable besides, so a misdeal may be called and the whole thing dealt again. Leave this off and the hand stands — the restriction on the first trick simply steps aside for whoever is holding it."
+    },
+    {
+      "id": "jokers",
+      "group": "table",
+      "type": "bool",
+      "label": "Add two jokers",
+      "default": false,
+      "applies": ["modern", "blackLady", "omnibus", "spot", "blackJack", "royal"],
+      "help": "Playable whenever you like, never win a trick, never cost anything.",
+      "detail": "The rules suggest this for three players, where two jokers make the pack divide evenly, and it is the whole of Joker Hearts besides. A joker may be played at any time regardless of whether you could follow suit, cannot win a trick and scores nothing. It is a free discard, which is worth more than it sounds: it is the card that gets you off a suit at the exact moment you need to be off it."
+    },
+    {
+      "id": "shootTheMoon",
+      "group": "scoring",
+      "type": "bool",
+      "label": "Shooting the moon",
+      "default": true,
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "chasseCoeur", "joker", "royal", "partnership", "heartsette", "auction", "cancellation", "earliest"
+      ],
+      "help": "Take every card that costs and the whole score goes the other way.",
+      "detail": "Also called running. Take every penalty card in the deal — and in Omnibus the ten of diamonds as well — and instead of the maximum score going on you, it comes off you or goes on everybody else. It is the reason a player who is already buried will suddenly start winning tricks, and the reason the rest of the table has to give one away to stop them. Turn it off and taking the lot simply costs you the lot, which is how the 1887 game had it."
+    },
+    {
+      "id": "moonChoice",
+      "group": "scoring",
+      "type": "choice",
+      "label": "A moon is scored",
+      "default": "best",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack",
+        "chasseCoeur", "joker", "royal", "heartsette", "auction", "cancellation", "earliest"
+      ],
+      "choices": [
+        { "value": "best", "label": "Whichever helps" },
+        { "value": "add", "label": "On everyone else" },
+        { "value": "subtract", "label": "Off your own" }
+      ],
+      "help": "The shooter may deduct it from their own score or add it to everybody else's.",
+      "detail": "The rules give the shooter the choice, and it is a real one: adding to everybody else can finish the game on the spot, while taking it off your own is worth more when you are the one who is buried. Left on \"whichever helps\" the table takes the better of the two for the shooter automatically — deducting where that clears more of their own score than they could put on the player nearest to going out, and loading the others the rest of the time."
+    },
+    {
+      "id": "heartChips",
+      "group": "scoring",
+      "type": "choice",
+      "label": "Hearts are worth",
+      "default": "plain",
+      "applies": ["earliest"],
+      "choices": [
+        { "value": "plain", "label": "1 each" },
+        { "value": "spots", "label": "Face value" },
+        { "value": "low", "label": "Ace 5 down" }
+      ],
+      "help": "The two scoring schemes the 1887 rules printed, alongside a chip a heart.",
+      "detail": "The earliest rules recorded two alternatives to a chip a heart. The first grades them by face value — ace fourteen, king thirteen, queen twelve, jack eleven and the pip cards what is printed on them — which is the scheme that later became Spot Hearts. The second is gentler: ace five, king four, queen three, jack two, pips their face value, which keeps the top of the suit dangerous without making one card decide the game."
+    },
+    {
+      "id": "partnerStyle",
+      "group": "table",
+      "type": "choice",
+      "label": "Partners",
+      "default": "combined",
+      "applies": ["partnership"],
+      "choices": [
+        { "value": "combined", "label": "One score" },
+        { "value": "individual", "label": "Separate scores" },
+        { "value": "slam", "label": "Omnibus and a slam" }
+      ],
+      "help": "The three partnership games the rules describe.",
+      "detail": "The first has partners opposite one another with their scores combined, and a side that shoots the moon puts fifty-two on the other. The second seats them the same way but keeps their scores apart, so the partnership is about the play and not the arithmetic — you can still duck for your partner, you just cannot pay for them. The third is the Omnibus game with the ten of diamonds in it, where the player holding that card is the silent partner of whoever won the bidding."
+    },
+    {
+      "id": "target",
+      "group": "scoring",
+      "type": "choice",
+      "label": "Game ends at",
+      "default": "variant",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "chasseCoeur", "joker", "royal", "partnership", "heartsette", "auction", "cancellation",
+        "earliest", "domino"
+      ],
+      "choices": [
+        { "value": "variant", "label": "Standard" },
+        { "value": "31", "label": "31" },
+        { "value": "50", "label": "50" },
+        { "value": "100", "label": "100" },
+        { "value": "150", "label": "150" }
+      ],
+      "help": "Play stops when somebody reaches this, and the lowest score wins.",
+      "detail": "A hundred is the usual agreement in the modern game and is what the rules quote. Fifty makes for a short, sharp game where one bad deal is most of it; a hundred and fifty gives a moon time to be worth attempting and a buried player time to come back. Domino Hearts stops at thirty-one because the deals are so much smaller. Whatever it is set to, reaching it ends the game and the lowest score at that moment wins — the player who gets there is usually the one who lost."
+    },
+    {
+      "id": "endAfterDeals",
+      "group": "scoring",
+      "type": "choice",
+      "label": "Or stop after",
+      "default": "none",
+      "applies": [
+        "modern", "blackLady", "blackMaria", "omnibus", "spot", "blackJack", "greek",
+        "chasseCoeur", "joker", "royal", "partnership", "heartsette", "auction", "cancellation",
+        "earliest", "domino"
+      ],
+      "choices": [
+        { "value": "none", "label": "No limit" },
+        { "value": "4", "label": "4 deals" },
+        { "value": "8", "label": "8 deals" },
+        { "value": "12", "label": "12 deals" }
+      ],
+      "help": "A fixed number of deals, whichever comes first.",
+      "detail": "The rules offer an agreed number of deals as the alternative to an agreed score — eight is the number they quote. It makes the game a fixed length, which matters rather more than it sounds: with a score to reach, a player who is buried has every reason to start shooting the moon, and with a fixed number of deals left everybody knows exactly how much room there is to try it in. Both can be set at once, and whichever arrives first ends the game."
+    }
+  ]
+}

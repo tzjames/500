@@ -6,8 +6,7 @@ import ThemedTable from "../components/ThemedTable";
 import BidRecordChart from "../components/BidRecordChart";
 import AccuracyChart from "../components/AccuracyChart";
 import { defaultOptions } from "../gameOptions";
-import { getGame, seatsLabel, tableAdjective } from "../games";
-import { getVariant } from "../euchreOptions";
+import { getGame, seatLabel, seatsLabel, tableAdjective } from "../games";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "./StatsPage.css";
 
@@ -48,7 +47,7 @@ function StatsPage({ gameType = "500" }) {
   const game = getGame(gameType);
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState(4);
+  const [mode, setMode] = useState(game.modes.includes(4) ? 4 : game.modes[0]);
   const [includeFriendly, setIncludeFriendly] = useState(false);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
@@ -96,18 +95,23 @@ function StatsPage({ gameType = "500" }) {
           </Link>
         </header>
 
+        {/* Four first wherever the game offers it, then the rest in order.
+            Cancellation Hearts seats eleven, so a game can bring nine tabs
+            with it and the words have to give way to the numbers. */}
         <div className="stats-tabs" role="tablist">
-          {[...game.modes].reverse().map((seats) => (
-            <button
-              key={seats}
-              role="tab"
-              aria-selected={mode === seats}
-              className={`stats-tab${mode === seats ? " on" : ""}`}
-              onClick={() => setMode(seats)}
-            >
-              {seatsLabel(seats)}
-            </button>
-          ))}
+          {[...game.modes]
+            .sort((a, b) => (b === 4) - (a === 4) || a - b)
+            .map((seats) => (
+              <button
+                key={seats}
+                role="tab"
+                aria-selected={mode === seats}
+                className={`stats-tab${mode === seats ? " on" : ""}`}
+                onClick={() => setMode(seats)}
+              >
+                {game.modes.length > 3 ? seatLabel(seats) : seatsLabel(seats)}
+              </button>
+            ))}
         </div>
 
         <label className="stats-friendly-toggle">
@@ -129,7 +133,7 @@ function StatsPage({ gameType = "500" }) {
                 label="Elo"
                 value={stats.elo}
                 note={
-                  gameType === "euchre"
+                  gameType !== "500"
                     ? `${game.name} only, ${seatsLabel(mode).toLowerCase()}`
                     : mode === 4
                     ? "your side against theirs"
@@ -138,7 +142,13 @@ function StatsPage({ gameType = "500" }) {
               />
               <Figure label="Games" value={stats.games} note={`${stats.wins} won`} />
               <Figure label="Win rate" value={percent(stats.wins, stats.games)} />
-              {stats.euchre ? (
+              {stats.hearts ? (
+                <Figure
+                  label="Deals you got away with"
+                  value={percent(stats.hearts.clean, stats.hearts.deals)}
+                  note={`${stats.hearts.clean} of ${stats.hearts.deals} cost you nothing`}
+                />
+              ) : stats.euchre ? (
                 <Figure
                   label="Hands you called"
                   value={percent(stats.euchre.made, stats.euchre.called)}
@@ -171,6 +181,37 @@ function StatsPage({ gameType = "500" }) {
               )}
             </p>
 
+            {stats.hearts && (
+              <>
+                <h2 className="home-section overline">What the deals have cost you</h2>
+                <ul className="stat-figures">
+                  <Figure label="Deals" value={stats.hearts.deals} note="hands played" />
+                  <Figure
+                    label="Average"
+                    value={stats.hearts.averageTaken}
+                    note="points a deal"
+                  />
+                  <Figure label="Worst deal" value={stats.hearts.worst} note="points in one hand" />
+                  <Figure
+                    label="Moons"
+                    value={stats.hearts.moons}
+                    note={`${stats.hearts.moonsAgainst} shot at you`}
+                  />
+                </ul>
+
+                <h2 className="home-section overline">By rule set</h2>
+                <div className="stats-panel">
+                  <RecordList
+                    rows={stats.hearts.variants.map((row) => ({
+                      ...row,
+                      label: game.rules.variantLabel(row.key),
+                    }))}
+                    empty={`No finished ${tableAdjective(mode)} games yet.`}
+                  />
+                </div>
+              </>
+            )}
+
             {stats.euchre && (
               <>
                 <h2 className="home-section overline">The hands you made trump on</h2>
@@ -192,7 +233,10 @@ function StatsPage({ gameType = "500" }) {
                 <h2 className="home-section overline">By rule set</h2>
                 <div className="stats-panel">
                   <RecordList
-                    rows={stats.euchre.variants.map((row) => ({ ...row, label: getVariant(row.key).label }))}
+                    rows={stats.euchre.variants.map((row) => ({
+                      ...row,
+                      label: game.rules.variantLabel(row.key),
+                    }))}
                     empty={`No finished ${tableAdjective(mode)} games yet.`}
                   />
                 </div>
@@ -230,9 +274,9 @@ function StatsPage({ gameType = "500" }) {
                   <RecordList
                     rows={stats.partners}
                     empty={
-                      gameType === "euchre"
-                        ? "No finished partnership games yet."
-                        : "No finished games with a partner yet."
+                      gameType === "500"
+                        ? "No finished games with a partner yet."
+                        : "No finished partnership games yet."
                     }
                   />
                 </div>

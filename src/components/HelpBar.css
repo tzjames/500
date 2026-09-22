@@ -1,16 +1,18 @@
-/* The Rules and Trumps controls, sitting under the line of game state at the
-   top of a Euchre table. Deliberately quiet: they are reference, not play. */
+/* The reference controls sitting under the line of game state at the top of a
+   Euchre or Hearts table — the rules, the auction or passing record, and the
+   one-line readout each game opens in place rather than in a modal, because it
+   is read against the board. Deliberately quiet: reference, not play. */
 
-.eu-help {
+.help-bar {
   flex: none;
 }
 
-.eu-help-buttons {
+.help-bar-buttons {
   display: flex;
   gap: 6px;
 }
 
-.eu-help-button {
+.help-bar-button {
   padding: 5px 12px;
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -18,7 +20,7 @@
 }
 
 /* One line, so it can sit over the felt without covering the board. */
-.eu-trump-line {
+.help-line {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -32,12 +34,12 @@
   font-size: 15px;
 }
 
-.eu-trump-line.live {
+.help-line.live {
   background: rgba(255, 235, 200, 0.09);
   border-color: var(--amber-ring);
 }
 
-.eu-trump-cap {
+.help-line-cap {
   margin-right: 9px;
   font-family: var(--sans);
   font-size: 10px;

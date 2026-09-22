@@ -113,7 +113,7 @@ export function euchreHands({ history = [], slots = [], sides, yourSeat }) {
       round: hand.round,
       thrownIn: hand.thrownIn,
       dealer: hand.dealerSeat === null ? null : nameOf(hand.dealerSeat),
-      turnUp: cardLabel(hand.upcard),
+      note: hand.upcard && <>{cardLabel(hand.upcard)} turned up</>,
       lines,
       result: r
         ? {

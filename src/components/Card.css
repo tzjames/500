@@ -134,6 +134,11 @@
   background: var(--danger);
 }
 
+/* What a card costs whoever takes it, in the games where that is the point. */
+.pc-badge-cost {
+  background: var(--danger);
+}
+
 .pc-bower {
   position: absolute;
   right: 3px;

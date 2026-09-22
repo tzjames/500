@@ -10,17 +10,19 @@ import PresenceStrip from "../components/PresenceStrip";
 import AuthForm from "../components/AuthForm";
 import RulesModal from "../components/RulesModal";
 import EuchreRulesModal from "../components/EuchreRulesModal";
+import HeartsRulesModal from "../components/HeartsRulesModal";
 import { getGame, seatsLabel } from "../games";
-import { getVariant } from "../euchreOptions";
 import { DEFAULT_LOCATION, DEFAULT_DECK, DEFAULT_FELT } from "../theme";
 import "./HomePage.css";
 
 // Which game's rules panel to open. The panels differ enough — 500 has a bid
-// schedule, Euchre has six rule sets — that they are separate components, so
-// this is the one place a new game needs adding.
+// schedule, Euchre has six rule sets and Hearts sixteen with a different set of
+// cards costing in each — that they are separate components, so this is the one
+// place a new game needs adding.
 const RULES = {
   "500": (props) => <RulesModal choosable {...props} />,
   euchre: (props) => <EuchreRulesModal choosable {...props} />,
+  hearts: (props) => <HeartsRulesModal choosable {...props} />,
 };
 
 function statusLabel(game, userId) {
@@ -219,7 +221,7 @@ function HomePage({ gameType = "500" }) {
                           {table.players.map((p) => p.name).join(", ")}
                         </span>
                         {table.variant && (
-                          <span className="lobby-rules">{getVariant(table.variant).label}</span>
+                          <span className="lobby-rules">{game.rules.variantLabel(table.variant)}</span>
                         )}
                         {rules.length > 0 && <span className="lobby-rules">{rules.join(" · ")}</span>}
                       </div>
@@ -275,7 +277,7 @@ function HomePage({ gameType = "500" }) {
                       <span className="game-opponent">
                         <span className="game-badge">{row.mode}</span>
                         {row.variant && (
-                          <span className="game-variant">{getVariant(row.variant).label}</span>
+                          <span className="game-variant">{game.rules.variantLabel(row.variant)}</span>
                         )}
                         {tableLabel(row, session.user.id)}
                       </span>

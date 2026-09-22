@@ -64,3 +64,30 @@ test("the rules panel opens from a game page and knows the game", async () => {
   expect(panel).toHaveTextContent(/right bower/i);
   expect(panel).toHaveTextContent(/Four players/);
 });
+
+// Hearts is the game whose rules change most between rule sets, so its panel is
+// the one most worth checking really re-reads from whichever is chosen.
+test("the Hearts rules panel re-reads itself when the rule set is switched", async () => {
+  open("/hearts");
+  screen.getByRole("button", { name: /How to play Hearts/i }).click();
+  const panel = await screen.findByRole("dialog", { name: /how to play Hearts/i });
+  expect(panel).toHaveTextContent(/queen of spades, the Black Lady — 13/);
+  expect(panel).toHaveTextContent(/26 points are dealt out every hand/);
+
+  screen.getByRole("tab", { name: "Spot Hearts" }).click();
+  const spot = await screen.findByRole("dialog", { name: /how to play Hearts/i });
+  expect(spot).toHaveTextContent(/jack 11, queen 12, king 13 and ace 14/);
+  expect(spot).toHaveTextContent(/104 points are dealt out every hand/);
+  expect(spot).not.toHaveTextContent(/Black Lady — 13/);
+});
+
+test("every game in the registry has a page that reads signed out", () => {
+  for (const game of GAMES) {
+    const { unmount } = open(game.path);
+    expect(screen.getByRole("heading", { name: game.name })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: new RegExp(`How to play ${game.name}`, "i") })
+    ).toBeInTheDocument();
+    unmount();
+  }
+});

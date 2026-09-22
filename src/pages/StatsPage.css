@@ -38,6 +38,7 @@
 
 .stats-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   margin-bottom: 20px;
   border-radius: 999px;
@@ -49,7 +50,8 @@
 }
 
 .stats-tab {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: 72px;
   padding: 10px 12px;
   border: none;
   background: transparent;
