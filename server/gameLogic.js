@@ -274,13 +274,6 @@ class Game500 {
     const leadSuit = this.getLeadSuit(this.currentTrick[0]);
     const following = hand.filter((c) => getEffectiveSuit(c, this.trumpSuit) === leadSuit);
     if (following.length > 0) return following;
-
-    // Void in the led suit. A Misère bidder can't sit on the Joker to keep it
-    // from taking a trick — if it's in this hand it has to go now.
-    if (this.currentBid && this.currentBid.bid.includes("Misere")) {
-      const joker = hand.find((c) => c.suit === "Joker");
-      if (joker) return [joker];
-    }
     return [...hand];
   }
 
@@ -316,17 +309,6 @@ class Game500 {
             success: false,
             reason: `You must follow suit (${leadSuit}).`,
           };
-        }
-
-        // Void in the led suit. With no trump suit at all, the Joker is
-        // "unattached" — you may only ever play it here, when void. Misère
-        // contracts go further: you can't hold it back, you must play it.
-        const isMisere = this.currentBid && this.currentBid.bid.includes("Misere");
-        if (isMisere && card.suit !== "Joker") {
-          const holdsJoker = hand.some((c) => c.suit === "Joker");
-          if (holdsJoker) {
-            return { success: false, reason: "You must play the Joker." };
-          }
         }
       }
     }

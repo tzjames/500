@@ -542,11 +542,6 @@ class Game500Four {
       (card) => getEffectiveSuit(card, this.trumpSuit) === leadSuit
     );
     if (following.length > 0) return following;
-
-    if (!this.trumpSuit && isNoTricksBid(this.currentBid?.bid)) {
-      const joker = player.hand.find((card) => card.suit === "Joker");
-      if (joker) return [joker];
-    }
     return [...player.hand];
   }
 
@@ -577,14 +572,6 @@ class Game500Four {
           (c) => getEffectiveSuit(c, this.trumpSuit) === leadSuit
         );
         if (canFollow) return { success: false, reason: `You must follow suit (${leadSuit}).` };
-
-        // Void, with no trump suit to soak it up: a no-tricks contract can't be
-        // played by sitting on the Joker, so it has to go now.
-        if (noTrumps && isNoTricksBid(this.currentBid?.bid) && card.suit !== "Joker") {
-          if (player.hand.some((c) => c.suit === "Joker")) {
-            return { success: false, reason: "You must play the Joker." };
-          }
-        }
       }
     }
 

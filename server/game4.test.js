@@ -403,7 +403,7 @@ test("the strict Joker rule keeps it out of the lead", () => {
   assert.equal(game.playCard(0, JOKER, "♣").success, true);
 });
 
-test("a Misère hand can't sit on the Joker", () => {
+test("a Misère hand void in the led suit may keep the Joker", () => {
   const game = table();
   game.currentBid = { seat: 1, player: "u1", bid: "Misere", points: 250 };
   game.players[3].folded = true;
@@ -411,10 +411,8 @@ test("a Misère hand can't sit on the Joker", () => {
   game.players[1].hand = [JOKER, c("4", "♦")];
 
   game.playCard(0, c("A", "♥"));
-  const held = game.playCard(1, c("4", "♦"));
-  assert.equal(held.success, false);
-  assert.match(held.reason, /must play the Joker/);
-  assert.equal(game.playCard(1, JOKER).success, true);
+  assert.equal(game.legalPlays(1).length, 2);
+  assert.equal(game.playCard(1, c("4", "♦")).success, true);
 });
 
 test("the highest trump takes the trick and leads the next one", () => {

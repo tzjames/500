@@ -72,7 +72,7 @@ test("legalPlays makes you follow suit, and lets you off when you can't", () => 
   assert.equal(game.legalPlays(2, true).length, 2);
 });
 
-test("a Misère hand void in the led suit has to let the Joker go", () => {
+test("a Misère hand void in the led suit may keep the Joker", () => {
   const game = new Game500();
   game.currentBid = { player: 1, bid: "Misere", points: 250 };
   game.trumpSuit = null;
@@ -80,9 +80,8 @@ test("a Misère hand void in the led suit has to let the Joker go", () => {
   game.players[1].hand = [c("K", "♥")];
 
   game.playCard(2, c("K", "♥"), false);
-  // Void in hearts and holding the Joker: it's the only legal card.
-  assert.deepEqual(game.legalPlays(1, false).map(key), [key(JOKER)]);
-  assert.equal(game.playCard(1, JOKER, false).success, true);
+  assert.equal(game.legalPlays(1, false).length, 2);
+  assert.equal(game.playCard(1, c("2", "♣"), false).success, true);
 });
 
 test("legalPlays and playCard agree about the Joker at no trumps", () => {
