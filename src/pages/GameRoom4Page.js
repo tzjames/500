@@ -132,7 +132,7 @@ function GameRoom4Page() {
     socket.on("g4:notice", ({ text }) => {
       clearTimeout(noticeTimerRef.current);
       setNotice(text);
-      noticeTimerRef.current = setTimeout(() => setNotice(""), 5000);
+      noticeTimerRef.current = setTimeout(() => setNotice(""), 10000);
     });
     socket.on("g4:replayResult", (result) => setReplayResult(result));
     socket.on("g4:rematchStarted", ({ gameId: next }) => navigate(`/game/${next}`));
