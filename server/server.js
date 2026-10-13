@@ -342,6 +342,7 @@ io.on("connection", (socket) => {
   socket.on("offerResign", () => room?.offerResign(socket));
   socket.on("offerRedeal", () => room?.offerRedeal(socket));
   socket.on("kittyDone", (payload) => room?.kittyDone(socket, payload));
+  socket.on("endReplay", () => room?.endReplay?.(socket));
   socket.on("playCard", (payload) => room?.playCard(socket, payload));
   socket.on("retractCard", () => room?.retractCard(socket));
   socket.on("roundEndReady", () => room?.roundEndReady(socket));

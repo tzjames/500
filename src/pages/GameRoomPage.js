@@ -723,6 +723,7 @@ function GameRoomPage() {
       setReplay((r) => (r ? { ...r, invalidPlayMessage: message } : r))
     );
     socket.on("replayResult", (result) => setReplay((r) => (r ? { ...r, result } : r)));
+    socket.on("replayEnded", () => setReplay(null));
 
     return () => {
       socket.emit("leaveRoom", { gameId });
@@ -765,6 +766,7 @@ function GameRoomPage() {
         "replayUpdateCurrentPlayer",
         "replayInvalidPlay",
         "replayResult",
+        "replayEnded",
         "rematchOffered",
         "rematchDeclined",
         "rematchStarted",
@@ -903,7 +905,13 @@ function GameRoomPage() {
         .filter((_, i) => !r.selectedCards.includes(i))
         .map((c) => ({ ...c, isKitty: false }));
       socket.emit("kittyDone", { newHand, mode: "replay" });
-      return { ...r, isKittyPhase: false, selectedCards: [], combinedHand: newHand };
+      return {
+        ...r,
+        isKittyPhase: false,
+        selectedCards: [],
+        combinedHand: newHand,
+        players: r.players.map((p) => (p.id === playerId ? { ...p, hand: newHand } : p)),
+      };
     });
   };
 
@@ -1141,7 +1149,14 @@ function GameRoomPage() {
       {!reviewData && replay && (
         <div className="replay-overlay">
           <div className="replay-panel">
-            <p className="replay-banner">Replay — this won&apos;t count towards your game</p>
+            <div className="g4-replay-head">
+              <p className="g4-replay-banner">Replay — this won&apos;t count towards your game</p>
+              {!replay.result && (
+                <button className="btn-ghost g4-replay-leave" onClick={() => socket.emit("endReplay")}>
+                  Leave the replay
+                </button>
+              )}
+            </div>
             {replay.result ? (
               <div className="replay-result-box">
                 <p>

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, act } from "@testing-library/react";
+import { render, act, fireEvent, within } from "@testing-library/react";
 
 // react-router-dom 7 ships an exports map this jest can't resolve, and the page
 // only wants the room id off it anyway.
@@ -153,4 +153,32 @@ test("a claim turns the claimer's hand and dummy face up", () => {
   });
   expect(seatCards("Bob")).toEqual({ faceDown: 0, faceUp: 10 });
   expect(seatCards("Bob's dummy")).toEqual({ faceDown: 0, faceUp: 10 });
+});
+
+test("a replay's discard leaves the kept hand on the board, kitty cards and all", () => {
+  renderRoom();
+  fire("replayStart", {
+    players: [
+      { id: "me", name: "Alice", hand: hand("♠"), isDealer: false, score: 0, tricksWon: 0 },
+      { id: "them", name: "Bob", handSize: 10, isDealer: false, score: 0, tricksWon: 0 },
+    ],
+    currentBid: { player: "me", bid: "7 ♠", points: 140 },
+    trumpSuit: "♠",
+  });
+  fire("replayShowKitty", hand("♣").slice(0, 3));
+
+  const panel = document.querySelector(".replay-panel");
+  ["4 ♠", "5 ♠", "6 ♠"].forEach((label) => fireEvent.click(within(panel).getByLabelText(label)));
+  fireEvent.click(within(panel).getByText(/Throw three/));
+  fire("replayKittyPhaseComplete", {
+    currentPlayer: "me",
+    currentIsDummy: false,
+    players: [
+      { id: "me", dummyHand: hand("♥"), tricksWon: 0 },
+      { id: "them", dummyHandSize: 10, tricksWon: 0 },
+    ],
+  });
+
+  expect(within(panel).queryByLabelText("4 ♠")).toBeNull();
+  expect(within(panel).getByLabelText("4 ♣")).toBeTruthy();
 });
