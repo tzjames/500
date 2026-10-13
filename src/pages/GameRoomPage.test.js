@@ -1,5 +1,5 @@
 import React from "react";
-import { render, act, fireEvent, within } from "@testing-library/react";
+import { render, act, fireEvent, within, screen } from "@testing-library/react";
 
 // react-router-dom 7 ships an exports map this jest can't resolve, and the page
 // only wants the room id off it anyway.
@@ -181,4 +181,21 @@ test("a replay's discard leaves the kept hand on the board, kitty cards and all"
 
   expect(within(panel).queryByLabelText("4 ♠")).toBeNull();
   expect(within(panel).getByLabelText("4 ♣")).toBeTruthy();
+});
+
+test("a declined offer's notice clears itself after ten seconds", () => {
+  jest.useFakeTimers();
+  try {
+    renderRoom();
+    dealDummies();
+    fire("offerDeclined", { byName: "Bob" });
+    expect(screen.queryByText("Bob declined your offer.")).toBeTruthy();
+
+    act(() => jest.advanceTimersByTime(9000));
+    expect(screen.queryByText("Bob declined your offer.")).toBeTruthy();
+    act(() => jest.advanceTimersByTime(1000));
+    expect(screen.queryByText("Bob declined your offer.")).toBeNull();
+  } finally {
+    jest.useRealTimers();
+  }
 });

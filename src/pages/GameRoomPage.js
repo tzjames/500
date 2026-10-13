@@ -98,6 +98,17 @@ const revealHands = (players, revealed) =>
     return shown ? { ...p, hand: shown.hand } : p;
   });
 
+// A notice that clears itself after ten seconds.
+function useFadingMessage() {
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = setTimeout(() => setMessage(""), 10000);
+    return () => clearTimeout(timer);
+  }, [message]);
+  return [message, setMessage];
+}
+
 function GameRoomPage() {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
@@ -130,11 +141,11 @@ function GameRoomPage() {
   const [offerPassDeclined, setOfferPassDeclined] = useState(false);
   const [offerRetroactivePassDeclined, setOfferRetroactivePassDeclined] = useState(false);
   const [pendingOfferReceived, setPendingOfferReceived] = useState(null);
-  const [offerStatusMessage, setOfferStatusMessage] = useState("");
+  const [offerStatusMessage, setOfferStatusMessage] = useFadingMessage();
   const [waitingForOfferResponse, setWaitingForOfferResponse] = useState(false);
   const [pendingClaimReceived, setPendingClaimReceived] = useState(null);
   const [waitingForClaimResponse, setWaitingForClaimResponse] = useState(false);
-  const [claimStatusMessage, setClaimStatusMessage] = useState("");
+  const [claimStatusMessage, setClaimStatusMessage] = useFadingMessage();
   const [revealedClaimerId, setRevealedClaimerId] = useState(null);
   const [currentBidder, setCurrentBidder] = useState(null);
   const [biddingHistory, setBiddingHistory] = useState([]);
@@ -172,13 +183,13 @@ function GameRoomPage() {
   const [pendingJokerLead, setPendingJokerLead] = useState(null);
   const [incomingRematchOffer, setIncomingRematchOffer] = useState(null);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
-  const [rematchStatusMessage, setRematchStatusMessage] = useState("");
+  const [rematchStatusMessage, setRematchStatusMessage] = useFadingMessage();
 
   const [combinedHand, setCombinedHand] = useState([]);
   const [selectedCards, setSelectedCards] = useState([]);
 
   const [playedCards, setPlayedCards] = useState([]);
-  const [invalidPlayMessage, setInvalidPlayMessage] = useState("");
+  const [invalidPlayMessage, setInvalidPlayMessage] = useFadingMessage();
   // A finished trick lingers on the table for 2s, then flies out, before
   // clearing. If the next trick's first card arrives before that finishes, it
   // means we've moved on already — start the new trick fresh instead of

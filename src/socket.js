@@ -26,5 +26,15 @@ export function getSocket(token) {
     // back to polling, which is fine for this game.
     extraHeaders: { "ngrok-skip-browser-warning": "true" },
   });
+  // A deploy only reconnects the socket, so a page still on the old bundle reloads (once per build).
+  socket.on("build", (files) => {
+    if (SOCKET_URL || files.every((f) => document.querySelector(`[src$="${f}"], [href$="${f}"]`))) return;
+    const build = files.join();
+    try {
+      if (sessionStorage.getItem("reloadedFor") === build) return;
+      sessionStorage.setItem("reloadedFor", build);
+    } catch {}
+    window.location.reload();
+  });
   return socket;
 }

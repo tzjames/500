@@ -187,6 +187,8 @@ try {
 } catch {
   console.warn("No build/index.html — run `npm run build` before serving.");
 }
+// The hashed bundle names double as the build's version; see socket.js for the other half.
+const buildFiles = indexTemplate?.match(/\/static\/(js|css)\/main\.\w+\.(js|css)/g) || null;
 
 // Generated rather than kept as files in public/, so adding a game to
 // siteContent.json puts it in the sitemap without anyone remembering to.
@@ -233,6 +235,7 @@ const PORT = process.env.PORT || 5001;
 
 io.on("connection", (socket) => {
   let room = null;
+  if (buildFiles) socket.emit("build", buildFiles);
   presence.add(socket);
 
   // Leaving a room, whether by navigating away or by dropping the connection.
