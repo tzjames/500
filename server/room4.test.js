@@ -563,6 +563,18 @@ test("a replay redeals the same hand and scores nothing", () => {
   room.dispose();
 });
 
+test("a room saved mid-replay reloads onto the round-end screen", () => {
+  const room = new Room4(
+    "game-1",
+    fakeIo(),
+    { mode: 4, playerSlots: [], status: "active", snapshot: { phase: "replay", roundEnd: null } },
+    null
+  );
+  assert.equal(room.phase, "roundEnd");
+  assert.ok(room.roundEnd, "with a round-end slot to ready up or propose from");
+  room.dispose();
+});
+
 test("a rematch needs everyone, and can change the pairing", () => {
   recorded.created.length = 0;
   const { room } = newRoom({ humans: 2, partnerMode: "choose" });

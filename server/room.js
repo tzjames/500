@@ -94,6 +94,11 @@ class Room {
     if (!this.roundEnd && this.gamePhase === "gameOver") {
       this.roundEnd = { readyUserIds: new Set(), proposal: null };
     }
+    // The replay itself is never saved (see below), so a saved "replay" phase means back to round end.
+    if (this.gamePhase === "replay") {
+      this.gamePhase = this.status === "finished" ? "gameOver" : "roundEnd";
+      this.roundEnd = { readyUserIds: new Set(), proposal: null };
+    }
     this.game = snap.game ? this.hydrateGame(snap.game) : null;
 
     // Same backfill idea as roundEnd above, one level deeper: a game already
@@ -1331,7 +1336,13 @@ class Room {
       bidderMadeBid,
       otherName: other.name,
     });
+    this.endReplay();
+  }
 
+  // Also how a player walks out of a replay part-way through.
+  endReplay(socket) {
+    if (this.gamePhase !== "replay") return;
+    if (socket) this.io.to(this.id).emit("replayEnded");
     this.replayGame = null;
     this.replayDummyHands = null;
     this.gamePhase = this.status === "finished" ? "gameOver" : "roundEnd";

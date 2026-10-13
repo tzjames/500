@@ -90,6 +90,10 @@ class Room4 {
     this.replayPhase = null;
     this.rematch = null;
     this.botTimer = null;
+    if (this.phase === "replay") {
+      this.phase = this.status === "finished" ? "gameOver" : "roundEnd";
+      this.roundEnd = { readyUserIds: new Set(), proposal: null };
+    }
   }
 
   // ---- persistence ----

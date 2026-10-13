@@ -357,6 +357,29 @@ test("a replay hides the other player's cards too, freshly and on reconnect", ()
   }
 });
 
+test("a player can leave a replay part-way, and both go back to the round end", () => {
+  const { room, io, sockets } = newRoom();
+  bidAndTakeKitty(room, sockets);
+  playOutRound(room, sockets);
+  room.roundEndPropose(sockets[0], "replay");
+  room.roundEndRespond(sockets[1], true);
+
+  room.endReplay(sockets[1]);
+  assert.equal(room.gamePhase, "roundEnd");
+  assert.equal(room.replayGame, null);
+  assert.ok(io.emitted.some((e) => e.to === room.id && e.event === "replayEnded"));
+});
+
+test("a room saved mid-replay reloads onto the round-end screen", () => {
+  const room = new Room("game-1", fakeIo(), {
+    playerSlots: [null, null],
+    status: "active",
+    snapshot: { gamePhase: "replay", roundEnd: null },
+  });
+  assert.equal(room.gamePhase, "roundEnd");
+  assert.ok(room.roundEnd, "with a round-end slot to ready up or propose from");
+});
+
 // ---- robots ----
 
 // This game had no robot until recently, and the wiring is what these cover:
