@@ -19,8 +19,7 @@ function PlayerHand({
   // other time, which is what keeps the cards one-sided and un-animated.
   deal = null,
   // The cards the rules currently allow, when the caller knows. Left null the
-  // whole hand is playable on your turn, which is how the two-player game has
-  // always worked — it checks legality on the server and reports back.
+  // whole hand is playable on your turn.
   playable = null,
   // Phones play a card in two taps — see useTapToConfirm.
   confirmTaps = false,

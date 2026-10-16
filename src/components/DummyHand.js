@@ -14,6 +14,8 @@ function DummyHand({
   trumpSuit,
   isCurrentPlayer,
   deckId,
+  // The cards the rules currently allow; see PlayerHand.
+  playable = null,
   // Phones play a card in two taps — see useTapToConfirm.
   confirmTaps = false,
 }) {
@@ -24,24 +26,30 @@ function DummyHand({
     hand,
   });
 
+  const isPlayable = (card) =>
+    !playable || playable.some((c) => c.suit === card.suit && c.value === card.value);
+
   return (
     <div className={`dummy-hand${isCurrentPlayer ? " active" : ""}`}>
       {groupHand(hand, trumpSuit).map((group, groupIndex) => (
         <div key={groupIndex} className="dummy-suit-group">
-          {group.map((card, indexInGroup) => (
-            <Card
-              key={`${card.suit}-${card.value}-${indexInGroup}`}
-              card={card}
-              deck={deck}
-              trumpSuit={trumpSuit}
-              width={null}
-              disabled={!isCurrentPlayer}
-              onClick={isCurrentPlayer ? tap.click : undefined}
-              className={`dummy-card ${cardColor(card.suit)}${
-                tap.isPending(card) ? " picked" : ""
-              }`}
-            />
-          ))}
+          {group.map((card, indexInGroup) => {
+            const canPlay = isCurrentPlayer && isPlayable(card);
+            return (
+              <Card
+                key={`${card.suit}-${card.value}-${indexInGroup}`}
+                card={card}
+                deck={deck}
+                trumpSuit={trumpSuit}
+                width={null}
+                disabled={!canPlay}
+                onClick={canPlay ? tap.click : undefined}
+                className={`dummy-card ${cardColor(card.suit)}${
+                  isCurrentPlayer && !canPlay ? " unplayable" : ""
+                }${tap.isPending(card) ? " picked" : ""}`}
+              />
+            );
+          })}
         </div>
       ))}
       <PlayConfirm card={tap.pending} onConfirm={tap.confirm} onCancel={tap.cancel} />

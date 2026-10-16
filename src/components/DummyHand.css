@@ -54,6 +54,12 @@
   box-shadow: 0 0 0 2px var(--amber-ring);
 }
 
+/* Same dimming your own hand gives a card that doesn't follow suit. */
+.dummy-hand .dummy-card.unplayable {
+  opacity: 0.42;
+  filter: saturate(0.5);
+}
+
 /* Held out, waiting for the confirm. The dummy sits along the top edge, so it
    drops toward the felt rather than lifting off it. */
 .dummy-hand .dummy-card.picked {

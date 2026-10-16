@@ -88,3 +88,14 @@ export function groupHandBySuit(hand) {
 export function indexInHand(hand, card) {
   return hand.findIndex((c) => c.suit === card.suit && c.value === card.value);
 }
+
+// The cards that may go into a trick led by `lead` (null when leading): the
+// led suit if you hold any, otherwise anything. Mirrors legalPlays in
+// server/gameLogic.js, where the Joker and both bowers follow as trump.
+export function legalPlays(hand, lead, trumpSuit) {
+  if (!lead) return hand;
+  const suitOf = (card) => (isTrumpCard(card, trumpSuit) ? trumpSuit : card.suit);
+  const ledSuit = lead.nominatedSuit || suitOf(lead.card);
+  const following = hand.filter((card) => suitOf(card) === ledSuit);
+  return following.length > 0 ? following : hand;
+}

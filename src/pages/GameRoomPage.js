@@ -420,7 +420,7 @@ function GameRoomPage() {
       }));
     });
 
-    socket.on("cardPlayed", ({ playerId: cardPlayerId, card, isDummy, exposed: nowExposed, seq }) => {
+    socket.on("cardPlayed", ({ playerId: cardPlayerId, card, isDummy, nominatedSuit, exposed: nowExposed, seq }) => {
       if (nowExposed) setExposed(nowExposed);
       if (seq !== undefined) {
         if (lastPlaySeqRef.current !== null && seq !== lastPlaySeqRef.current + 1) {
@@ -436,7 +436,7 @@ function GameRoomPage() {
       if (isFreshTrick) setSettlingTrick(null);
       setPlayedCards((prev) => {
         const base = isFreshTrick ? [] : prev;
-        return [...base, { playerId: cardPlayerId, card, isDummy }];
+        return [...base, { playerId: cardPlayerId, card, isDummy, nominatedSuit }];
       });
       if (isFreshTrick) setFlyingWinner(null);
       setGameState((prevState) => {
@@ -683,7 +683,7 @@ function GameRoomPage() {
       setReplay((r) => (r ? { ...r, players: revealHands(r.players, players) } : r));
     });
 
-    socket.on("replayCardPlayed", ({ playerId: cardPlayerId, card, isDummy }) => {
+    socket.on("replayCardPlayed", ({ playerId: cardPlayerId, card, isDummy, nominatedSuit }) => {
       setReplay((r) => {
         if (!r) return r;
         const base = replayPendingClearTokenRef.current !== null ? [] : r.playedCards;
@@ -695,7 +695,7 @@ function GameRoomPage() {
           // The next card cuts the previous trick's flight short, so its count
           // stops being held back.
           settling: null,
-          playedCards: [...base, { playerId: cardPlayerId, card, isDummy }],
+          playedCards: [...base, { playerId: cardPlayerId, card, isDummy, nominatedSuit }],
           players: r.players.map((p) => (p.id === cardPlayerId ? withoutCard(p, card, isDummy) : p)),
         };
       });
@@ -1218,6 +1218,7 @@ function GameRoomPage() {
                 </div>
                 <GameTable
                   playedCards={replay.playedCards}
+                  lead={replay.settling ? null : replay.playedCards[0]}
                   opponentHandSize={replayOtherPlayerData?.handSize || 0}
                   opponentDummyHandSize={replayOtherPlayerData?.dummyHandSize || 0}
                   playerHand={replayCurrentPlayerData?.hand || []}
@@ -1503,6 +1504,7 @@ function GameRoomPage() {
           <div className="board-center">
             <GameTable
               playedCards={playedCards}
+              lead={settlingTrick ? null : playedCards[0]}
               opponentHandSize={otherPlayerData?.handSize || 0}
               opponentDummyHandSize={gamePhase === "playing" ? otherPlayerData?.dummyHandSize || 0 : 10}
               playerHand={currentPlayerData.hand || []}

@@ -4,7 +4,7 @@ import PlayerHand from "./PlayerHand";
 import DummyHand from "./DummyHand";
 import TrickPile from "./TrickPile";
 import { getDeck } from "../theme";
-import { cardColor, groupHandBySuit } from "../cards";
+import { cardColor, groupHandBySuit, legalPlays } from "../cards";
 import "./GameTable.css";
 
 // The mockup seats four players around the felt; this game has two, each with a
@@ -21,6 +21,8 @@ import "./GameTable.css";
 // played. See opponentSide below.
 function GameTable({
   playedCards,
+  // The first play of the trick being played into, or null when leading.
+  lead = null,
   opponentHandSize,
   opponentDummyHandSize,
   playerHand,
@@ -146,6 +148,7 @@ function GameTable({
             onPlayCard={(card) => onPlayCard(card, true)}
             trumpSuit={trumpSuit}
             isCurrentPlayer={isCurrentPlayerDummyTurn}
+            playable={legalPlays(playerDummyHand, lead, trumpSuit)}
             deckId={deckId}
             confirmTaps={phone}
           />
@@ -203,6 +206,7 @@ function GameTable({
           onPlayCard={(card) => onPlayCard(card, false)}
           trumpSuit={trumpSuit}
           isCurrentPlayer={isCurrentPlayerHandTurn}
+          playable={legalPlays(playerHand, lead, trumpSuit)}
           deckId={deckId}
           confirmTaps={phone}
           deal={deal}
